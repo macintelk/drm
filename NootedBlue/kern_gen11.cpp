@@ -226,6 +226,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			{"__ZN17AppleIntelPortHAL4initEP10PortConfig",AppleIntelPortHALinit, this->oAppleIntelPortHALinit},
 			
 			{"__ZN21AppleIntelDisplayPath13getLinkConfigEP16IOFBDPLinkConfig",getLinkConfig, this->ogetLinkConfig},
+			
 			/*{"__ZN21AppleIntelFramebuffer17prepareToExitWakeEv",dovoid},
 			{"__ZN21AppleIntelFramebuffer18prepareToExitSleepEv",dovoid},
 			{"__ZN21AppleIntelFramebuffer19prepareToEnterSleepEv",dovoid},
@@ -2649,8 +2650,8 @@ static u32 bdw_set_pipe_misc()
 		//break;
 	}
 
-	//if (crtc_state->dither)
-	//	val |= PIPE_MISC_DITHER_ENABLE | PIPE_MISC_DITHER_TYPE_SP;
+	if (crtc_state->dither)
+		val |= PIPE_MISC_DITHER_ENABLE | PIPE_MISC_DITHER_TYPE_SP;
 
 	if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR420 ||
 		crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR444)
@@ -3652,55 +3653,119 @@ static void intel_ddi_init_dp_buf_reg(struct intel_dp *intel_dp)
 
 
 
-int intel_de_wait_ms(struct intel_display *display, UInt32 reg, UInt32 mask, u32 value,
-					 UInt32 timeoutUs)
+
+
+
+static IOReturn __intel_de_wait_for_register(struct intel_display *display,
+											 uint32_t reg,
+											  uint32_t mask,
+											  uint32_t value,
+											  uint32_t timeout_us,
+											  uint32_t *out_val,
+											  bool is_atomic)
 {
-	AbsoluteTime deadline;
-	int waitMax = 10000, wait = 2;
-	UInt32 regValue;
-	bool isAtomic = false;
+	AbsoluteTime deadline, now;
+	uint64_t timeout_ns = (uint64_t)timeout_us * NSEC_PER_USEC;
+	nanoseconds_to_absolutetime(timeout_ns, &deadline);
 	
-	nanoseconds_to_absolutetime((uint64_t)timeoutUs * 1000ULL, &deadline);
-	deadline += mach_absolute_time();
-
-	if (timeoutUs / 1000 <= 10) {
-		isAtomic = true;
-		wait = 1;
+	uint32_t wait_us = 10;
+	const uint32_t wait_max_us = 1000;
+	uint32_t reg_value;
+	IOReturn ret = kIOReturnError;
+	
+	if (timeout_us <= 10) {
+		is_atomic = true;
+		wait_us = 1;
 	}
-
+	
 	for (;;) {
-		bool expired = mach_absolute_time() > deadline;
-
-		regValue = intel_de_read(display,reg);
-
-		if ((regValue & mask) == value)
-			return 0;
-
-		if (expired)
-			return 1;
-
-		if (isAtomic || wait < 1000)
-			IODelay(wait);
-		else if (wait < 1000000)
-			IOPause((uint64_t)wait * 1000ULL);
-		else
-			IOSleep(wait / 1000);
-
-		if (wait < waitMax)
-			wait <<= 1;
+		now = mach_absolute_time();
+		
+		
+		reg_value = intel_de_read(display, reg);
+		
+		if ((reg_value & mask) == value) {
+			ret = kIOReturnSuccess;
+			break;
+		}
+		
+		if (CMP_ABSOLUTETIME(&now, &deadline)) {
+			ret = kIOReturnTimeout;
+			break;
+		}
+		
+		if (!is_atomic && wait_us >= 1000) {
+			IOSleep(wait_us / 1000);
+		} else {
+			IODelay(wait_us);
+		}
+		
+		if (wait_us < wait_max_us) {
+			wait_us <<= 1;
+		}
 	}
+	
+	if (out_val != NULL) {
+		*out_val = reg_value;
+	}
+	
+	return ret;
 }
+
+
+static IOReturn intel_de_wait_for_register(struct intel_display *display,
+										   uint32_t reg,
+											uint32_t mask,
+											uint32_t value,
+											uint32_t fast_timeout_us,
+											uint32_t slow_timeout_us,
+											uint32_t *out_value,
+											bool is_atomic)
+{
+	IOReturn ret = kIOReturnError;
+	if (fast_timeout_us != 0) {
+		ret = __intel_de_wait_for_register(display, reg, mask, value,
+										   fast_timeout_us,
+										   out_value, is_atomic);
+	}
+	if (ret != kIOReturnSuccess && slow_timeout_us != 0) {
+		ret = __intel_de_wait_for_register(display, reg, mask, value,
+										   slow_timeout_us,
+										   out_value, is_atomic);
+	}
+	return ret;
+}
+
+
+IOReturn intel_de_wait_ms(struct intel_display *display,
+						  uint32_t reg,
+						  uint32_t mask,
+						  uint32_t value,
+						  unsigned int timeout_ms,
+						  uint32_t *out_value)
+{
+	IOReturn ret;
+	ret = intel_de_wait_for_register(display, reg, mask, value,
+									 2,
+									 timeout_ms * 1000,
+									 out_value,
+									 false);
+	
+	return ret;
+}
+
+
 
 int intel_de_wait_for_set_ms(struct intel_display *display, u32 reg,
 							 u32 mask, unsigned int timeout_ms)
 {
-	return intel_de_wait_ms(display, reg, mask, mask, timeout_ms);
+	return intel_de_wait_ms(display, reg, mask, mask, timeout_ms, NULL);
 }
 
 int intel_de_wait_for_clear_ms(struct intel_display *display, u32 reg,
 							   u32 mask, unsigned int timeout_ms)
 {
-	return intel_de_wait_ms(display, reg, mask, 0, timeout_ms);
+	return intel_de_wait_ms(display, reg, mask, 0, timeout_ms, NULL);
 }
 
 static u32 intel_ddi_buf_status_reg(struct intel_display *display, enum port port)
