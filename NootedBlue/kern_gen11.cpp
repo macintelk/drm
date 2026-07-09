@@ -402,13 +402,17 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		return true;
 		
 	}     else if (kextG11HW.loadIndex == index) {
-		 
+		 // icl
 		 RouteRequestPlus requests[] = {
 			 
 			 {"__ZN16IntelAccelerator19PAVPCommandCallbackE22PAVPSessionCommandID_tjPjb", wrapPavpSessionCallback, this->orgPavpSessionCallback},
 			 {"__ZL27ContextStatusBufferValidateRK15IGHwCsExecList5PK28SGfxContextStatusBufferEntry.cold.2", dovoid},
 			 {"__ZN16IntelAccelerator18setAsyncSliceCountE13IGSliceConfig",setAsyncSliceCount2, this->osetAsyncSliceCount2},
 			 {"__ZN16IntelAccelerator14setSliceConfigE13IGSliceConfig",setSliceConfig, this->osetSliceConfig},
+			 
+			// {"__ZN20IGHardwareRingBuffer11waitTimeoutEU13block_pointerFbvE.cold.1", dovoid},
+			 
+			 
 			 
 		 };
 		PANIC_COND(!RouteRequestPlus::routeAll(patcher, index, requests, address, size), "nblue","Failed to route symbols");
@@ -423,10 +427,23 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		static const uint8_t f2b[] = {0x80, 0x8b, 0x40, 0x13, 0x00, 0x00, 0x1f};
 		static const uint8_t r2b[] = {0x80, 0x8b, 0x40, 0x13, 0x00, 0x00, 0x3f};
 		
+		//hwcaps tgl kext
+		static const uint8_t f3[] = {0x48, 0xb8, 0xc0, 0x00, 0x00, 0x00, 0x6c, 0x01, 0x00, 0x00, 0x48, 0x89, 0x83, 0x5c, 0x11, 0x00, 0x00, 0x48, 0xb8, 0xe0, 0x00, 0x00, 0x00, 0x6c, 0x01, 0x00, 0x00, 0x48, 0x89, 0x83, 0x64, 0x11, 0x00, 0x00, 0xc7, 0x83, 0x6c, 0x11, 0x00, 0x00, 0xe0, 0x00, 0x00, 0x00};
+		static const uint8_t r3[] = {0x48, 0xb8, 0xc0, 0x00, 0x00, 0x00, 0x22, 0x02, 0x00, 0x00, 0x48, 0x89, 0x83, 0x5c, 0x11, 0x00, 0x00, 0x48, 0xb8, 0x50, 0x01, 0x00, 0x00, 0x22, 0x02, 0x00, 0x00, 0x48, 0x89, 0x83, 0x64, 0x11, 0x00, 0x00, 0xc7, 0x83, 0x6c, 0x11, 0x00, 0x00, 0x50, 0x01, 0x00, 0x00};
+		
+		static const uint8_t f3a[] = {0xc7, 0x83, 0x94, 0x11, 0x00, 0x00, 0x00, 0x0c, 0x00, 0x00};
+		static const uint8_t r3a[] = {0xc7, 0x83, 0x94, 0x11, 0x00, 0x00, 0x00, 0x0f, 0x00, 0x00};
+		
+		static const uint8_t f3b[] = {0xb9, 0x02, 0x00, 0x00, 0x00, 0xba, 0x04, 0x00, 0x00, 0x00, 0xbe, 0x80, 0x00, 0x00, 0x00};
+		static const uint8_t r3b[] = {0xb9, 0x02, 0x00, 0x00, 0x00, 0xba, 0x06, 0x00, 0x00, 0x00, 0xbe, 0x80, 0x00, 0x00, 0x00};
+		
 		LookupPatchPlus const patches[] = {
 			{&kextG11HW, f2, r2, arrsize(f2),	1},
 			{&kextG11HW, f2a, r2a, arrsize(f2a),	1},
-			{&kextG11HW, f2b, r2b, arrsize(f2b),	1},
+			//{&kextG11HW, f2b, r2b, arrsize(f2b),	1},
+			{&kextG11HW, f3, r3, arrsize(f3),	1},
+			{&kextG11HW, f3a, r3a, arrsize(f3a),	1},
+			{&kextG11HW, f3b, r3b, arrsize(f3b),	1},
 		};
 		PANIC_COND(!LookupPatchPlus::applyAll(patcher, patches , address, size), "nblue", "kextG11HW Failed to apply patches!");
 
@@ -434,7 +451,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		
 		
     } else if (kextG11HWT.loadIndex == index || kextG11HWTe.loadIndex == index) {
-
+		//tgl
 		auto kext=kextG11HWT.loadIndex == index ? kextG11HWT: kextG11HWTe;
 		
 		SolveRequestPlus solveRequests[] = {
@@ -471,6 +488,10 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		static const uint8_t f3a[] = {0x83, 0xfe, 0x01, 0x75, 0x59, 0x83, 0xfa, 0x0c};
 		static const uint8_t r3a[] = {0x83, 0xfe, 0x01, 0x75, 0x59, 0x83, 0xfa, 0x08};
 		
+		//ringmask
+		static const uint8_t f4[] = {0x41, 0x80, 0x8d, 0x00, 0x13, 0x00, 0x00, 0x3f};
+		static const uint8_t r4[] = {0x41, 0x80, 0x8d, 0x00, 0x13, 0x00, 0x00, 0x1f};
+		
 		
 		//blit3d mem align patch
 		static const uint8_t f5[] = {0x40, 0xd2, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
@@ -482,6 +503,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 				{&kext, f2a, r2a, arrsize(f2a),	1},
 				{&kext, f3, r3, arrsize(f3),	1},
 				{&kext, f3a, r3a, arrsize(f3a),	1},
+				{&kext, f4, r4, arrsize(f4),	1},
 				{&kext, f5, r5, arrsize(f5),	1},
 				
 			};
