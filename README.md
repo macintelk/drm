@@ -13,6 +13,9 @@ opencore boot args: debug=0x144 keepsyms=1 IGLogLevel=0xe -disablegfxfirmware
 add -allow3d to load graphics
    
 add you igpu to opencore DeviceProperties (e.g PciRoot(0x0)/Pci(0x2,0x0))
+
+<img width="324" height="123" alt="Captura de ecrã 2026-07-09, às 23 04 46" src="https://github.com/user-attachments/assets/4cb031c0-cd40-4db9-859a-97787dddbd4d" />
+
 add this properties (rename for swap icl/tgl)
 AAPL,ig-platform-id 0000528A 
 device-id 528A0000 
