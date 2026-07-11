@@ -359,7 +359,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		
 		//linktrainig 2 lines
 		static const uint8_t f25[]= {0x77, 0x77, 0x00, 0x00};
-		static const uint8_t r25[]= {0x77, 0x00, 0x00, 0x00};
+		static const uint8_t r25[]= {0x33, 0x00, 0x00, 0x00};
 
 
 
@@ -671,7 +671,7 @@ uint64_t  Gen11::getOSInformation(void *that)
 	}
 	
 	pinfo[p].connectors[1].type=ConnectorDummy;
-	pinfo[p].connectors[0].pipe=1;
+	//pinfo[p].connectors[0].pipe=1;
 		
 	OSArray *connectorArray = OSArray::withCapacity(6);
 	for (int i = 0; i < 6; i++) {
