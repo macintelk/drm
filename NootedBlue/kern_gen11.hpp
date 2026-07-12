@@ -660,9 +660,7 @@ public:
 	static uint64_t getLinkConfig(void *that,IOFBDPLinkConfig *param_1);
 	mach_vm_address_t ogetLinkConfig {};
 	
-	static bool linux_wait_for_space(void *ring, uint32_t total_bytes, uint64_t timeout_ns);
-	static uint64_t waitForSpace(void *ring, unsigned int num_dwords);
-	mach_vm_address_t owaitForSpace {};
+
 	
 	
 	
