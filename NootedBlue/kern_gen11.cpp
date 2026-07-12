@@ -467,6 +467,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			 {"__ZN16IntelAccelerator19PAVPCommandCallbackE22PAVPSessionCommandID_tjPjb", wrapPavpSessionCallback, this->orgPavpSessionCallback},
 			 {"__ZN16IntelAccelerator18setAsyncSliceCountE13IGSliceConfig",setAsyncSliceCount2, this->osetAsyncSliceCount2},
 			 {"__ZN16IntelAccelerator14setSliceConfigE13IGSliceConfig",setSliceConfig, this->osetSliceConfig},
+			 {"__ZN20IGHardwareRingBuffer12waitForSpaceEj",waitForSpace, this->owaitForSpace},
 			 
 			 
 			 
@@ -5552,4 +5553,114 @@ int Gen11::fgetPixelInformation(void *that,int param_1,int param_2,int param_3,v
 
 
 
+
+
+
+
+
+static constexpr size_t RING_MMIO_PTR			= 0x18;
+static constexpr size_t RING_HEAD_REG			= 0x10;
+static constexpr uint32_t RING_HEAD_MASK	= 0x1ffffc;
+static constexpr size_t RING_HEAD				= 0x60;
+static constexpr size_t RING_EMIT				= 0x64;
+static constexpr size_t RING_SPACE				= 0x88;
+static constexpr size_t RING_SIZE				= 0x8c;
+static constexpr size_t RING_EFFECTIVE_SIZE	= 0x90;
+
+
+bool Gen11::linux_wait_for_space(void *ring, uint32_t total_bytes, uint64_t timeout_ns)
+{
+	uint32_t size = getMember<uint32_t>(ring, RING_SIZE);
+	uint32_t emit = getMember<uint32_t>(ring, RING_EMIT);
+	
+	uint64_t deadline_ticks;
+	nanoseconds_to_absolutetime(timeout_ns, &deadline_ticks);
+	uint64_t end_time = mach_absolute_time() + deadline_ticks;
+
+	do {
+		uintptr_t mmio = getMember<uintptr_t>(ring, RING_MMIO_PTR);
+		uint32_t head = (*reinterpret_cast<volatile uint32_t *>(mmio + RING_HEAD_REG)) & RING_HEAD_MASK;
+		
+		if (head < size) {
+			head &= (size - 1);
+			getMember<uint32_t>(ring, RING_HEAD) = head;
+
+			int32_t space = (int32_t)(head - emit) - 8;
+			if (space < 0) space += (int32_t)size;
+			getMember<int32_t>(ring, RING_SPACE) = space;
+
+			if ((uint32_t)space >= total_bytes) {
+				return true;
+			}
+		}
+
+		IODelay(10);
+
+	} while (mach_absolute_time() < end_time);
+
+	return false;
+}
+
+
+uint64_t Gen11::waitForSpace(void *ring, unsigned int num_dwords)
+{
+	
+	const uint32_t effective_size = getMember<uint32_t>(ring, RING_EFFECTIVE_SIZE);
+	const uint32_t emit = getMember<uint32_t>(ring, RING_EMIT);
+	const uint32_t size = getMember<uint32_t>(ring, RING_SIZE);
+	const uint32_t remain_usable = effective_size - emit;
+	
+	const uint32_t bytes = num_dwords * sizeof(uint32_t);
+	uint32_t need_wrap = 0;
+	uint32_t total_bytes = bytes;
+
+	if (size - 8 < bytes) {
+		return 0;
+	}
+
+	if (bytes > remain_usable) {
+		const uint32_t remain_actual = size - emit;
+		total_bytes = bytes + remain_actual;
+		need_wrap = remain_actual;
+	}
+
+	if (total_bytes > getMember<uint32_t>(ring, RING_SPACE)) {
+			if (!linux_wait_for_space(ring, total_bytes, 5000000000ULL)) {
+				return 0;
+			}
+		}
+
+	if (need_wrap) {
+		uint32_t wrap_bytes = need_wrap & ~3U;
+		
+		void *pvaddr = getMember<void*>(ring, 0x80);
+		uint8_t *vaddr = getMember<uint8_t *>(pvaddr, 0x38);
+		
+		uint32_t cur_space = getMember<uint32_t>(ring, RING_SPACE);
+
+		if (wrap_bytes > cur_space) return 0;
+
+		memset(vaddr + emit, 0, wrap_bytes);
+
+		getMember<uint32_t>(ring, RING_SPACE) = cur_space - wrap_bytes;
+		getMember<uint32_t>(ring, RING_EMIT) = 0;
+	}
+
+
+	uint32_t cur_emit = getMember<uint32_t>(ring, RING_EMIT);
+	uint32_t cur_space = getMember<uint32_t>(ring, RING_SPACE);
+
+	if (cur_space < bytes || cur_emit > size - bytes) return 0;
+
+	void *pvaddr = getMember<void*>(ring, 0x80);
+	uint8_t *vaddr = getMember<uint8_t *>(pvaddr, 0x38);
+
+	memset(vaddr + cur_emit, 0, bytes);
+
+	getMember<uint32_t>(ring, RING_EMIT) = cur_emit + bytes;
+	getMember<uint32_t>(ring, RING_SPACE) = cur_space - bytes;
+
+
+	return (uint64_t)num_dwords << 8 | 1ULL;
+}
 
