@@ -40,6 +40,7 @@ int hwu=4;
 int setpc=0;
 void *linkp;
 bool dpcdconf=false;;
+int Report=-1;
 
 Gen11 *Gen11::callback = nullptr;
 
@@ -101,12 +102,13 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			//{"__ZN15AppleIntelPlane17configurePlaneCUSEP19FlipTransactionArgs10IGColorCtl",dovoid},
 			//{"__ZN15AppleIntelPlane18configurePlaneiCSCEP19FlipTransactionArgs10IGColorCtl",dovoid},
 			{"__ZN17AppleIntelPortHAL13getLinkConfigEP16IOFBDPLinkConfig",getLinkConfig, this->ogetLinkConfig},
+			{"__ZN21AppleIntelFramebuffer12getAttributeEjPm",fgetAttribute, this->ofgetAttribute},
+			{"__ZN21AppleIntelFramebuffer12setAttributeEjm",fsetAttribute, this->ofsetAttribute},
 			
 			//{"__ZN31AppleIntelFramebufferController16hwRegsNeedUpdateEP21AppleIntelFramebufferP21AppleIntelDisplayPathP10CRTCParamsPK29IODetailedTimingInformationV2PN16AppleIntelScaler12SCALERPARAMSE",hwRegsNeedUpdate, this->ohwRegsNeedUpdate},
 			/*{"__ZN21AppleIntelFramebuffer31frameBufferNotificationcallbackEP8OSObjectPvP13IOFramebufferiS2_",aframeBufferNotificationcallback, this->oaframeBufferNotificationcallback},
 			{"__ZN31AppleIntelFramebufferController9hwSetModeEP21AppleIntelFramebufferP21AppleIntelDisplayPathiPK29IODetailedTimingInformationV2",hwSetMode, this->ohwSetMode},*/
 			
-			//{"__ZN21AppleIntelFramebuffer12setAttributeEjm",fsetAttribute, this->ofsetAttribute},
 			
 			{"__ZN21AppleIntelFramebuffer17prepareToExitWakeEv",dovoid},
 			/*{"__ZN21AppleIntelFramebuffer18prepareToExitSleepEv",dovoid},
@@ -218,7 +220,8 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			{"__ZN14AppleIntelPort12linkTrainingEP18AGDCDPPortConfig_t",linkTraining, this->olinkTraining},
 			{"__ZN14AppleIntelPort8writeAUXEjPvj",writeAUX, this->owriteAUX},
 			{"__ZN14AppleIntelPort7readAUXEjPvj",readAUX, this->oreadAUX},
-			//{"__ZN21AppleIntelFramebuffer12setAttributeEjm",fsetAttribute, this->ofsetAttribute},
+			{"__ZN21AppleIntelFramebuffer12getAttributeEjPm",fgetAttribute, this->ofgetAttribute},
+			{"__ZN21AppleIntelFramebuffer12setAttributeEjm",fsetAttribute, this->ofsetAttribute},
 			//{"__ZN21AppleIntelFramebuffer19getPixelInformationEiiiP18IOPixelInformation",fgetPixelInformation, this->ofgetPixelInformation},
 			//{"__ZN15AppleIntelPlane18configurePlaneiCSCEP19FlipTransactionArgs10IGColorCtl",dovoid},
 			//{"__ZN15AppleIntelPlane17configurePlaneCUSEP19FlipTransactionArgs10IGColorCtl",dovoid},
@@ -226,6 +229,11 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			{"__ZN17AppleIntelPortHAL4initEP10PortConfig",AppleIntelPortHALinit, this->oAppleIntelPortHALinit},
 			
 			{"__ZN21AppleIntelDisplayPath13getLinkConfigEP16IOFBDPLinkConfig",getLinkConfig, this->ogetLinkConfig},
+			
+			
+			{"__ZN21AppleIntelFramebuffer20callPlatformFunctionEPK8OSSymbolbPvS3_S3_S3_",fcallPlatformFunction, this->ofcallPlatformFunction},
+			
+			
 			
 			/*{"__ZN21AppleIntelFramebuffer17prepareToExitWakeEv",dovoid},
 			{"__ZN21AppleIntelFramebuffer18prepareToExitSleepEv",dovoid},
@@ -239,6 +247,9 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		
 		if (isprod) {
 			RouteRequestPlus requests[] = {
+				
+				//{"__ZN31AppleIntelFramebufferController15configureReportEP19IOReportChannelListjPvS2_",configureReport, this->oconfigureReport},
+				
 				//{"__ZN31AppleIntelFramebufferController16hwRegsNeedUpdateEP21AppleIntelFramebufferP21AppleIntelDisplayPathP10CRTCParamsPK29IODetailedTimingInformationV2PN16AppleIntelScaler12SCALERPARAMSE",hwRegsNeedUpdate, this->ohwRegsNeedUpdate},
 				{"__ZN31AppleIntelFramebufferController15hwSetPanelPowerEj",hwSetPanelPower, this->ohwSetPanelPower},
 				{"__ZN31AppleIntelFramebufferController11SetupParamsEP21AppleIntelFramebufferP21AppleIntelDisplayPathP10CRTCParamsPK29IODetailedTimingInformationV2",SetupParams,	this->oSetupParams},
@@ -263,6 +274,10 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		} else //debug version
 		{
 			RouteRequestPlus requests[] = {
+				
+				
+				//{"__ZN24AppleIntelBaseController15configureReportEP19IOReportChannelListjPvS2_",configureReport, this->oconfigureReport},
+				
 				//{"__ZN24AppleIntelBaseController16hwRegsNeedUpdateEP21AppleIntelFramebufferP21AppleIntelDisplayPathP10CRTCParamsPK29IODetailedTimingInformationV2PN16AppleIntelScaler12SCALERPARAMSE",hwRegsNeedUpdate, this->ohwRegsNeedUpdate},
 				{"__ZN24AppleIntelBaseController15hwSetPanelPowerEj",hwSetPanelPower, this->ohwSetPanelPower},
 				{"__ZN24AppleIntelBaseController11SetupParamsEP21AppleIntelFramebufferP21AppleIntelDisplayPathP10CRTCParamsPK29IODetailedTimingInformationV2",SetupParams,	this->oSetupParams},
@@ -411,8 +426,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			 {"__ZN16IntelAccelerator14setSliceConfigE13IGSliceConfig",setSliceConfig, this->osetSliceConfig},
 			 
 			// {"__ZN20IGHardwareRingBuffer11waitTimeoutEU13block_pointerFbvE.cold.1", dovoid},
-			 
-			 
+			 {"__ZN20IGHardwareRingBuffer12waitForSpaceEj",waitForSpace, this->owaitForSpace},
 			 
 		 };
 		PANIC_COND(!RouteRequestPlus::routeAll(patcher, index, requests, address, size), "nblue","Failed to route symbols");
@@ -635,7 +649,7 @@ uint64_t  Gen11::getOSInformation2(void *that)
 }
 
 uint64_t  Gen11::getOSInformation(void *that)
-{
+{//tgl
 	
 	if (NBlue::callback->intel_opregion_setup()!=0) panic("BAD BIOS");
 
@@ -971,6 +985,8 @@ IOReturn Gen11::getAttributeForConnection(void* framebuffer, int32_t connectInde
 																										   framebuffer, connectIndex, attribute, value);
 	
 	
+		
+		
 	if (attribute != 'bklt') { return ret; }
 	
 	u32 v=NBlue::callback->display_base.panel.backlight.level;
@@ -983,33 +999,111 @@ IOReturn Gen11::getAttributeForConnection(void* framebuffer, int32_t connectInde
 	return kIOReturnSuccess;
 };
 
- 
-uint32_t Gen11::fsetAttribute(void *that,uint param_1,unsigned long param_2)
+
+
+static uint32_t oldWSAAState = 0;
+uint32_t Gen11::fsetAttribute(void *that, uint param_1, unsigned long param_2)
 {
-	if (param_1 == 'wsrv' && param_2!=0 && hwu==4)
+	if (param_1 == 'wsrv')
 	{
-		fsetAttribute(that, 'powr',1);
-		IODelay(2);
-		fsetAttribute(that, 'powr',2);
-		IODelay(2);
+		uint32_t fbNum = getMember<uint32_t>(that, 0x1dc);
+		
+		if (fbNum == 1)
+		{
+			getMember<uint32_t>(that, kexticl ? 0x8a20 : 0x44e0)=0x7fffffff;//IgnoreConnection
+			return 0xe00002c7; // kIOReturnNoDevice
+		}
+		oldWSAAState=getMember<uint32_t>(that, kexticl ? 0x85dc : 0x420c);
+		oldWSAAState = oldWSAAState & 0xffffffef;
+		FunctionCast(fsetAttribute, callback->ofsetAttribute)(that, param_1, param_2);
+		IOSleep(1);
+		
+		
+		if (param_2==0x11)
+		{
+			getMember<uint8_t>(ccont2, kexticl ? 0xe45 : 0xe5f)=0;//wservp1
+			
+			//getMember<uint8_t>(that, 0x44de)=1;//IOFBNeedsRefresh
+			//getMember<uint8_t>(that, 0x4b8c)=0;//unplugged
+			//getMember<uint8_t>(that, 0x1e0)=1;//fOnline
+			
+			/*getMember<uint32_t>(that, 0x49e0)=1;//sleepwake
+			getMember<uint32_t>(that, 0x4284)=1;//sleepmode
+			FunctionCast(fsetAttribute, callback->ofsetAttribute)(frame0, 'powr',2);
+			IOSleep(1);*/
+			
+			FunctionCast(fsetAttribute, callback->ofsetAttribute)(that, param_1, 0x4);
+			IOSleep(1);
+				
+		}
+		
+
+		
+		return 0;
 	}
-	auto ret=FunctionCast(fsetAttribute,callback->ofsetAttribute)(that, param_1, param_2);
+
+	return FunctionCast(fsetAttribute, callback->ofsetAttribute)(that, param_1, param_2);
+}
+
+uint32_t Gen11::configureReport	(void *that,void *param_1,uint param_2,void *param_3,void *param_4)
+{
 	
-	if (param_1 == 'wsrv' && param_2!=0 && hwu==4)
+	auto ret=FunctionCast(configureReport, callback->oconfigureReport)(that ,param_1,param_2,param_3,param_4);
+	
+	if (Report==-1)
 	{
-		hwu=3;
+		Report=0;
+
+		/*getMember<uint32_t>(frame0, 0x420c)=0x11;
+		
+		getMember<uint32_t>(frame0, 0x49e0)=1;//sleepwake
+		getMember<uint32_t>(frame0, 0x4284)=1;//sleepmode
+		FunctionCast(fsetAttribute, callback->ofsetAttribute)(frame0, 'powr',2);
+		IOSleep(1);
+		//fsetAttribute(frame0, 'wsrv',4);
+		//IOSleep(1);
+		*/
+		/*getMember<uint32_t>(frame0, 0x4284)=2;//sleepmode
+		
+		getMember<uint8_t>(frame0, 0x1e0)=1;//fOnline
+		getMember<uint8_t>(frame0, 0x1e1)=0;//newOnlineState
+		getMember<uint8_t>(ccont2, 0xe61)=1;//lidisclosed
+		wrapSetAttributeForConnection(frame0, 0, 'prob', 1);
+		IOSleep(1);
+		getMember<uint8_t>(frame0, 0x1e0)=0;//fOnline
+		getMember<uint8_t>(frame0, 0x1e1)=1;//newOnlineState
+		getMember<uint8_t>(ccont2, 0xe61)=0;//lidisclosed
+		wrapSetAttributeForConnection(frame0, 0, 'prob', 1);
+		IOSleep(1);*/
+		
+		//IODelay(1000);
+		//getMember<uint32_t>(that, 0x4284)=1;//sleepmode
+		//fsetAttribute(that, 'powr',2);
+
 	}
+	
+	
 	return ret;
-};
+}
 
+uint32_t Gen11::fgetAttribute(void *that, uint param_1, unsigned long *param_2)
+{
 
+	return FunctionCast(fgetAttribute, callback->ofgetAttribute)(that, param_1, param_2);
+}
+
+unsigned long  Gen11::fcallPlatformFunction(void *that,void *param_1,bool param_2,void *param_3,void *param_4,void *param_5,void *param_6)
+{
+	if ((const char*)param_1=="WSAAState") panic ("wwww");
+	
+	return FunctionCast(fcallPlatformFunction, callback->ofcallPlatformFunction)(that, param_1, param_2, param_3, param_4, param_5, param_6);
+}
 
 IOReturn Gen11::wrapSetAttributeForConnection(void* framebuffer, int32_t connectIndex, uint32_t attribute,
 											  unsigned long value)
 {
 	const auto ret = FunctionCast(wrapSetAttributeForConnection, callback->owrapSetAttributeForConnection)(
 																										   framebuffer, connectIndex, attribute, value);
-	
 	
 	if (attribute != 'bklt') { return ret; }
 	
@@ -1164,9 +1258,6 @@ unsigned long  Gen11::AppleIntelPortHALinit(void *that,void *param_1)
 	return ret;
 }
 
-
-
-
 unsigned long Gen11::hwSetMode(void *that,void *param_1,void *param_2,int param_3,void *param_4)
 {
 	auto ret=FunctionCast(hwSetMode, callback->ohwSetMode)(that,param_1,param_2,param_3,param_4 );
@@ -1177,6 +1268,8 @@ unsigned long Gen11::hwSetMode(void *that,void *param_1,void *param_2,int param_
 	
 	return ret;
 }
+
+
 
 
 uint64_t Gen11::aframeBufferNotificationcallback(void *param_1,void *param_2,void *param_3,int param_4,void *param_5)
@@ -5445,6 +5538,11 @@ void Gen11::SetupParams2 (void *param_2, CRTCParams *param_3)
 	struct intel_display *display = &NBlue::callback->display_base;
 	if (setpc){
 		setpc=0;
+		
+		void *port=getMember<void *>(param_2, kexticl ? 0x4d20 : 0x3648);
+		getMember<uint8_t>(port, kexticl ? 0x10 : 0x118)=0;//asr
+		getMember<uint8_t>(port, kexticl ? 0x11 : 0x119)=0;//Downspread
+		
 		
 		if (!dpcdconf)
 		{

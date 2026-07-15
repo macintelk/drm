@@ -664,6 +664,14 @@ public:
 	static uint64_t waitForSpace(void *ring, unsigned int num_dwords);
 	mach_vm_address_t owaitForSpace {};
 	
+	static uint32_t configureReport	(void *that,void *param_1,uint param_2,void *param_3,void *param_4);
+	mach_vm_address_t oconfigureReport {};
+	
+	static uint32_t fgetAttribute(void *that,uint param_1,unsigned long *param_2);
+	mach_vm_address_t ofgetAttribute {};
+	
+	static unsigned long  fcallPlatformFunction(void *that,void *param_1,bool param_2,void *param_3,void *param_4,void *param_5,void *param_6);
+	mach_vm_address_t ofcallPlatformFunction {};
 	
 	
 	
