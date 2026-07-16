@@ -673,6 +673,13 @@ public:
 	static unsigned long  fcallPlatformFunction(void *that,void *param_1,bool param_2,void *param_3,void *param_4,void *param_5,void *param_6);
 	mach_vm_address_t ofcallPlatformFunction {};
 	
+	static void updatePlane(void *that,bool param_1);
+	mach_vm_address_t oupdatePlane {};
+	
+	static void RestoreTransactions(void *that,bool param_1);
+	mach_vm_address_t oRestoreTransactions {};
+	
+	
 	
 	
 public:

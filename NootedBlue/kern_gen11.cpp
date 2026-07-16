@@ -233,6 +233,11 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			
 			{"__ZN21AppleIntelFramebuffer20callPlatformFunctionEPK8OSSymbolbPvS3_S3_S3_",fcallPlatformFunction, this->ofcallPlatformFunction},
 			
+			{"__ZN15AppleIntelPlane11updatePlaneEb",updatePlane, this->oupdatePlane},
+			{"__ZN21AppleIntelFramebuffer19RestoreTransactionsEb",RestoreTransactions, this->oRestoreTransactions},
+			
+			
+			
 			
 			
 			/*{"__ZN21AppleIntelFramebuffer17prepareToExitWakeEv",dovoid},
@@ -248,7 +253,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		if (isprod) {
 			RouteRequestPlus requests[] = {
 				
-				//{"__ZN31AppleIntelFramebufferController15configureReportEP19IOReportChannelListjPvS2_",configureReport, this->oconfigureReport},
+				{"__ZN31AppleIntelFramebufferController15configureReportEP19IOReportChannelListjPvS2_",configureReport, this->oconfigureReport},
 				
 				//{"__ZN31AppleIntelFramebufferController16hwRegsNeedUpdateEP21AppleIntelFramebufferP21AppleIntelDisplayPathP10CRTCParamsPK29IODetailedTimingInformationV2PN16AppleIntelScaler12SCALERPARAMSE",hwRegsNeedUpdate, this->ohwRegsNeedUpdate},
 				{"__ZN31AppleIntelFramebufferController15hwSetPanelPowerEj",hwSetPanelPower, this->ohwSetPanelPower},
@@ -276,7 +281,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			RouteRequestPlus requests[] = {
 				
 				
-				//{"__ZN24AppleIntelBaseController15configureReportEP19IOReportChannelListjPvS2_",configureReport, this->oconfigureReport},
+				{"__ZN24AppleIntelBaseController15configureReportEP19IOReportChannelListjPvS2_",configureReport, this->oconfigureReport},
 				
 				//{"__ZN24AppleIntelBaseController16hwRegsNeedUpdateEP21AppleIntelFramebufferP21AppleIntelDisplayPathP10CRTCParamsPK29IODetailedTimingInformationV2PN16AppleIntelScaler12SCALERPARAMSE",hwRegsNeedUpdate, this->ohwRegsNeedUpdate},
 				{"__ZN24AppleIntelBaseController15hwSetPanelPowerEj",hwSetPanelPower, this->ohwSetPanelPower},
@@ -1018,28 +1023,50 @@ uint32_t Gen11::fsetAttribute(void *that, uint param_1, unsigned long param_2)
 		FunctionCast(fsetAttribute, callback->ofsetAttribute)(that, param_1, param_2);
 		IOSleep(1);
 		
-		
 		if (param_2==0x11)
 		{
+			
 			getMember<uint8_t>(ccont2, kexticl ? 0xe45 : 0xe5f)=0;//wservp1
+			
+			void* dpath=getMember<void*>(that, kexticl ? 0xe45 : 0x4a08);
+			void *pla=getMember<void*>(dpath, kexticl ? 0xe45 : 0x32c8);
+			
+			/*getMember<uint32_t>(that, 0x49e0)=1;//sleepwake
+			getMember<uint32_t>(that, 0x4284)=1;//sleepmode
+			FunctionCast(fsetAttribute, callback->ofsetAttribute)(frame0, 'powr',2);
+			IOSleep(1);
+			*/
+			
+			getMember<int32_t>(that, kexticl ? 0xe45 : 0x4004)=-2;//fTransactionState
+			//getMember<int32_t>(that, kexticl ? 0xe45 : 0x4008)=-1;//fTransactionState2
+			
+			getMember<uint32_t>(that, kexticl ? 0xe45 : 0x4210)=1;//fWSAAState2
+			getMember<uint8_t>(pla, kexticl ? 0xe45 : 0x84)=1;//planeconfigured
+			getMember<uint32_t>(that, kexticl ? 0xe45 : 0x4214)=1;//fWSAAState3
+			updatePlane(pla,true);
+			getMember<uint32_t>(that, kexticl ? 0xe45 : 0x4214)=0;//fWSAAState3
+			getMember<uint32_t>(that, kexticl ? 0xe45 : 0x49e0)=4;//sleepwake
+			IOSleep(1);
+			
+			
+			getMember<uint32_t>(that, kexticl ? 0xe45 : 0x4214)=1;//fWSAAState3
+			RestoreTransactions(that,true);
+			getMember<uint32_t>(that, kexticl ? 0xe45 : 0x4214)=0;//fWSAAState3
+			IOSleep(1);
+			
+			getMember<uint32_t>(that, kexticl ? 0xe45 : 0x420c)=0x4;//fWSAAState
 			
 			//getMember<uint8_t>(that, 0x44de)=1;//IOFBNeedsRefresh
 			//getMember<uint8_t>(that, 0x4b8c)=0;//unplugged
 			//getMember<uint8_t>(that, 0x1e0)=1;//fOnline
 			
-			/*getMember<uint32_t>(that, 0x49e0)=1;//sleepwake
-			getMember<uint32_t>(that, 0x4284)=1;//sleepmode
-			FunctionCast(fsetAttribute, callback->ofsetAttribute)(frame0, 'powr',2);
-			IOSleep(1);*/
-			
-			FunctionCast(fsetAttribute, callback->ofsetAttribute)(that, param_1, 0x4);
-			IOSleep(1);
-				
-		}
-		
 
-		
+			
+			
+		}
+
 		return 0;
+		
 	}
 
 	return FunctionCast(fsetAttribute, callback->ofsetAttribute)(that, param_1, param_2);
@@ -1053,6 +1080,7 @@ uint32_t Gen11::configureReport	(void *that,void *param_1,uint param_2,void *par
 	if (Report==-1)
 	{
 		Report=0;
+		
 
 		/*getMember<uint32_t>(frame0, 0x420c)=0x11;
 		
@@ -1094,7 +1122,7 @@ uint32_t Gen11::fgetAttribute(void *that, uint param_1, unsigned long *param_2)
 
 unsigned long  Gen11::fcallPlatformFunction(void *that,void *param_1,bool param_2,void *param_3,void *param_4,void *param_5,void *param_6)
 {
-	if ((const char*)param_1=="WSAAState") panic ("wwww");
+	//if ((const char*)param_1=="WSAAState") panic ("wwww");
 	
 	return FunctionCast(fcallPlatformFunction, callback->ofcallPlatformFunction)(that, param_1, param_2, param_3, param_4, param_5, param_6);
 }
@@ -1115,7 +1143,17 @@ IOReturn Gen11::wrapSetAttributeForConnection(void* framebuffer, int32_t connect
 	return kIOReturnSuccess;
 };
 
+void Gen11::updatePlane(void *that,bool param_1)
+{
 
+	return FunctionCast(updatePlane, callback->oupdatePlane)(that, param_1);
+}
+
+void Gen11::RestoreTransactions(void *that,bool param_1)
+{
+
+	return FunctionCast(RestoreTransactions, callback->oRestoreTransactions)(that, param_1);
+}
 
 void Gen11::updateSliceConfig(void *that, uint32_t val)
 {
