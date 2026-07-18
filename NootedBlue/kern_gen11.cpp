@@ -432,6 +432,8 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			 
 			// {"__ZN20IGHardwareRingBuffer11waitTimeoutEU13block_pointerFbvE.cold.1", dovoid},
 			 {"__ZN20IGHardwareRingBuffer12waitForSpaceEj",waitForSpace, this->owaitForSpace},
+			 {"__ZN16IntelAccelerator19startGraphicsEngineEv",startGraphicsEngine, this->ostartGraphicsEngine},
+			 {"__ZN16IntelAccelerator31initHardwareStatusPageRegistersEv",initHardwareStatusPageRegisters, this->oinitHardwareStatusPageRegisters},
 			 
 		 };
 		PANIC_COND(!RouteRequestPlus::routeAll(patcher, index, requests, address, size), "nblue","Failed to route symbols");
@@ -1023,6 +1025,7 @@ uint32_t Gen11::fsetAttribute(void *that, uint param_1, unsigned long param_2)
 		FunctionCast(fsetAttribute, callback->ofsetAttribute)(that, param_1, param_2);
 		IOSleep(1);
 		
+		if (!kexticl)
 		if (param_2==0x11)
 		{
 			
@@ -1753,7 +1756,7 @@ void engines()
 		intel_engine_apply_whitelist(&linux_engine);
 		
 		//intel_engine_emit_ctx_wa
-		wa_list_apply(&linux_engine.ctx_wa_list);
+		wa_list_apply(&linux_engine.ctx_wa_list); //???
 	}
 }
 

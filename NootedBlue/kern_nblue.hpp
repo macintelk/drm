@@ -36,6 +36,7 @@ class NBlue {
 
     public:
 	
+	//struct drm_i915_private dev_priv;
 	
     static NBlue *callback;
 	struct intel_display display_base;
