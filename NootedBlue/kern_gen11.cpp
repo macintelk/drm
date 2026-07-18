@@ -41,7 +41,7 @@ int setpc=0;
 void *linkp;
 bool dpcdconf=false;;
 int Report=-1;
-
+bool seng=false;
 Gen11 *Gen11::callback = nullptr;
 
 void Gen11::init() {
@@ -487,8 +487,8 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			 {"__ZN16IntelAccelerator18setAsyncSliceCountE13IGSliceConfig",setAsyncSliceCount2, this->osetAsyncSliceCount2},
 			 {"__ZN16IntelAccelerator14setSliceConfigE13IGSliceConfig",setSliceConfig, this->osetSliceConfig},
 			 {"__ZN20IGHardwareRingBuffer12waitForSpaceEj",waitForSpace, this->owaitForSpace},
-			 
-			 
+			 {"__ZN16IntelAccelerator19startGraphicsEngineEv",startGraphicsEngine, this->ostartGraphicsEngine},
+			 {"__ZN16IntelAccelerator31initHardwareStatusPageRegistersEv",initHardwareStatusPageRegisters, this->oinitHardwareStatusPageRegisters},
 			 
 			 
 		 };
@@ -1205,6 +1205,574 @@ void Gen11::setAsyncSliceCount2(void *that, uint32_t val)
 
 
 
+
+
+
+static void wa_masked_en(struct i915_wa_list *wal, u32 reg, u32 mask)
+{
+	struct i915_wa *wa = &wal->wa[wal->count++];
+	wa->reg = reg;
+	wa->clr = mask;
+	wa->set = mask;
+	wa->is_mcr = false;
+}
+
+static void wa_masked_field_set(struct i915_wa_list *wal, u32 reg, u32 mask, u32 val)
+{
+	struct i915_wa *wa = &wal->wa[wal->count++];
+	wa->reg = reg;
+	wa->clr = mask;
+	wa->set = val;
+	wa->is_mcr = false;
+}
+
+static void wa_add(struct i915_wa_list *wal, u32 reg, u32 clr, u32 set, u32 read, bool verify)
+{
+	struct i915_wa *wa = &wal->wa[wal->count++];
+	wa->reg = reg;
+	wa->clr = clr;
+	wa->set = set;
+	wa->is_mcr = false;
+}
+
+static void wa_mcr_write_or(struct i915_wa_list *wal, u32 reg, u32 set)
+{
+	struct i915_wa *wa = &wal->wa[wal->count++];
+	wa->reg = reg;
+	wa->clr = ~0u;
+	wa->set = set;
+	wa->is_mcr = true;
+}
+
+static void wa_init_start(struct i915_wa_list *wal, void *dev, const char *name, const char *engine_name)
+{
+	wal->name = name;
+	wal->dev = dev;
+	wal->count = 0;
+}
+
+static void wa_init_finish(struct i915_wa_list *wal)
+{
+}
+
+static void
+wa_write_clr_set(struct i915_wa_list *wal, u32 reg, u32 clear, u32 set)
+{
+	wa_add(wal, reg, clear, set, clear | set, false);
+}
+
+static void wa_mcr_add(struct i915_wa_list *wal, u32 reg,
+			   u32 clear, u32 set, u32 read_mask, bool masked_reg)
+{
+
+	struct i915_wa *wa = &wal->wa[wal->count++];
+	wa->mcr_reg = reg;
+	wa->clr  = clear;
+	wa->set  = set;
+	wa->read = read_mask;
+	wa->masked_reg = masked_reg;
+	wa->is_mcr = 1;
+	
+}
+
+static void
+wa_write_clr(struct i915_wa_list *wal, u32 reg, u32 clr)
+{
+	wa_write_clr_set(wal, reg, clr, 0);
+}
+
+static void
+wa_mcr_masked_en(struct i915_wa_list *wal, u32 reg, u32 val)
+{
+	wa_mcr_add(wal, reg, 0, REG_MASKED_FIELD_ENABLE(val), val, true);
+}
+
+static void
+wa_write_or(struct i915_wa_list *wal, u32 reg, u32 set)
+{
+	wa_write_clr_set(wal, reg, set, set);
+}
+
+static void whitelist_reg_ext(struct i915_wa_list *wal, u32 reg, u32 flags)
+{
+		struct i915_wa wa;
+		wa.reg = reg;
+		wa.reg|= flags;
+		wal->wa[wal->count++] = wa;
+}
+
+static void whitelist_reg(struct i915_wa_list *wal, u32 reg)
+{
+	whitelist_reg_ext(wal, reg, RING_FORCE_TO_NONPRIV_ACCESS_RW);
+}
+
+
+static void gen12_ctx_workarounds_init(struct intel_engine_cs *engine,
+									   struct i915_wa_list *wal)
+{
+
+	wa_masked_en(wal, GEN11_COMMON_SLICE_CHICKEN3,
+				 GEN12_DISABLE_CPS_AWARE_COLOR_PIPE);
+
+	wa_masked_field_set(wal, GEN8_CS_CHICKEN1,
+						GEN9_PREEMPT_GPGPU_LEVEL_MASK,
+						GEN9_PREEMPT_GPGPU_THREAD_GROUP_LEVEL);
+
+
+	wa_add(wal,
+		   GEN12_FF_MODE2,
+		   ~0,
+		   FF_MODE2_TDS_TIMER_128 | FF_MODE2_GS_TIMER_224,
+		   0, false);
+
+	//if (!IS_DG1(i915)) {
+		wa_masked_en(wal, HIZ_CHICKEN, HZ_DEPTH_TEST_LE_GE_OPT_DISABLE);
+
+		wa_masked_en(wal, COMMON_SLICE_CHICKEN4, DISABLE_TDC_LOAD_BALANCING_CALC);
+	//}
+
+	wa_mcr_write_or(wal, GEN8_WM_CHICKEN2, WAIT_ON_DEPTH_STALL_DONE_DISABLE);
+}
+
+static void allow_read_ctx_timestamp(struct intel_engine_cs *engine)
+{
+	struct i915_wa_list *w = &engine->whitelist;
+
+	if (engine->engine_class != RENDER_CLASS)
+		whitelist_reg_ext(w,
+						  RING_CTX_TIMESTAMP(engine->mmio_base),
+						  RING_FORCE_TO_NONPRIV_ACCESS_RD);
+}
+
+static void tgl_whitelist_build(struct intel_engine_cs *engine)
+{
+	struct i915_wa_list *w = &engine->whitelist;
+
+	allow_read_ctx_timestamp(engine);
+
+	switch (engine->engine_class) {
+	case RENDER_CLASS:
+
+		whitelist_reg_ext(w, PS_INVOCATION_COUNT,
+						  RING_FORCE_TO_NONPRIV_ACCESS_RD |
+						  RING_FORCE_TO_NONPRIV_RANGE_4);
+
+
+		whitelist_reg(w, GEN7_COMMON_SLICE_CHICKEN1);
+
+		whitelist_reg(w, HIZ_CHICKEN);
+
+		whitelist_reg(w, GEN11_COMMON_SLICE_CHICKEN3);
+
+		break;
+	default:
+		break;
+	}
+}
+
+
+
+
+static void wa_list_apply(struct i915_wa_list *wal)
+{
+	void *dev = wal->dev;
+	struct i915_wa *wa;
+	unsigned int i;
+
+	if (!wal->count)
+		return;
+
+	for (i = 0, wa = wal->wa; i < wal->count; i++, wa++) {
+		u32 val, old = 0;
+
+		if (wa->clr) {
+			if (wa->is_mcr)
+				old = NBlue::callback->readReg32(wa->mcr_reg);
+			else
+				old = NBlue::callback->readReg32(wa->reg);
+		}
+
+		val = (old & ~wa->clr) | wa->set;
+		
+		if (val != old || !wa->clr) {
+			
+			if (wa->is_mcr)
+				NBlue::callback->writeReg32(wa->mcr_reg, val);
+			else
+				NBlue::callback->writeReg32(wa->reg, val);
+		}
+	}
+}
+
+static void whitelist_apply(struct intel_engine_cs *engine)
+{
+	struct i915_wa_list *wal = &engine->whitelist;
+	void *dev = engine->dev;
+	struct i915_wa *wa;
+	unsigned int i;
+
+	if (!wal->count)
+		return;
+
+	for (i = 0, wa = wal->wa; i < wal->count; i++, wa++) {
+
+		u32 non_priv_reg = RING_FORCE_TO_NONPRIV(engine->mmio_base, i);
+		NBlue::callback->writeReg32(non_priv_reg, wa->reg | wa->val);
+
+	}
+}
+
+
+
+
+
+static void
+add_render_compute_tuning_settings(/*struct intel_gt *gt,*/
+				   struct i915_wa_list *wal)
+{
+	/*struct drm_i915_private *i915 = gt->i915;
+
+	if (IS_GFX_GT_IP_RANGE(gt, IP_VER(12, 70), IP_VER(12, 74)) || IS_DG2(i915))
+		wa_mcr_write_clr_set(wal, RT_CTRL, STACKID_CTRL, STACKID_CTRL_512);
+
+
+	if (INTEL_INFO(i915)->tuning_thread_rr_after_dep)
+		wa_mcr_masked_field_set(wal, GEN9_ROW_CHICKEN4, THREAD_EX_ARB_MODE,
+					THREAD_EX_ARB_MODE_RR_AFTER_DEP);
+
+	if (GRAPHICS_VER(i915) == 12 && GRAPHICS_VER_FULL(i915) < IP_VER(12, 55))*/
+		wa_write_clr(wal, GEN8_GARBCNTL, GEN12_BUS_HASH_CTL_BIT_EXC);
+}
+static void
+general_render_compute_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
+{
+	//struct drm_i915_private *i915 = engine->i915;
+	//struct intel_gt *gt = engine->gt;
+
+	add_render_compute_tuning_settings( wal);
+
+
+
+	//if (GRAPHICS_VER(i915) >= 11) {
+		wa_mcr_masked_en(wal,
+				 GEN10_SAMPLER_MODE,
+				 GEN11_INDIRECT_STATE_BASE_ADDR_OVERRIDE);
+	//}
+
+	/*if (IS_GFX_GT_IP_STEP(gt, IP_VER(12, 70), STEP_B0, STEP_FOREVER) ||
+		IS_GFX_GT_IP_STEP(gt, IP_VER(12, 71), STEP_B0, STEP_FOREVER) ||
+		IS_GFX_GT_IP_RANGE(gt, IP_VER(12, 74), IP_VER(12, 74))) {
+
+		wa_mcr_masked_en(wal, GEN9_ROW_CHICKEN3, MTL_DISABLE_FIX_FOR_EOT_FLUSH);
+
+
+		wa_mcr_masked_en(wal, GEN8_ROW_CHICKEN2, XELPG_DISABLE_TDL_SVHS_GATING);
+	}
+
+	if (IS_GFX_GT_IP_STEP(gt, IP_VER(12, 70), STEP_A0, STEP_B0) ||
+		IS_GFX_GT_IP_STEP(gt, IP_VER(12, 71), STEP_A0, STEP_B0))
+
+		wa_mcr_masked_en(wal, GEN10_SAMPLER_MODE,
+				 MTL_DISABLE_SAMPLER_SC_OOO);
+
+	if (IS_GFX_GT_IP_STEP(gt, IP_VER(12, 71), STEP_A0, STEP_B0))
+
+		wa_mcr_masked_en(wal, GEN10_CACHE_MODE_SS,
+				 DISABLE_PREFETCH_INTO_IC);
+
+	if (IS_GFX_GT_IP_STEP(gt, IP_VER(12, 70), STEP_A0, STEP_B0) ||
+		IS_GFX_GT_IP_STEP(gt, IP_VER(12, 71), STEP_A0, STEP_B0) ||
+		IS_DG2(i915)) {
+
+		wa_mcr_write_or(wal, LSC_CHICKEN_BIT_0_UDW,
+				DISABLE_128B_EVICTION_COMMAND_UDW);
+
+
+		wa_masked_en(wal, VFG_PREEMPTION_CHICKEN, POLYGON_TRIFAN_LINELOOP_DISABLE);
+	}
+
+	if (IS_GFX_GT_IP_STEP(gt, IP_VER(12, 70), STEP_A0, STEP_B0) ||
+		IS_GFX_GT_IP_STEP(gt, IP_VER(12, 71), STEP_A0, STEP_B0) ||
+		IS_DG2(i915)) {
+
+		wa_mcr_write_or(wal, LSC_CHICKEN_BIT_0, DISABLE_D8_D16_COASLESCE);
+	}
+
+	if (IS_DG2(i915)) {
+		wa_mcr_masked_en(wal, GEN9_ROW_CHICKEN4, XEHP_DIS_BBL_SYSPIPE);
+
+		wa_mcr_write_or(wal, LSC_CHICKEN_BIT_0_UDW, DIS_CHAIN_2XSIMD8);
+
+		wa_mcr_write_or(wal, LSC_CHICKEN_BIT_0_UDW, UGM_FRAGMENT_THRESHOLD_TO_3);
+	}
+
+	if (IS_DG2_G11(i915)) {
+
+		wa_mcr_write_clr_set(wal, LSC_CHICKEN_BIT_0_UDW,
+					 MAXREQS_PER_BANK,
+					 REG_FIELD_PREP(MAXREQS_PER_BANK, 2));
+
+		wa_mcr_write_or(wal, LSC_CHICKEN_BIT_0,
+				FORCE_1_SUB_MESSAGE_PER_FRAGMENT);
+
+		wa_mcr_add(wal, GEN10_CACHE_MODE_SS, 0,
+			   REG_MASKED_FIELD_ENABLE(ENABLE_PREFETCH_INTO_IC),
+			   0 ,
+			   true);
+	}*/
+}
+
+
+static void
+rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
+{
+	//struct drm_i915_private *i915 = engine->i915;
+	//struct intel_gt *gt = engine->gt;
+
+	/*if (IS_GFX_GT_IP_STEP(gt, IP_VER(12, 70), STEP_A0, STEP_B0) ||
+		IS_GFX_GT_IP_STEP(gt, IP_VER(12, 71), STEP_A0, STEP_B0)) {
+
+		wa_mcr_masked_en(wal, GEN10_CACHE_MODE_SS,
+				 ENABLE_EU_COUNT_FOR_TDL_FLUSH);
+	}
+
+	if (IS_GFX_GT_IP_STEP(gt, IP_VER(12, 70), STEP_A0, STEP_B0) ||
+		IS_GFX_GT_IP_STEP(gt, IP_VER(12, 71), STEP_A0, STEP_B0) ||
+		IS_DG2(i915)) {
+
+		wa_mcr_masked_en(wal, GEN10_SAMPLER_MODE,
+				 SC_DISABLE_POWER_OPTIMIZATION_EBB);
+	}
+
+	if (IS_GFX_GT_IP_STEP(gt, IP_VER(12, 70), STEP_A0, STEP_B0) ||
+		IS_DG2(i915)) {
+
+		wa_mcr_masked_en(wal, GEN8_ROW_CHICKEN2,
+				 GEN12_DISABLE_READ_SUPPRESSION);
+	}
+
+	if (IS_DG2(i915)) {
+
+		wa_mcr_masked_dis(wal, XEHP_HDC_CHICKEN0,
+				  LSC_L1_FLUSH_CTL_3D_DATAPORT_FLUSH_EVENTS_MASK);
+	}
+
+	if (IS_GFX_GT_IP_RANGE(gt, IP_VER(12, 70), IP_VER(12, 71)) ||
+		IS_DG2(i915)) {
+
+		wa_mcr_add(wal, XEHP_HDC_CHICKEN0, 0,
+			   REG_MASKED_FIELD_ENABLE(DIS_ATOMIC_CHAINING_TYPED_WRITES),
+			   0, true);
+	}*/
+
+	
+
+	
+	//if (IS_DG2(i915) || IS_ALDERLAKE_P(i915) || IS_ALDERLAKE_S(i915) ||
+	//	IS_DG1(i915) || IS_ROCKETLAKE(i915) || IS_TIGERLAKE(i915)) {
+
+		wa_masked_en(wal,
+				 GEN9_CS_DEBUG_MODE1,
+				 FF_DOP_CLOCK_GATE_DISABLE);
+	//}
+
+	//if (IS_ALDERLAKE_P(i915) || IS_ALDERLAKE_S(i915) || IS_DG1(i915) ||
+	//	IS_ROCKETLAKE(i915) || IS_TIGERLAKE(i915)) {
+
+		wa_mcr_masked_en(wal, GEN8_ROW_CHICKEN2, GEN12_DISABLE_EARLY_READ);
+
+
+		wa_write_or(wal, GEN7_FF_THREAD_MODE,
+				GEN12_FF_TESSELATION_DOP_GATE_DISABLE);
+
+
+		wa_mcr_masked_en(wal,
+				 GEN10_SAMPLER_MODE,
+				 ENABLE_SMALLPL);
+	//}
+
+	//if (IS_ALDERLAKE_P(i915) || IS_ALDERLAKE_S(i915) ||
+	//	IS_ROCKETLAKE(i915) || IS_TIGERLAKE(i915)) {
+
+		wa_mcr_masked_en(wal, GEN8_ROW_CHICKEN2,
+				 GEN12_PUSH_CONST_DEREF_HOLD_DIS);
+
+
+		wa_mcr_masked_en(wal, GEN9_ROW_CHICKEN4, GEN12_DISABLE_TDL_PUSH);
+	//}
+
+	//if (IS_ROCKETLAKE(i915) || IS_TIGERLAKE(i915) || IS_ALDERLAKE_P(i915)) {
+
+		wa_masked_en(wal,
+				 RING_PSMI_CTL(RENDER_RING_BASE),
+				 GEN12_WAIT_FOR_EVENT_POWER_DOWN_DISABLE |
+				 GEN8_RC_SEMA_IDLE_MSG_DISABLE);
+	//}
+
+
+	
+	//if (GRAPHICS_VER(i915) >= 9)
+		wa_masked_en(wal,
+				 GEN7_FF_SLICE_CS_CHICKEN1,
+				 GEN9_FFSC_PERCTX_PREEMPT_CTRL);
+
+
+
+}
+
+static void ccs_engine_wa_mode(struct intel_engine_cs *engine, struct i915_wa_list *wal)
+{
+	//struct intel_gt *gt = engine->gt;
+	u32 mode;
+
+	//if (!IS_DG2(gt->i915))
+		return;
+
+
+//	wa_masked_en(wal, GEN12_RCU_MODE, XEHP_RCU_MODE_FIXED_SLICE_CCS_MODE);
+
+
+	//mode = intel_gt_apply_ccs_mode(gt);
+	//wa_masked_en(wal, XEHP_CCS_MODE, mode);
+}
+
+static void
+engine_init_workarounds(struct intel_engine_cs *engine, struct i915_wa_list *wal)
+{
+
+
+	//engine_fake_wa_init(engine, wal);
+
+	//if (engine->flags & I915_ENGINE_FIRST_RENDER_COMPUTE) {
+	if (engine->engine_class == RENDER_CLASS){
+		general_render_compute_wa_init(engine, wal);
+		ccs_engine_wa_mode(engine, wal);
+	}
+	//}
+
+	/*if (engine->class == COMPUTE_CLASS)
+		ccs_engine_wa_init(engine, wal);
+	else*/ if (engine->engine_class == RENDER_CLASS)
+		rcs_engine_wa_init(engine, wal);
+	//else
+	//	xcs_engine_wa_init(engine, wal);
+}
+
+void intel_engine_init_ctx_wa(struct intel_engine_cs *engine)
+{
+	struct i915_wa_list *wal = &engine->ctx_wa_list;
+
+	wa_init_start(wal, engine->dev, "context", "");
+	//engine_init_workarounds(engine, wal);
+	gen12_ctx_workarounds_init(engine, wal);
+	wa_init_finish(wal);
+}
+
+static void engine_init_whitelist(struct intel_engine_cs *engine, struct i915_wa_list *wal)
+{
+	tgl_whitelist_build(engine);
+}
+
+void intel_engine_init_workarounds(struct intel_engine_cs *engine)
+{
+	struct i915_wa_list *wal = &engine->wa_list;
+
+	wa_init_start(wal, engine->dev, "engine", "");
+	engine_init_workarounds(engine, wal);
+	wa_init_finish(wal);
+}
+
+void intel_engine_init_whitelist(struct intel_engine_cs *engine)
+{
+	struct i915_wa_list *wal = &engine->whitelist;
+
+	wa_init_start(wal, engine->dev, "whitelist", "");
+	engine_init_whitelist(engine, wal);
+	wa_init_finish(wal);
+}
+
+void intel_engine_apply_workarounds(struct intel_engine_cs *engine)
+{
+	wa_list_apply(&engine->wa_list);
+}
+
+void intel_engine_apply_whitelist(struct intel_engine_cs *engine)
+{
+	whitelist_apply(engine);
+}
+
+
+
+void engines()
+{
+
+	struct intel_engine_cs linux_engine = {0};
+//static const struct engine_info intel_engines[]
+//	platform_engine_mask =
+	//	BIT(RCS0) | BIT(BCS0) | BIT(VECS0) | BIT(VCS0) | BIT(VCS2),
+
+	for (int i = 0; i < 6; i++) {
+//apple code order !!
+		switch (i) {
+			case 0: // RCS
+				linux_engine.mmio_base = RENDER_RING_BASE;
+				linux_engine.engine_class = RENDER_CLASS;
+				break;
+			case 1: // CCS0
+				continue;
+			case 2: // BCS
+				linux_engine.mmio_base = BLT_RING_BASE;
+				linux_engine.engine_class = COPY_ENGINE_CLASS;
+				break;
+			case 3: // VCS0
+				linux_engine.mmio_base = GEN11_BSD_RING_BASE;
+				linux_engine.engine_class = VIDEO_DECODE_CLASS;
+				break;
+			case 4: // VCS2
+				linux_engine.mmio_base = GEN11_BSD3_RING_BASE;
+				linux_engine.engine_class = VIDEO_DECODE_CLASS;
+				break;
+			case 5: // VECS0
+				linux_engine.mmio_base = GEN11_VEBOX_RING_BASE;
+				linux_engine.engine_class = VIDEO_ENHANCE_CLASS;
+				break;
+
+			default:
+				continue;
+		}
+
+		linux_engine.wa_list.count = 0;
+		linux_engine.whitelist.count = 0;
+		linux_engine.ctx_wa_list.count = 0;
+		
+		intel_engine_init_workarounds(&linux_engine);
+		intel_engine_init_whitelist(&linux_engine);
+		intel_engine_init_ctx_wa(&linux_engine);
+		
+		intel_engine_apply_workarounds(&linux_engine);
+		intel_engine_apply_whitelist(&linux_engine);
+		
+		//intel_engine_emit_ctx_wa
+		wa_list_apply(&linux_engine.ctx_wa_list);
+	}
+}
+
+
+unsigned long  Gen11::startGraphicsEngine(void *that)
+{
+	seng=true;
+	return FunctionCast(startGraphicsEngine, callback->ostartGraphicsEngine)( that);
+}
+
+void  Gen11::initHardwareStatusPageRegisters(void *that)
+{
+	FunctionCast(initHardwareStatusPageRegisters, callback->oinitHardwareStatusPageRegisters)( that);
+	if (seng)
+	{
+		seng=false;
+		engines();
+	}
+}
 
 void Gen11::sanitizeCDClockFrequency(void *that) {
 

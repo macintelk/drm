@@ -7144,7 +7144,129 @@ enum intel_output_type {
 
 
 
+#define RENDER_CLASS               0
+#define VIDEO_DECODE_CLASS         1
+#define VIDEO_ENHANCE_CLASS        2
+#define COPY_ENGINE_CLASS          3
+#define COMPUTE_CLASS              4
 
+#define RENDER_RING_BASE           0x2000
+#define GEN6_BSD_RING_BASE         0x12000
+#define BLT_RING_BASE              0x22000
+#define VEBOX_RING_BASE            0x1A000
+
+
+
+
+
+#define GEN11_COMMON_SLICE_CHICKEN3         _MMIO(0x7304)
+#define GEN12_DISABLE_CPS_AWARE_COLOR_PIPE  REG_BIT(6)
+
+#define GEN8_CS_CHICKEN1                    _MMIO(0x2580)
+#define GEN9_PREEMPT_GPGPU_LEVEL_MASK       REG_GENMASK(19, 14)
+#define GEN9_PREEMPT_GPGPU_THREAD_GROUP_LEVEL REG_FIELD_PREP(GEN9_PREEMPT_GPGPU_LEVEL_MASK, 2)
+
+#define GEN12_FF_MODE2                      _MMIO(0x6554)
+#define FF_MODE2_TDS_TIMER_MASK             REG_GENMASK(12, 8)
+#define FF_MODE2_TDS_TIMER_128              REG_FIELD_PREP(FF_MODE2_TDS_TIMER_MASK, 4)
+#define FF_MODE2_GS_TIMER_MASK              REG_GENMASK(4, 0)
+#define FF_MODE2_GS_TIMER_224               REG_FIELD_PREP(FF_MODE2_GS_TIMER_MASK, 14)
+
+#define HIZ_CHICKEN                         _MMIO(0x2688)
+#define HZ_DEPTH_TEST_LE_GE_OPT_DISABLE     REG_BIT(13)
+
+#define COMMON_SLICE_CHICKEN4               _MMIO(0x7300)
+#define DISABLE_TDC_LOAD_BALANCING_CALC     REG_BIT(6)
+
+#define GEN8_WM_CHICKEN2                    _MMIO(0x4028)
+#define WAIT_ON_DEPTH_STALL_DONE_DISABLE    REG_BIT(5)
+
+#define PS_INVOCATION_COUNT                 _MMIO(0x2348)
+#define GEN7_COMMON_SLICE_CHICKEN1          _MMIO(0x7010)
+
+#define RING_CTX_TIMESTAMP(base)            _MMIO((base) + 0x3a8)
+#define RING_FORCE_TO_NONPRIV(base, i)      _MMIO(((base) + 0x4D0) + (i) * 4)
+#define   RING_FORCE_TO_NONPRIV_ACCESS_RD   (1 << 28)
+#define   RING_FORCE_TO_NONPRIV_ACCESS_RW   (0 << 28)
+#define   RING_FORCE_TO_NONPRIV_RANGE_1     (0 << 0)
+#define   RING_FORCE_TO_NONPRIV_RANGE_4     (1 << 0)
+#define GEN11_BSD_RING_BASE	0x1c0000
+#define GEN11_BSD3_RING_BASE	0x1d0000
+#define GEN11_VEBOX_RING_BASE		0x1c8000
+
+#define MCR_REG(offset) offset
+#define GEN10_SAMPLER_MODE			MCR_REG(0xe18c)
+#define   GEN11_INDIRECT_STATE_BASE_ADDR_OVERRIDE	REG_BIT(0)
+#define GEN8_GARBCNTL				_MMIO(0xb004)
+#define   GEN12_BUS_HASH_CTL_BIT_EXC		REG_BIT(7)
+
+#define GEN9_CS_DEBUG_MODE1			_MMIO(0x20ec)
+#define   FF_DOP_CLOCK_GATE_DISABLE		REG_BIT(1)
+#define GEN8_ROW_CHICKEN2			MCR_REG(0xe4f4)
+#define   GEN12_DISABLE_EARLY_READ		REG_BIT(14)
+#define GEN7_FF_THREAD_MODE		_MMIO(0x20a0)
+#define   GEN12_FF_TESSELATION_DOP_GATE_DISABLE BIT(19)
+#define   ENABLE_SMALLPL			REG_BIT(15)
+#define   GEN12_PUSH_CONST_DEREF_HOLD_DIS	REG_BIT(8)
+#define GEN9_ROW_CHICKEN4			MCR_REG(0xe48c)
+#define   GEN12_DISABLE_TDL_PUSH		REG_BIT(9)
+#define RING_PSMI_CTL(base)			_MMIO((base) + 0x50)
+#define   GEN12_WAIT_FOR_EVENT_POWER_DOWN_DISABLE REG_BIT(7)
+#define   GEN8_RC_SEMA_IDLE_MSG_DISABLE		REG_BIT(12)
+#define GEN7_FF_SLICE_CS_CHICKEN1		_MMIO(0x20e0)
+#define   GEN9_FFSC_PERCTX_PREEMPT_CTRL		(1 << 14)
+
+template<unsigned long long Val>
+constexpr int build_bug_on_zero_impl() {
+	static_assert(Val == 0, "BUILD_BUG_ON_ZERO failed");
+	return 0;
+}
+
+#define BUILD_BUG_ON_ZERO(cond) (build_bug_on_zero_impl<(cond)>())
+
+#define REG_MASKED_FIELD(mask, value) \
+	(BUILD_BUG_ON_ZERO(__builtin_choose_expr(__builtin_constant_p(mask), \
+		(mask) & 0xffff0000, 0)) + \
+	 BUILD_BUG_ON_ZERO(__builtin_choose_expr(__builtin_constant_p(value), \
+		(value) & 0xffff0000, 0)) + \
+	 BUILD_BUG_ON_ZERO(__builtin_choose_expr(__builtin_constant_p(mask) && \
+		__builtin_constant_p(value), (value) & ~(mask), 0)) + \
+	 ((mask) << 16 | (value)))
+
+#define REG_MASKED_FIELD_ENABLE(a) \
+	(__builtin_choose_expr(__builtin_constant_p(a), \
+		REG_MASKED_FIELD((a), (a)), \
+		([&]{ auto a_ = (a); return REG_MASKED_FIELD(a_, a_); }())))
+
+
+struct i915_wa {
+	u32 reg;
+	u32        clr;
+	u32        set;
+	u32        val;
+	bool       is_mcr;
+	u32		masked_reg:1;
+	u32	mcr_reg;
+	u32		read;
+};
+
+
+struct i915_wa_list {
+	const char          *name;
+	struct i915_wa       wa[64];
+	u32                  count;
+	void    *dev;
+};
+
+struct intel_engine_cs {
+	void    *dev;
+	u32                  mmio_base;
+	u32                  engine_class;
+	bool                 is_dg1;
+	struct i915_wa_list ctx_wa_list;
+	struct i915_wa_list  wa_list;
+	struct i915_wa_list  whitelist;
+};
 
 
 

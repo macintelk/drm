@@ -679,6 +679,12 @@ public:
 	static void RestoreTransactions(void *that,bool param_1);
 	mach_vm_address_t oRestoreTransactions {};
 	
+	static unsigned long  startGraphicsEngine(void *that);
+	mach_vm_address_t ostartGraphicsEngine {};
+	
+	static void  initHardwareStatusPageRegisters(void *that);
+	mach_vm_address_t oinitHardwareStatusPageRegisters {};
+	
 	
 	
 	
