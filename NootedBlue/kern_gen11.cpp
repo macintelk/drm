@@ -1025,6 +1025,7 @@ uint32_t Gen11::fsetAttribute(void *that, uint param_1, unsigned long param_2)
 		FunctionCast(fsetAttribute, callback->ofsetAttribute)(that, param_1, param_2);
 		IOSleep(1);
 		
+		if (0)
 		if (!kexticl)
 		if (param_2==0x11)
 		{
@@ -1162,10 +1163,10 @@ void Gen11::updateSliceConfig(void *that, uint32_t val)
 {
 	IGSliceConfig requestedConfig;
 	requestedConfig.raw = val;
-	if (requestedConfig.getSubSliceCount()>4) requestedConfig.setSubSliceCount(int(requestedConfig.getSubSliceCount()/2));
 	if (requestedConfig.getSubSliceCount()>4) requestedConfig.setSubSliceCount(4);
 	
 	if (requestedConfig.getEUCount()>8) requestedConfig.setEUCount(8);
+	if (requestedConfig.getSliceCount()!=1) requestedConfig.setSliceCount(1);
 	
 	FunctionCast(updateSliceConfig, callback->oupdateSliceConfig)( that,requestedConfig.raw);
 }
@@ -1174,10 +1175,10 @@ void Gen11::setAsyncSliceCount(void *that, uint32_t val)
 {
 	IGSliceConfig requestedConfig;
 	requestedConfig.raw = val;
-	if (requestedConfig.getSubSliceCount()>4) requestedConfig.setSubSliceCount(int(requestedConfig.getSubSliceCount()/2));
 	if (requestedConfig.getSubSliceCount()>4) requestedConfig.setSubSliceCount(4);
 	
 	if (requestedConfig.getEUCount()>8) requestedConfig.setEUCount(8);
+	if (requestedConfig.getSliceCount()!=1) requestedConfig.setSliceCount(1);
 	
 	FunctionCast(setAsyncSliceCount, callback->osetAsyncSliceCount)( that,requestedConfig.raw);
 }
@@ -1186,10 +1187,16 @@ unsigned long  Gen11::setSliceConfig(void *that, uint32_t val)
 {
 	IGSliceConfig requestedConfig;
 	requestedConfig.raw = val;
-	if (requestedConfig.getSubSliceCount()>4) requestedConfig.setSubSliceCount(int(requestedConfig.getSubSliceCount()/2));
 	if (requestedConfig.getSubSliceCount()>4) requestedConfig.setSubSliceCount(4);
 	
 	if (requestedConfig.getEUCount()>8) requestedConfig.setEUCount(8);
+	if (requestedConfig.getSliceCount()!=1) requestedConfig.setSliceCount(1);
+	
+	getMember<uint32_t>(that, kexticl ? 0x12cc : 0xdd8)=requestedConfig.getSliceCount();//REQSlices
+	getMember<uint32_t>(that, kexticl ? 0xdd8 : 0xde0)=requestedConfig.getEUCount();//MAXeus
+	getMember<uint32_t>(that, kexticl ? 0xddc : 0xde4)=requestedConfig.getEUCount();//MINeus
+	getMember<uint32_t>(that, kexticl ? 0x12d0 : 0xddc)=requestedConfig.getSubSliceCount();//REQNumSubSlices
+
 	
 	return FunctionCast(setSliceConfig, callback->osetSliceConfig)( that,requestedConfig.raw);
 }
@@ -1198,10 +1205,10 @@ void Gen11::setAsyncSliceCount2(void *that, uint32_t val)
 {
 	IGSliceConfig requestedConfig;
 	requestedConfig.raw = val;
-	if (requestedConfig.getSubSliceCount()>4) requestedConfig.setSubSliceCount(int(requestedConfig.getSubSliceCount()/2));
 	if (requestedConfig.getSubSliceCount()>4) requestedConfig.setSubSliceCount(4);
 	
 	if (requestedConfig.getEUCount()>8) requestedConfig.setEUCount(8);
+	if (requestedConfig.getSliceCount()!=1) requestedConfig.setSliceCount(1);
 	
 	FunctionCast(setAsyncSliceCount2, callback->osetAsyncSliceCount2)( that,requestedConfig.raw);
 }
