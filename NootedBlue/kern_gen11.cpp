@@ -239,6 +239,15 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			
 			
 			
+			{"__ZN19AppleIntelPowerWell19enableDisplayEngineEv",enableDisplayEngine, this->oenableDisplayEngine},
+			{"__ZN19AppleIntelPowerWell23overridePowerWellsStateEb",overridePowerWellsState, this->ooverridePowerWellsState},
+			{"__ZN24AppleIntelBaseController13probeBootPipeEPbPN17AppleIntelPortHAL3DDIE",probeBootPipe, this->oprobeBootPipe},
+			{"__ZN19AppleIntelPowerWell19disablePowerWellAuxEj",disablePowerWellAux, this->odisablePowerWellAux},
+			{"__ZN19AppleIntelPowerWell19disablePowerWellDDIEj",disablePowerWellDDI, this->odisablePowerWellDDI},
+			{"__ZN19AppleIntelPowerWell18disablePowerWellPGEj",disablePowerWellPG, this->odisablePowerWellPG},
+			
+			
+			
 			
 			/*{"__ZN21AppleIntelFramebuffer17prepareToExitWakeEv",dovoid},
 			{"__ZN21AppleIntelFramebuffer18prepareToExitSleepEv",dovoid},
@@ -253,8 +262,9 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		if (isprod) {
 			RouteRequestPlus requests[] = {
 				
+				{"__ZN31AppleIntelFramebufferController11initCDClockEv",initCDClock, this->oinitCDClock},
 				{"__ZN31AppleIntelFramebufferController15configureReportEP19IOReportChannelListjPvS2_",configureReport, this->oconfigureReport},
-				
+				{"__ZN19AppleIntelPowerWell4initEP31AppleIntelFramebufferController",AppleIntelPowerWellinit, this->oAppleIntelPowerWellinit},
 				//{"__ZN31AppleIntelFramebufferController16hwRegsNeedUpdateEP21AppleIntelFramebufferP21AppleIntelDisplayPathP10CRTCParamsPK29IODetailedTimingInformationV2PN16AppleIntelScaler12SCALERPARAMSE",hwRegsNeedUpdate, this->ohwRegsNeedUpdate},
 				{"__ZN31AppleIntelFramebufferController15hwSetPanelPowerEj",hwSetPanelPower, this->ohwSetPanelPower},
 				{"__ZN31AppleIntelFramebufferController11SetupParamsEP21AppleIntelFramebufferP21AppleIntelDisplayPathP10CRTCParamsPK29IODetailedTimingInformationV2",SetupParams,	this->oSetupParams},
@@ -280,9 +290,9 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		{
 			RouteRequestPlus requests[] = {
 				
-				
+				{"__ZN24AppleIntelBaseController11initCDClockEv",initCDClock, this->oinitCDClock},
 				{"__ZN24AppleIntelBaseController15configureReportEP19IOReportChannelListjPvS2_",configureReport, this->oconfigureReport},
-				
+				{"__ZN19AppleIntelPowerWell4initEP24AppleIntelBaseController",AppleIntelPowerWellinit, this->oAppleIntelPowerWellinit},
 				//{"__ZN24AppleIntelBaseController16hwRegsNeedUpdateEP21AppleIntelFramebufferP21AppleIntelDisplayPathP10CRTCParamsPK29IODetailedTimingInformationV2PN16AppleIntelScaler12SCALERPARAMSE",hwRegsNeedUpdate, this->ohwRegsNeedUpdate},
 				{"__ZN24AppleIntelBaseController15hwSetPanelPowerEj",hwSetPanelPower, this->ohwSetPanelPower},
 				{"__ZN24AppleIntelBaseController11SetupParamsEP21AppleIntelFramebufferP21AppleIntelDisplayPathP10CRTCParamsPK29IODetailedTimingInformationV2",SetupParams,	this->oSetupParams},
@@ -514,7 +524,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		
 		//ringmask
 		static const uint8_t f4[] = {0x41, 0x80, 0x8d, 0x00, 0x13, 0x00, 0x00, 0x3f};
-		static const uint8_t r4[] = {0x41, 0x80, 0x8d, 0x00, 0x13, 0x00, 0x00, 0x1f};
+		static const uint8_t r4[] = {0x41, 0x80, 0x8d, 0x00, 0x13, 0x00, 0x00, 0x3f};
 		
 		
 		//blit3d mem align patch
@@ -1011,6 +1021,7 @@ IOReturn Gen11::getAttributeForConnection(void* framebuffer, int32_t connectInde
 static uint32_t oldWSAAState = 0;
 uint32_t Gen11::fsetAttribute(void *that, uint param_1, unsigned long param_2)
 {
+	if (0)
 	if (param_1 == 'wsrv')
 	{
 		uint32_t fbNum = getMember<uint32_t>(that, 0x1dc);
@@ -1126,7 +1137,6 @@ uint32_t Gen11::fgetAttribute(void *that, uint param_1, unsigned long *param_2)
 
 unsigned long  Gen11::fcallPlatformFunction(void *that,void *param_1,bool param_2,void *param_3,void *param_4,void *param_5,void *param_6)
 {
-	//if ((const char*)param_1=="WSAAState") panic ("wwww");
 	
 	return FunctionCast(fcallPlatformFunction, callback->ofcallPlatformFunction)(that, param_1, param_2, param_3, param_4, param_5, param_6);
 }
@@ -1149,15 +1159,41 @@ IOReturn Gen11::wrapSetAttributeForConnection(void* framebuffer, int32_t connect
 
 void Gen11::updatePlane(void *that,bool param_1)
 {
-
 	return FunctionCast(updatePlane, callback->oupdatePlane)(that, param_1);
 }
 
 void Gen11::RestoreTransactions(void *that,bool param_1)
 {
-
 	return FunctionCast(RestoreTransactions, callback->oRestoreTransactions)(that, param_1);
 }
+
+
+void  Gen11::overridePowerWellsState(void *that,bool param_1)
+{
+	return FunctionCast(overridePowerWellsState, callback->ooverridePowerWellsState)(that, param_1);
+}
+
+int Gen11::probeBootPipe(void *that,bool *param_1,void *param_2)
+{
+	return FunctionCast(probeBootPipe, callback->oprobeBootPipe)(that, param_1,param_2);
+}
+
+void  Gen11::disablePowerWellAux(void *that,uint param_1)
+{
+	return FunctionCast(disablePowerWellAux, callback->odisablePowerWellAux)(that, param_1);
+}
+
+void  Gen11::disablePowerWellDDI(void *that,uint param_1)
+{
+	return FunctionCast(disablePowerWellDDI, callback->odisablePowerWellDDI)(that, param_1);
+}
+
+void  Gen11::disablePowerWellPG(void *that,uint param_1)
+{
+	return FunctionCast(disablePowerWellPG, callback->odisablePowerWellPG)(that, param_1);
+}
+
+
 
 void Gen11::updateSliceConfig(void *that, uint32_t val)
 {
@@ -1716,7 +1752,7 @@ void intel_engine_apply_whitelist(struct intel_engine_cs *engine)
 void engines()
 {
 
-	struct intel_engine_cs linux_engine = {0};
+	struct intel_engine_cs linux_engine;
 //static const struct engine_info intel_engines[]
 //	platform_engine_mask =
 	//	BIT(RCS0) | BIT(BCS0) | BIT(VECS0) | BIT(VCS0) | BIT(VCS2),
@@ -3141,13 +3177,10 @@ void Gen11::hwInitializeCState(void *that)
 	
 	if (getMember<int>(that, kexticl ? 0xb38 : 0xb48) != 1) return;
 	
-	icl_set_pipe_chicken();
+	/*icl_set_pipe_chicken();
 	
 	gen9_set_dc_state(display,DC_STATE_DISABLE);
 	
-	if (DISPLAY_VER(display)== 12)
-		tgl_tc_cold_request(&NBlue::callback->display_base,false);
-
 	if (intel_display_wa(display, INTEL_DISPLAY_WA_14011294188))
 		intel_de_rmw(display, SOUTH_DSPCLK_GATE_D, 0,
 				 PCH_DPMGUNIT_CLOCK_GATE_DISABLE);
@@ -3169,7 +3202,7 @@ void Gen11::hwInitializeCState(void *that)
 	
 	if (DISPLAY_VER(display) >= 12)
 		tgl_bw_buddy_init(display);
-	
+	*/
 	
 	if (parse_dmc_fw(display)!=0) return;
 	
@@ -5826,7 +5859,7 @@ int wait_for_pipe_scanline_moving()
 		if (isAtomic || wait < 1000)
 			IODelay(wait);
 		else if (wait < 1000000)
-			IOPause((uint64_t)wait * 1000ULL);
+			IOPause(wait * 1000ULL);
 		else
 			IOSleep(wait / 1000);
 
@@ -6226,6 +6259,12 @@ void Gen11::SetupParams2 (void *param_2, CRTCParams *param_3)
 	
 }
 
+int Gen11::writeAUX(void *that,uint param_1,void *param_2,uint param_3)
+{
+	auto ret=FunctionCast(writeAUX, callback->owriteAUX)(that ,param_1,param_2,param_3);
+	return ret;
+}
+
 uint64_t Gen11::hwSetPanelPower(void *that,uint param_1)
 {
 	struct intel_display *display=&NBlue::callback->display_base;
@@ -6242,10 +6281,9 @@ uint64_t Gen11::hwSetPanelPower(void *that,uint param_1)
 	return ret;
 };
 
-int Gen11::writeAUX(void *that,uint param_1,void *param_2,uint param_3)
+void Gen11::initCDClock(void *that)
 {
-	auto ret=FunctionCast(writeAUX, callback->owriteAUX)(that ,param_1,param_2,param_3);
-	return ret;
+	FunctionCast(initCDClock, callback->oinitCDClock)(that);
 }
 int Gen11::readAUX(void *that,uint param_1,void *param_2,uint param_3)
 {
@@ -6378,3 +6416,406 @@ uint64_t Gen11::waitForSpace(void *ring, unsigned int num_dwords)
 	return (uint64_t)num_dwords << 8 | 1ULL;
 }
 
+
+
+
+
+
+
+static u32 pipe_mbus_dbox_ctl(struct intel_display *display, enum pipe pipe,
+				  const struct intel_dbuf_state *dbuf_state)
+{
+	u32 val = 0;
+
+	if (DISPLAY_VER(display) >= 14)
+		val |= MBUS_DBOX_I_CREDIT(2);
+
+	if (DISPLAY_VER(display) >= 12) {
+		val |= MBUS_DBOX_B2B_TRANSACTIONS_MAX(16);
+		val |= MBUS_DBOX_B2B_TRANSACTIONS_DELAY(1);
+		val |= MBUS_DBOX_REGULATE_B2B_TRANSACTIONS_EN;
+	}
+
+	if (DISPLAY_VER(display) >= 14)
+		val |= dbuf_state->joined_mbus ?
+			MBUS_DBOX_A_CREDIT(12) : MBUS_DBOX_A_CREDIT(8);
+	else if (intel_display_wa(display, INTEL_DISPLAY_WA_22010947358))
+		/* Wa_22010947358:adl-p */
+		val |= dbuf_state->joined_mbus ?
+			MBUS_DBOX_A_CREDIT(6) : MBUS_DBOX_A_CREDIT(4);
+	else
+		val |= MBUS_DBOX_A_CREDIT(2);
+
+	if (DISPLAY_VER(display) >= 14) {
+		val |= MBUS_DBOX_B_CREDIT(0xA);
+	} else if (display->platform.alderlake_p) {
+		val |= MBUS_DBOX_BW_CREDIT(2);
+		val |= MBUS_DBOX_B_CREDIT(8);
+	} else if (DISPLAY_VER(display) >= 12) {
+		val |= MBUS_DBOX_BW_CREDIT(2);
+		val |= MBUS_DBOX_B_CREDIT(12);
+	} else {
+		val |= MBUS_DBOX_BW_CREDIT(1);
+		val |= MBUS_DBOX_B_CREDIT(8);
+	}
+
+	/*if (DISPLAY_VERx100(display) == 1400) {
+		if (xelpdp_is_only_pipe_per_dbuf_bank(pipe, dbuf_state->active_pipes))
+			val |= MBUS_DBOX_BW_8CREDITS_MTL;
+		else
+			val |= MBUS_DBOX_BW_4CREDITS_MTL;
+	}*/
+
+	return val;
+}
+
+static void pipe_mbus_dbox_ctl_update(struct intel_display *display,
+					  const struct intel_dbuf_state *dbuf_state)
+{
+	enum pipe pipe;
+
+	for_each_pipe(display, pipe) {
+		if (dbuf_state->active_pipes & BIT(pipe))
+			intel_de_write(display, PIPE_MBUS_DBOX_CTL(pipe),
+					   pipe_mbus_dbox_ctl(display, pipe, dbuf_state));
+	}
+}
+
+static void gen9_wait_for_power_well_fuses(struct intel_display *display,
+					   enum skl_power_gate pg)
+{
+
+			intel_de_wait_for_set_ms(display, SKL_FUSE_STATUS,
+						 SKL_FUSE_PG_DIST_STATUS(pg), 1);
+}
+
+int intel_de_wait_us(struct intel_display *display, u32 reg,
+			 u32 mask, u32 value, unsigned int timeout_us,
+			 u32 *out_value)
+{
+	int ret;
+
+	//intel_dmc_wl_get(display, reg);
+
+	ret = intel_de_wait_for_register(display, reg, mask, value,
+					 timeout_us, 0,
+					 out_value, false);
+
+//	intel_dmc_wl_put(display, reg);
+
+	return ret;
+}
+
+int intel_de_wait_for_set_us(struct intel_display *display, u32 reg,
+				 u32 mask, unsigned int timeout_us)
+{
+	return intel_de_wait_us(display, reg, mask, mask, timeout_us, NULL);
+}
+
+static int cnp_rawclk(struct intel_display *display)
+{
+	int divider, fraction;
+	u32 rawclk;
+
+	if (intel_de_read(display, SFUSE_STRAP) & SFUSE_STRAP_RAW_FREQUENCY) {
+		/* 24 MHz */
+		divider = 24000;
+		fraction = 0;
+	} else {
+		/* 19.2 MHz */
+		divider = 19000;
+		fraction = 200;
+	}
+
+	rawclk = CNP_RAWCLK_DIV(divider / 1000);
+	if (fraction) {
+		int numerator = 1;
+
+		rawclk |= CNP_RAWCLK_DEN(DIV_ROUND_CLOSEST(numerator * 1000,
+							   fraction) - 1);
+		if (INTEL_PCH_TYPE(display) >= PCH_ICP)
+			rawclk |= ICP_RAWCLK_NUM(numerator);
+	}
+
+	intel_de_write(display, PCH_RAWCLK_FREQ, rawclk);
+	return divider + fraction;
+}
+
+void  Gen11::enableDisplayEngine(void *that0)
+{
+	struct intel_display *display = &NBlue::callback->display_base;
+	u32 pg_state, pll_state, dbuf_state0, ddi_state;
+	int iVar6;
+	AppleIntelPowerWell0 *that=(AppleIntelPowerWell0*)that0;
+
+	pg_state = intel_de_read(display, HSW_PWR_WELL_CTL2); // 0x45404
+	pll_state = intel_de_read(display, BXT_DE_PLL_ENABLE); // 0x46070
+	dbuf_state0 = intel_de_read(display, DBUF_CTL_S(DBUF_S1)); // 0x45008 = DBUF_S0
+
+	bool de_enabled = ((pg_state & (HSW_PWR_WELL_CTL_REQ(0) | HSW_PWR_WELL_CTL_STATE(0))) == (HSW_PWR_WELL_CTL_REQ(0) | HSW_PWR_WELL_CTL_STATE(0))) &&
+					  ((pll_state & BXT_DE_PLL_LOCK) != 0) &&
+					  ((dbuf_state0 & (DBUF_POWER_REQUEST | DBUF_POWER_STATE)) != 0);
+
+	if (!de_enabled) {
+		ddi_state = intel_de_read(display, ICL_PWR_WELL_CTL_DDI2); // 0x45454
+		
+		bool any_ddi_requested = false;
+		for (int i = 0; i < 9; i++) {
+			if (ddi_state & HSW_PWR_WELL_CTL_REQ(i)) {
+				any_ddi_requested = true;
+				break;
+			}
+		}
+		
+		if (!any_ddi_requested) {
+			overridePowerWellsState(that0, false);
+		} else {
+			intel_de_rmw(display, GEN8_CHICKEN_DCPR_1, 0, MASK_WAKEMEM);
+			initCDClock(that->contr);
+			return;
+		}
+	}
+
+	
+	icl_set_pipe_chicken();
+	
+	gen9_set_dc_state(display, DC_STATE_DISABLE);
+
+	if (intel_display_wa(display, INTEL_DISPLAY_WA_14011294188))
+		intel_de_rmw(display, SOUTH_DSPCLK_GATE_D, 0, PCH_DPMGUNIT_CLOCK_GATE_DISABLE);
+	
+	if (DISPLAY_VER(display) == 12)
+		intel_de_rmw(display, CLKREQ_POLICY, CLKREQ_POLICY_MEM_UP_OVRD, 0);
+	
+	
+	cnp_rawclk(display);
+	//u32 rawclk = intel_de_read(display, PCH_RAWCLK_FREQ); // 0xc6204
+	//u32 sfuse = intel_de_read(display, SFUSE_STRAP);      // 0xc2014
+	//u32 mask = (sfuse & SFUSE_STRAP_RAW_FREQUENCY) ? 0x170000 : 0x10120800;
+	//intel_de_write(display, PCH_RAWCLK_FREQ, (rawclk & 0xc000c7ff) | mask);
+	
+	//intel_de_rmw(display, HSW_NDE_RSTWRN_OPT, 0, RESET_PCH_HANDSHAKE_ENABLE);
+	intel_pch_reset_handshake(display, !HAS_PCH_NOP(display));
+	
+
+	icl_combo_phys_init(display);
+
+	if (intel_de_wait_for_set_ms(display, SKL_FUSE_STATUS, SKL_FUSE_PG_DIST_STATUS(SKL_PG0), 1) == 0) {
+			//return enableDisplayEngine(that0);
+		}
+		
+	intel_de_rmw(display, HSW_PWR_WELL_CTL2, 0, HSW_PWR_WELL_CTL_REQ(1));
+		
+	if (intel_de_wait_for_set_ms(display, HSW_PWR_WELL_CTL2, HSW_PWR_WELL_CTL_STATE(1), 1)) {
+			//drm_err(display->drm, "PG2 STATE wait timed out\n");
+	}
+
+	gen9_wait_for_power_well_fuses(display, SKL_PG2);
+	
+	callback->orgSetCDClockFrequency(that->contr, getMember<u64>(that->contr, 0xea8)/*that->contr->fPendingCDClockFrequency*/);
+
+	if (DISPLAY_VER(display) == 12 || display->platform.dg2)
+		gen12_dbuf_slices_config(display);
+
+	gen9_dbuf_enable(display);
+	
+	icl_mbus_init(display);
+
+	if (DISPLAY_VER(display) >= 12)
+		tgl_bw_buddy_init(display);
+	
+
+	struct intel_dbuf_state dbuf_state;// = &display->dbuf.state;
+	
+	dbuf_state.joined_mbus = false;
+	
+	// Pipe A, B, and C (0x7003c, 0x7103c, 0x7203c)
+	dbuf_state.active_pipes = BIT(0) | BIT(1);// | BIT(2);
+	
+	pipe_mbus_dbox_ctl_update(display, &dbuf_state);
+	
+
+}
+
+
+int Gen11::probePortMode(struct intel_display *display, int port)
+{
+	u32 val;
+	int tc_port;
+	int local_tc_port;
+	u32 reg;
+
+	if (port < 3) return 1;
+
+	tc_port = port - 3;
+
+	// FIA0 (0x1638A0) handles TC1-TC4 (global 0-3)
+	// FIA1 (0x1648A0) handles TC5-TC6 (global 4-5)
+	if (tc_port < 4) {
+		reg = 0x1638A0;
+		local_tc_port = tc_port;
+	} else {
+		reg = 0x1648A0;
+		local_tc_port = tc_port - 4;
+	}
+
+	val = intel_de_read(display, reg);
+
+	if (val == 0xffffffff) return 0;
+
+	if (val & BIT(local_tc_port * 8 + 6)) return 2; // TBT mode
+
+	if (val & BIT(local_tc_port * 8 + 5)) return 3; // DP_ALT mode
+	
+	return 1;
+}
+
+void  Gen11::AppleIntelPowerWellinit(void *that0, void *param_1)
+{
+	struct intel_display *display = &NBlue::callback->display_base;
+	u32 pg_state, ddi_state, aux_state, tbt_state;
+	int bootPipe;
+	u32 active_ddi = 9;
+	int i;
+	AppleIntelPowerWell0 *that=(AppleIntelPowerWell0*)that0;
+	
+	that->contr = param_1;
+	//that->mmio = param_1->mmio;
+	that->mmio = getMember<void *>(param_1, 0xc40);
+	that->powerwellalwaysON = 0;
+	
+	memset(&that->fRefCountPG, 0, 0x14);
+	memset(&that->DDIA, 0, 0x24);
+	memset(&that->AUXA, 0, 0x24);
+
+	
+	//if ((that->contr->flags_ig & FB_FLAG_BOOST_PIXEL_FREQUENCY_LIMIT) != 0) {
+	if ((getMember<u32>(param_1, 0xc58) & FB_FLAG_BOOST_PIXEL_FREQUENCY_LIMIT) != 0) {
+		that->powerwellalwaysON = 1;
+	}
+
+
+	pg_state  = intel_de_read(display, HSW_PWR_WELL_CTL2);       // 0x45404 (PG1-PG5)
+	ddi_state = intel_de_read(display, ICL_PWR_WELL_CTL_DDI2);   // 0x45454 (DDI A/B/C/TC1-6)
+	aux_state = intel_de_read(display, ICL_PWR_WELL_CTL_AUX2);   // 0x45444 (AUX A/B/C/USBC1-6)
+	tbt_state = intel_de_read(display, TGL_PWR_WELL_CTL_AUX4);   // 0x45470 (AUX TBT1-6)
+
+
+	that->fRefCountPG = 1;
+
+	that->PG1 = (pg_state & (HSW_PWR_WELL_CTL_REQ(0) | HSW_PWR_WELL_CTL_STATE(0))) == (HSW_PWR_WELL_CTL_REQ(0) | HSW_PWR_WELL_CTL_STATE(0));
+	that->PG2 = (pg_state & (HSW_PWR_WELL_CTL_REQ(1) | HSW_PWR_WELL_CTL_STATE(1))) == (HSW_PWR_WELL_CTL_REQ(1) | HSW_PWR_WELL_CTL_STATE(1));
+	that->PG3 = (pg_state & (HSW_PWR_WELL_CTL_REQ(2) | HSW_PWR_WELL_CTL_STATE(2))) == (HSW_PWR_WELL_CTL_REQ(2) | HSW_PWR_WELL_CTL_STATE(2));
+	that->PG4 = (pg_state & (HSW_PWR_WELL_CTL_REQ(3) | HSW_PWR_WELL_CTL_STATE(3))) == (HSW_PWR_WELL_CTL_REQ(3) | HSW_PWR_WELL_CTL_STATE(3));
+
+	bool pg5_enabled = (pg_state & (HSW_PWR_WELL_CTL_REQ(4) | HSW_PWR_WELL_CTL_STATE(4))) == (HSW_PWR_WELL_CTL_REQ(4) | HSW_PWR_WELL_CTL_STATE(4));
+
+	if (that->PG2 && getMember<int>(param_1, 0xb48) == 1) {
+		getMember<u32>(param_1, 0xc24) = 0xffffffff;
+	}
+	/*if (that->PG2 && that->contr->dc6config == 1) {
+		that->contr->fDC6EnabledRefCount = 0xffffffff;
+	}*/
+
+	that->DDIA = (ddi_state & (HSW_PWR_WELL_CTL_REQ(0) | HSW_PWR_WELL_CTL_STATE(0))) == (HSW_PWR_WELL_CTL_REQ(0) | HSW_PWR_WELL_CTL_STATE(0));
+	that->DDIB = (ddi_state & (HSW_PWR_WELL_CTL_REQ(1) | HSW_PWR_WELL_CTL_STATE(1))) == (HSW_PWR_WELL_CTL_REQ(1) | HSW_PWR_WELL_CTL_STATE(1));
+	that->DDIC = (ddi_state & (HSW_PWR_WELL_CTL_REQ(2) | HSW_PWR_WELL_CTL_STATE(2))) == (HSW_PWR_WELL_CTL_REQ(2) | HSW_PWR_WELL_CTL_STATE(2));
+	that->TC1  = (ddi_state & (HSW_PWR_WELL_CTL_REQ(3) | HSW_PWR_WELL_CTL_STATE(3))) == (HSW_PWR_WELL_CTL_REQ(3) | HSW_PWR_WELL_CTL_STATE(3));
+	that->TC2  = (ddi_state & (HSW_PWR_WELL_CTL_REQ(4) | HSW_PWR_WELL_CTL_STATE(4))) == (HSW_PWR_WELL_CTL_REQ(4) | HSW_PWR_WELL_CTL_STATE(4));
+	that->TC3  = (ddi_state & (HSW_PWR_WELL_CTL_REQ(5) | HSW_PWR_WELL_CTL_STATE(5))) == (HSW_PWR_WELL_CTL_REQ(5) | HSW_PWR_WELL_CTL_STATE(5));
+	that->TC4  = (ddi_state & (HSW_PWR_WELL_CTL_REQ(6) | HSW_PWR_WELL_CTL_STATE(6))) == (HSW_PWR_WELL_CTL_REQ(6) | HSW_PWR_WELL_CTL_STATE(6));
+	that->TC5  = (ddi_state & (HSW_PWR_WELL_CTL_REQ(7) | HSW_PWR_WELL_CTL_STATE(7))) == (HSW_PWR_WELL_CTL_REQ(7) | HSW_PWR_WELL_CTL_STATE(7));
+	that->TC6  = (ddi_state & (HSW_PWR_WELL_CTL_REQ(8) | HSW_PWR_WELL_CTL_STATE(8))) == (HSW_PWR_WELL_CTL_REQ(8) | HSW_PWR_WELL_CTL_STATE(8));
+
+	that->AUXA   = (aux_state & (HSW_PWR_WELL_CTL_REQ(0) | HSW_PWR_WELL_CTL_STATE(0))) == (HSW_PWR_WELL_CTL_REQ(0) | HSW_PWR_WELL_CTL_STATE(0));
+	that->AUXB   = (aux_state & (HSW_PWR_WELL_CTL_REQ(1) | HSW_PWR_WELL_CTL_STATE(1))) == (HSW_PWR_WELL_CTL_REQ(1) | HSW_PWR_WELL_CTL_STATE(1));
+	that->AUXC   = (aux_state & (HSW_PWR_WELL_CTL_REQ(2) | HSW_PWR_WELL_CTL_STATE(2))) == (HSW_PWR_WELL_CTL_REQ(2) | HSW_PWR_WELL_CTL_STATE(2));
+	that->auxTC1 = (aux_state & (HSW_PWR_WELL_CTL_REQ(3) | HSW_PWR_WELL_CTL_STATE(3))) == (HSW_PWR_WELL_CTL_REQ(3) | HSW_PWR_WELL_CTL_STATE(3));
+	that->auxTC2 = (aux_state & (HSW_PWR_WELL_CTL_REQ(4) | HSW_PWR_WELL_CTL_STATE(4))) == (HSW_PWR_WELL_CTL_REQ(4) | HSW_PWR_WELL_CTL_STATE(4));
+	that->AUXTC3 = (aux_state & (HSW_PWR_WELL_CTL_REQ(5) | HSW_PWR_WELL_CTL_STATE(5))) == (HSW_PWR_WELL_CTL_REQ(5) | HSW_PWR_WELL_CTL_STATE(5));
+	that->AUXTC4 = (aux_state & (HSW_PWR_WELL_CTL_REQ(6) | HSW_PWR_WELL_CTL_STATE(6))) == (HSW_PWR_WELL_CTL_REQ(6) | HSW_PWR_WELL_CTL_STATE(6));
+	that->AUXTC5 = (aux_state & (HSW_PWR_WELL_CTL_REQ(7) | HSW_PWR_WELL_CTL_STATE(7))) == (HSW_PWR_WELL_CTL_REQ(7) | HSW_PWR_WELL_CTL_STATE(7));
+	that->AUXTC6 = (aux_state & (HSW_PWR_WELL_CTL_REQ(8) | HSW_PWR_WELL_CTL_STATE(8))) == (HSW_PWR_WELL_CTL_REQ(8) | HSW_PWR_WELL_CTL_STATE(8));
+
+	if ((tbt_state & (HSW_PWR_WELL_CTL_REQ(0) | HSW_PWR_WELL_CTL_STATE(0))) == (HSW_PWR_WELL_CTL_REQ(0) | HSW_PWR_WELL_CTL_STATE(0))) {
+		that->auxTC1 = 1;
+	}
+	if ((tbt_state & (HSW_PWR_WELL_CTL_REQ(1) | HSW_PWR_WELL_CTL_STATE(1))) == (HSW_PWR_WELL_CTL_REQ(1) | HSW_PWR_WELL_CTL_STATE(1))) {
+		that->auxTC2 = 1;
+	}
+	if ((tbt_state & (HSW_PWR_WELL_CTL_REQ(2) | HSW_PWR_WELL_CTL_STATE(2))) == (HSW_PWR_WELL_CTL_REQ(2) | HSW_PWR_WELL_CTL_STATE(2))) {
+		that->AUXTC3 = 1;
+	}
+	if ((tbt_state & (HSW_PWR_WELL_CTL_REQ(3) | HSW_PWR_WELL_CTL_STATE(3))) == (HSW_PWR_WELL_CTL_REQ(3) | HSW_PWR_WELL_CTL_STATE(3))) {
+		that->AUXTC4 = 1;
+	}
+	if ((tbt_state & (HSW_PWR_WELL_CTL_REQ(4) | HSW_PWR_WELL_CTL_STATE(4))) == (HSW_PWR_WELL_CTL_REQ(4) | HSW_PWR_WELL_CTL_STATE(4))) that->AUXTC5 = 1;
+	if ((tbt_state & (HSW_PWR_WELL_CTL_REQ(5) | HSW_PWR_WELL_CTL_STATE(5))) == (HSW_PWR_WELL_CTL_REQ(5) | HSW_PWR_WELL_CTL_STATE(5))) that->AUXTC6 = 1;
+
+
+	bootPipe = probeBootPipe(that->contr, (bool *)0x0, &active_ddi);
+	
+	
+	//if (bootPipe != 0xffff && that->PG1 == 0 && getMember<u32>(param_1, 0xd5c) /*that->contr->NumFrameBuffers*/ != 0) {
+		enableDisplayEngine(that0);
+	//}
+
+	
+	for (i = 0; i < 9; i++) {
+		if (i == active_ddi) {
+			if ((&that->AUXA)[i] != 0) {
+				// Combo PHYs (DDI A, B, C) use AUX A, B, C which are safe to leave enabled.
+				if (i >= 3) {
+					int port_type = probePortMode(display, i);
+					if (port_type != 2) {
+						//drm_err(display->drm, "EFI should not enable AUX%d power well - overriding\n", i);
+						disablePowerWellAux(that0, i);
+						(&that->AUXA)[i] = 0; // Clear local state
+					}
+				}
+			}
+		} else {
+			if ((&that->DDIA)[i] != 0) {
+				//drm_err(display->drm, "EFI should not enable DDI%d power well - overriding\n", i);
+				disablePowerWellDDI(that0, i);
+				(&that->DDIA)[i] = 0; // Clear local state
+			}
+			if ((&that->AUXA)[i] != 0) {
+				//drm_err(display->drm, "EFI should not enable AUX%d power well - overriding\n", i);
+				disablePowerWellAux(that0, i);
+				(&that->AUXA)[i] = 0; // Clear local state
+			}
+		}
+	}
+
+
+	if (bootPipe == 0) {
+		if (pg5_enabled) { that->PG1 = 2; disablePowerWellPG(that0, 5); pg5_enabled = 0; }
+		if (that->PG4) { that->PG1 = 2; disablePowerWellPG(that0, 4); that->PG4 = 0; }
+		if (that->PG3) { that->PG1 = 2; disablePowerWellPG(that0, 3); that->PG3 = 0; }
+		if (that->PG2) { that->PG1 = 2; disablePowerWellPG(that0, 2); that->PG2 = 0; }
+	}
+	else if (bootPipe == 1) {
+		if (pg5_enabled) { that->PG1 = 2; that->PG2 = 2; that->PG3 = 2; that->PG4 = 2; disablePowerWellPG(that0, 5); pg5_enabled = 0; }
+		if (that->PG4) { that->PG1 = 2; that->PG2 = 2; that->PG3 = 2; disablePowerWellPG(that0, 4); that->PG4 = 0; }
+	}
+	else if (bootPipe == 0xffff) {
+		if (pg5_enabled) { disablePowerWellPG(that0, 5); pg5_enabled = 0; }
+		if (that->PG4) { disablePowerWellPG(that0, 4); that->PG4 = 0; }
+		if (that->PG3) { disablePowerWellPG(that0, 3); that->PG3 = 0; }
+		if (that->PG2) { disablePowerWellPG(that0, 2); that->PG2 = 0; }
+		if (that->PG1) { disablePowerWellPG(that0, 1); that->PG1 = 0; }
+	}
+
+
+	if (that->TC1 || that->TC2 || that->TC3 || that->TC4 || that->TC5 || that->TC6 ||
+		that->auxTC1 || that->auxTC2 || that->AUXTC3 || that->AUXTC4 || that->AUXTC5 || that->AUXTC6) {
+		tgl_tc_cold_request(display, true);
+	} else {
+		tgl_tc_cold_request(display, false);
+	}
+
+	if (that->powerwellalwaysON != '\0') {
+		overridePowerWellsState(that0, true);
+	}
+}

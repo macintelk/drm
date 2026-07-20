@@ -8,6 +8,46 @@
 #include <Headers/kern_util.hpp>
 
 
+struct AppleIntelPowerWell0 {
+	u64 *vt;
+	u8 field1_0x8;
+	u8 field2_0x9;
+	u8 field3_0xa;
+	u8 field4_0xb;
+	u8 field5_0xc;
+	u8 field6_0xd;
+	u8 field7_0xe;
+	u8 field8_0xf;
+	void *contr;
+	u8 powerwellalwaysON;
+	u8 field11_0x19;
+	u8 field12_0x1a;
+	u8 field13_0x1b;
+	u32 fRefCountPG;
+	int PG1;
+	int PG2;
+	int PG3;
+	int PG4;
+	int DDIA;
+	int DDIB;
+	int DDIC;
+	int TC1;
+	int TC2;
+	int TC3;
+	int TC4;
+	int TC5;
+	int TC6;
+	int AUXA;
+	int AUXB;
+	int AUXC;
+	int auxTC1;
+	int auxTC2;
+	int AUXTC3;
+	int AUXTC4;
+	int AUXTC5;
+	int AUXTC6;
+	void *mmio;
+};
 
 static constexpr uint32_t ICL_REG_CDCLK_CTL = 0x46000;
 
@@ -684,6 +724,30 @@ public:
 	
 	static void  initHardwareStatusPageRegisters(void *that);
 	mach_vm_address_t oinitHardwareStatusPageRegisters {};
+	
+	static int probePortMode(struct intel_display *display, int port);
+	
+	static void  AppleIntelPowerWellinit(void *that0, void *param_1);
+	mach_vm_address_t oAppleIntelPowerWellinit {};
+	
+	static void  enableDisplayEngine(void *that0);
+	mach_vm_address_t oenableDisplayEngine {};
+	
+	static void  overridePowerWellsState(void *that,bool param_1);
+	mach_vm_address_t ooverridePowerWellsState {};
+	
+	static int probeBootPipe(void *that,bool *param_1,void *param_2);
+	mach_vm_address_t oprobeBootPipe {};
+	
+	static void  disablePowerWellAux(void *that,uint param_1);
+	mach_vm_address_t odisablePowerWellAux {};
+	
+	static void  disablePowerWellDDI(void *that,uint param_1);
+	mach_vm_address_t odisablePowerWellDDI {};
+	
+	static void  disablePowerWellPG(void *that,uint param_1);
+	mach_vm_address_t odisablePowerWellPG {};
+	
 	
 	
 	
