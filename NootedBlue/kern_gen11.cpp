@@ -5831,43 +5831,38 @@ static bool pipe_scanline_is_moving(struct intel_display *display, enum pipe pip
 
 int wait_for_pipe_scanline_moving()
 {
-	struct intel_display *display =&NBlue::callback->display_base;
+			struct intel_display *display = &NBlue::callback->display_base;
 
-	AbsoluteTime deadline;
-	int waitMax = 10000, wait = 2;
-	UInt32 regValue;
-	bool isAtomic = false;
-	UInt32 timeoutUs=500;
-	
-	nanoseconds_to_absolutetime((uint64_t)timeoutUs * 1000ULL, &deadline);
-	deadline += mach_absolute_time();
+			AbsoluteTime deadline, now;
+			uint32_t wait_us = 2;
+			bool is_moving=false;
+			
+			uint64_t timeout_ns = (uint64_t)100 * 1000 * NSEC_PER_USEC;
+			nanoseconds_to_absolutetime(timeout_ns, &deadline);
 
-	if (timeoutUs / 1000 <= 10) {
-		isAtomic = true;
-		wait = 1;
-	}
+			for (;;) {
+				now = mach_absolute_time();
+				
+				is_moving = pipe_scanline_is_moving(display, display->pipe0);
+				
+				if (is_moving ) {
+					return 0;
+				}
 
-	for (;;) {
-		bool expired = mach_absolute_time() > deadline;
+				if (CMP_ABSOLUTETIME(&now, &deadline)) {
+					return 1;
+				}
 
-		if (pipe_scanline_is_moving(display,display->pipe0))
-			return 0;
+				if (wait_us < 1000) {
+					IODelay(wait_us);
+				} else {
+					IOSleep(wait_us / 1000);
+				}
 
-		if (expired)
-			return 1;
-
-		if (isAtomic || wait < 1000)
-			IODelay(wait);
-		else if (wait < 1000000)
-			IOPause(wait * 1000ULL);
-		else
-			IOSleep(wait / 1000);
-
-		if (wait < waitMax)
-			wait <<= 1;
-	}
-		
-
+				if (wait_us < 10000) {
+					wait_us <<= 1;
+				}
+			}
 }
 
 
@@ -6562,6 +6557,35 @@ static void mbus_ctl_join_update(struct intel_display *display,
 			 MBUS_JOIN_PIPE_SELECT_MASK, mbus_ctl);
 }
 
+void intel_dbuf_mdclk_cdclk_ratio_update(struct intel_display *display,
+					 int ratio, bool joined_mbus)
+{
+	enum dbuf_slice slice;
+
+	if (!HAS_MBUS_JOINING(display))
+		return;
+
+	/*if (DISPLAY_VER(display) >= 35)
+		intel_de_rmw(display, MBUS_CTL, XE3P_MBUS_TRANSLATION_THROTTLE_MIN_MASK,
+				 XE3P_MBUS_TRANSLATION_THROTTLE_MIN(ratio - 1));
+	else if (DISPLAY_VER(display) >= 20)
+		intel_de_rmw(display, MBUS_CTL, MBUS_TRANSLATION_THROTTLE_MIN_MASK,
+				 MBUS_TRANSLATION_THROTTLE_MIN(ratio - 1));
+*/
+	if (joined_mbus)
+		ratio *= 2;
+
+	for_each_dbuf_slice(display, slice)
+		/*if (DISPLAY_VER(display) >= 35)
+			intel_de_rmw(display, DBUF_CTL_S(slice),
+					 XE3P_DBUF_MIN_TRACKER_STATE_SERVICE_MASK,
+					 XE3P_DBUF_MIN_TRACKER_STATE_SERVICE(ratio - 1));
+		else*/
+			intel_de_rmw(display, DBUF_CTL_S(slice),
+					 DBUF_MIN_TRACKER_STATE_SERVICE_MASK,
+					 DBUF_MIN_TRACKER_STATE_SERVICE(ratio - 1));
+}
+
 void  Gen11::enableDisplayEngine(void *that0)
 {
 	struct intel_display *display = &NBlue::callback->display_base;
@@ -6571,7 +6595,7 @@ void  Gen11::enableDisplayEngine(void *that0)
 
 	pg_state = intel_de_read(display, HSW_PWR_WELL_CTL2); // 0x45404
 	pll_state = intel_de_read(display, BXT_DE_PLL_ENABLE); // 0x46070
-	dbuf_state0 = intel_de_read(display, DBUF_CTL_S(DBUF_S1)); // 0x45008 = DBUF_S0
+	dbuf_state0 = intel_de_read(display, DBUF_CTL_S(DBUF_S1)); // 0x45008 = DBUF_S0 rename bug
 
 	bool de_enabled = ((pg_state & (HSW_PWR_WELL_CTL_REQ(0) | HSW_PWR_WELL_CTL_STATE(0))) == (HSW_PWR_WELL_CTL_REQ(0) | HSW_PWR_WELL_CTL_STATE(0))) &&
 					  ((pll_state & BXT_DE_PLL_LOCK) != 0) &&
@@ -6621,16 +6645,29 @@ void  Gen11::enableDisplayEngine(void *that0)
 
 	icl_combo_phys_init(display);
 
-	if (intel_de_wait_for_set_ms(display, SKL_FUSE_STATUS, SKL_FUSE_PG_DIST_STATUS(SKL_PG0), 5) == 0) {
-			//return enableDisplayEngine(that0);
+
+	if (!(pg_state & HSW_PWR_WELL_CTL_STATE(0))) {
+		
+		if (display->platform.alderlake_p)
+			intel_de_rmw(display, GEN8_CHICKEN_DCPR_1, 0, DISABLE_FLR_SRC);
+			
+		gen9_wait_for_power_well_fuses(display, SKL_PG0);
+		
+		intel_de_rmw(display, HSW_PWR_WELL_CTL2, 0, HSW_PWR_WELL_CTL_REQ(0));
+		
+		if (intel_de_wait_for_set_ms(display, HSW_PWR_WELL_CTL2, HSW_PWR_WELL_CTL_STATE(0), 1) != 0) {
+
 		}
 		
-	intel_de_rmw(display, HSW_PWR_WELL_CTL2, 0, HSW_PWR_WELL_CTL_REQ(1));
-		
-	if (intel_de_wait_for_set_ms(display, HSW_PWR_WELL_CTL2, HSW_PWR_WELL_CTL_STATE(1), 1)) {
-			//drm_err(display->drm, "PG2 STATE wait timed out\n");
+		gen9_wait_for_power_well_fuses(display, SKL_PG1);
 	}
 
+
+	intel_de_rmw(display, HSW_PWR_WELL_CTL2, 0, HSW_PWR_WELL_CTL_REQ(1));
+	if (intel_de_wait_for_set_ms(display, HSW_PWR_WELL_CTL2, HSW_PWR_WELL_CTL_STATE(1), 1) != 0) {
+
+	}
+	
 	gen9_wait_for_power_well_fuses(display, SKL_PG2);
 	
 	callback->orgSetCDClockFrequency(that->contr, getMember<u64>(that->contr, 0xea8)/*that->contr->fPendingCDClockFrequency*/);
@@ -6646,15 +6683,19 @@ void  Gen11::enableDisplayEngine(void *that0)
 		tgl_bw_buddy_init(display);
 	
 
-	struct intel_dbuf_state dbuf_state;// = &display->dbuf.state;
+	struct intel_dbuf_state dbuf_state;
 	
 	dbuf_state.joined_mbus = false;
+	
+	if (HAS_MBUS_JOINING(display))
+		dbuf_state.joined_mbus = intel_de_read(display, MBUS_CTL) & MBUS_JOIN;
+	
 	//tgl_allowed_dbufs
 	dbuf_state.active_pipes = BIT(PIPE_A);
 	
 	mbus_ctl_join_update(display, &dbuf_state, PIPE_A);
 	pipe_mbus_dbox_ctl_update(display, &dbuf_state);
-	//intel_dbuf_mdclk_cdclk_ratio_update
+	intel_dbuf_mdclk_cdclk_ratio_update(display, 1,dbuf_state.joined_mbus);
 
 }
 
