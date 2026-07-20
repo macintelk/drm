@@ -6541,6 +6541,27 @@ static int cnp_rawclk(struct intel_display *display)
 	return divider + fraction;
 }
 
+static void mbus_ctl_join_update(struct intel_display *display,
+				 const struct intel_dbuf_state *dbuf_state,
+				 enum pipe pipe)
+{
+	u32 mbus_ctl;
+
+	if (dbuf_state->joined_mbus)
+		mbus_ctl = MBUS_HASHING_MODE_1x4 | MBUS_JOIN;
+	else
+		mbus_ctl = MBUS_HASHING_MODE_2x2;
+
+	if (pipe != INVALID_PIPE)
+		mbus_ctl |= MBUS_JOIN_PIPE_SELECT(pipe);
+	else
+		mbus_ctl |= MBUS_JOIN_PIPE_SELECT_NONE;
+
+	intel_de_rmw(display, MBUS_CTL,
+			 MBUS_HASHING_MODE_MASK | MBUS_JOIN |
+			 MBUS_JOIN_PIPE_SELECT_MASK, mbus_ctl);
+}
+
 void  Gen11::enableDisplayEngine(void *that0)
 {
 	struct intel_display *display = &NBlue::callback->display_base;
@@ -6600,7 +6621,7 @@ void  Gen11::enableDisplayEngine(void *that0)
 
 	icl_combo_phys_init(display);
 
-	if (intel_de_wait_for_set_ms(display, SKL_FUSE_STATUS, SKL_FUSE_PG_DIST_STATUS(SKL_PG0), 1) == 0) {
+	if (intel_de_wait_for_set_ms(display, SKL_FUSE_STATUS, SKL_FUSE_PG_DIST_STATUS(SKL_PG0), 5) == 0) {
 			//return enableDisplayEngine(that0);
 		}
 		
@@ -6628,12 +6649,12 @@ void  Gen11::enableDisplayEngine(void *that0)
 	struct intel_dbuf_state dbuf_state;// = &display->dbuf.state;
 	
 	dbuf_state.joined_mbus = false;
+	//tgl_allowed_dbufs
+	dbuf_state.active_pipes = BIT(PIPE_A);
 	
-	// Pipe A, B, and C (0x7003c, 0x7103c, 0x7203c)
-	dbuf_state.active_pipes = BIT(0) | BIT(1);// | BIT(2);
-	
+	mbus_ctl_join_update(display, &dbuf_state, PIPE_A);
 	pipe_mbus_dbox_ctl_update(display, &dbuf_state);
-	
+	//intel_dbuf_mdclk_cdclk_ratio_update
 
 }
 
