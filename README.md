@@ -8,7 +8,7 @@
 
 use le_kexts.sh to install tgl frame+graph kexts
 
-opencore boot args: debug=0x144 keepsyms=1 IGLogLevel=0xe -disablegfxfirmware
+opencore boot args: debug=0x144 keepsyms=1 IGLogLevel=0xe
 
 add -allow3d to load graphics
    
