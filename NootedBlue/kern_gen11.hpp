@@ -8,6 +8,30 @@
 #include <Headers/kern_util.hpp>
 
 
+struct uc_css_header {
+	u32 module_type;
+	u32 header_size_dw;
+	u32 header_version;
+	u32 module_id;
+	u32 module_vendor;
+	u32 date;
+	u32 size_dw; /* uCode plus header_size_dw */
+	u32 key_size_dw;
+	u32 modulus_size_dw;
+	u32 exponent_size_dw;
+	u32 time;
+	char username[8];
+	char buildnumber[12];
+	u32 sw_version;
+	u32 vf_version;
+	u32 reserved0[12];
+	union {
+		u32 private_data_size; /* only applies to GuC */
+		u32 reserved1;
+	};
+	u32 header_info;
+} __packed;
+
 struct AppleIntelPowerWell0 {
 	u64 *vt;
 	u8 field1_0x8;
@@ -748,9 +772,61 @@ public:
 	static void  disablePowerWellPG(void *that,uint param_1);
 	mach_vm_address_t odisablePowerWellPG {};
 	
+	static unsigned long  loadGuCBinary(void *that);
+	mach_vm_address_t oloadGuCBinary {};
+	
+	static unsigned short acquireDoorbell(void *that,void *param_1,bool param_2);
+	mach_vm_address_t oacquireDoorbell {};
+	
+	static void releaseDoorbell(void *that,void *param_1);
+	mach_vm_address_t oreleaseDoorbell {};
 	
 	
+
+	static unsigned int allocDoorbellId(void *param_1);
+	mach_vm_address_t oallocDoorbellId {};
+
+	static unsigned int stealDoorbellId(void *that);
+	mach_vm_address_t ostealDoorbellId {};
+
+	static void setDoorbellPinning(void *that,unsigned short param_1,bool param_2);
+	mach_vm_address_t osetDoorbellPinning {};
+
+	static char hostToGuCAction(void *that,unsigned int *param_1,unsigned int param_2,int param_3,unsigned int *param_4);
+	mach_vm_address_t ohostToGuCAction {};
+
+	static void  releaseDoorbellId(void *that,unsigned short param_1);
+	mach_vm_address_t oreleaseDoorbellId {};
 	
+	static void initDoorbells(void *that);
+	mach_vm_address_t oinitDoorbells {};
+	
+	static u64 readDoorbellSQIDIConfig(void *that);
+	mach_vm_address_t oreadDoorbellSQIDIConfig {};
+	
+	static bool  initSchedControl(void *that);
+	mach_vm_address_t oinitSchedControl {};
+	
+	static  void* IGSharedMappedBufferwithOptions(void *param_1,unsigned long param_2,uint param_3,uint param_4);
+	mach_vm_address_t oIGSharedMappedBufferwithOptions {};
+	
+	static long  getVirtualAddress(void *that);
+	mach_vm_address_t ogetVirtualAddress {};
+	
+	static uint64_t getGPUVirtualAddress(void *that);
+	mach_vm_address_t ogetGPUVirtualAddress {};
+	
+	static void  checkWOPCMSettings(void *that,unsigned long param_1,void *param_2);
+	mach_vm_address_t ocheckWOPCMSettings {};
+	
+	static void SafeForceWake(void *that,bool param_1,uint param_2);
+	mach_vm_address_t oSafeForceWake {};
+	
+	static void IGSharedMappedBufferfree(void *param_1);
+	mach_vm_address_t oIGSharedMappedBufferfree {};
+	
+	static bool configureDevice(void *param_1);
+	mach_vm_address_t oconfigureDevice {};
 	
 public:
 
