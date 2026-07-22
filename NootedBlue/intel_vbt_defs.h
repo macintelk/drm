@@ -7238,6 +7238,8 @@ constexpr int build_bug_on_zero_impl() {
 		REG_MASKED_FIELD((a), (a)), \
 		([&]{ auto a_ = (a); return REG_MASKED_FIELD(a_, a_); }())))
 
+#define REG_MASKED_FIELD_DISABLE(a) \
+	(REG_MASKED_FIELD((a), 0))
 
 struct i915_wa {
 	u32 reg;
@@ -7545,8 +7547,9 @@ struct guc_doorbell_info {
 #define   GEN9_IGNORE_SLICE_RATIO		(0 << 0)
 #define   GEN12_MEDIA_FREQ_RATIO		REG_BIT(13)
 
-
-
+// Defined from IGGuC::dumpGuCPanicDebugInfo decompilation
+#define DRBMISC1                0x1984
+#define VLV_G3DCTL				_MMIO(0x9024)
 
 
 

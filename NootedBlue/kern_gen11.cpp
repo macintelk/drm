@@ -522,8 +522,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			 {"__ZN16IntelAccelerator13SafeForceWakeEbj",SafeForceWake, this->oSafeForceWake},
 			 {"__ZN20IGSharedMappedBuffer4freeEv",IGSharedMappedBufferfree, this->oIGSharedMappedBufferfree},
 			 {"__ZN16IntelAccelerator15configureDeviceEP11IOPCIDevice",configureDevice, this->oconfigureDevice},
-			 
-			 
+			 {"__ZN15IGMemoryManager16initDeviceMemoryEv",initDeviceMemory, this->oinitDeviceMemory},
 			 
 			 {"__ZN13IGHardwareGuC13loadGuCBinaryEv",loadGuCBinary, this->oloadGuCBinary},
 			 
@@ -1349,12 +1348,20 @@ bool Gen11::configureDevice(void *param_1)
 	return ret;
 }
 
+uint64_t Gen11::initDeviceMemory(void *that)
+{
+	auto ret= FunctionCast(initDeviceMemory, callback->oinitDeviceMemory)( that);
+
+	return ret;
+}
+
 
 unsigned long Gen11::loadGuCBinary(void *that)
 {
+	
 	struct Firmware fw;
 	fw = getFWByName("tgl_guc_70.1.1.bin");
-
+	
 	if (!fw.data || fw.size == 0) {
 		return 0;
 	}
@@ -1374,25 +1381,22 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	
 	size_t ucode_size = (header->size_dw - header->header_size_dw) * 4;
 	size_t total_dma_size = sizeof(uc_css_header) + ucode_size;
-
+	
 	if (fw.size < total_dma_size) {
-		panic("GUC Firmware size mismatch! fw.size (%u) < total_dma_size (%u)", (uint32_t)fw.size, (uint32_t)total_dma_size);
 		return 0;
 	}
-
+	
 	size_t bufferSize = (total_dma_size + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
-
+	
 	void *igtask = getMember<void*>(m_accelerator, 0x150);
 	void* fwBuffer = IGSharedMappedBufferwithOptions(igtask, bufferSize, 2, 0);
-		
+	
 	if (fwBuffer == nullptr) {
-		panic("IGSharedMappedBufferwithOptions failed for size %u", (uint32_t)bufferSize);
 		return 0;
 	}
-
+	
 	void* vaddr = (void*)getVirtualAddress(fwBuffer);
 	if (vaddr == nullptr) {
-		panic("getVirtualAddress");
 		return 0;
 	}
 	
@@ -1400,42 +1404,56 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	
 	uint64_t gpuAddr = getGPUVirtualAddress(fwBuffer);
 	if (gpuAddr == 0) {
-		panic("getGPUVirtualAddress");
 		return 0;
 	}
 	
 	SafeForceWake(m_accelerator, true, 7);
 	
 	m_accelerator = getMember<void *>(that, 0x38);
-	void* mmio = &getMember<uint64_t>(m_accelerator, 0x1240);
-
+	void* mmio = getMember<void*>(m_accelerator, 0x1240);
+	
 	if (mmio == nullptr) {
-		panic("mmio pointer is null!");
+		void* mem_mgr = getMember<void*>(m_accelerator, 0x1260);
+		if (mem_mgr) {
+			mmio = getMember<void*>(mem_mgr, 0x18);
+		}
+	}
+	
+	if (mmio == nullptr) {
+		SafeForceWake(m_accelerator, false, 7);
+		if (fwBuffer) {
+			IGSharedMappedBufferfree(fwBuffer);
+		}
 		return 0;
 	}
 	
-	// Apple-specific register write
-	//getMember<uint32_t>(mmio, 0x1984) = 1;
-	
-	getMember<uint32_t>(mmio, GEN7_MISCCPCTL) = GEN8_DOP_CLOCK_GATE_GUC_ENABLE;
-	
-	getMember<uint32_t>(mmio, GEN9_GT_PM_CONFIG) = GT_DOORBELL_ENABLE;
-	
-	uint64_t features = getMember<uint64_t>(m_accelerator, 0xfc2);
-	
-	if (static_cast<int64_t>(features) < 0) {
-		getMember<uint32_t>(mmio, 0x9024) = 0xcb;
-		features = getMember<uint64_t>(m_accelerator, 0xfc2);
-	}
-	
-	if ((features >> 32) & 1) {
-		getMember<uint32_t>(mmio, GEN6_GFXPAUSE) = 0x30fff;
-		getMember<uint32_t>(mmio, SOFT_SCRATCH(2)) = 500;
-		features = getMember<uint64_t>(m_accelerator, 0xfc2);
-	}
-	
-	getMember<uint32_t>(mmio, GUC_SHIM_CONTROL) = static_cast<uint32_t>((features >> 0x12) & 0x8000) ^ 0x208617;
-	getMember<uint32_t>(mmio, SOFT_SCRATCH(2)) = 0x1ff;
+	u32 shim_flags = GUC_ENABLE_READ_CACHE_LOGIC |
+			 GUC_ENABLE_READ_CACHE_FOR_SRAM_DATA |
+			 GUC_ENABLE_READ_CACHE_FOR_WOPCM_DATA |
+			 GUC_ENABLE_MIA_CLOCK_GATING;
+
+	//if (GRAPHICS_VER_FULL(uncore->i915) < IP_VER(12, 55))
+		shim_flags |= GUC_DISABLE_SRAM_INIT_TO_ZEROES |
+				  GUC_ENABLE_MIA_CACHING;
+
+	//intel_uncore_write(uncore, GUC_SHIM_CONTROL, shim_flags);
+	getMember<uint32_t>(mmio, GUC_SHIM_CONTROL) = shim_flags;
+
+	/*if (IS_GEN9_LP(uncore->i915))
+		intel_uncore_write(uncore, GEN9LP_GT_PM_CONFIG, GT_DOORBELL_ENABLE);
+	else*/
+		//intel_uncore_write(uncore, GEN9_GT_PM_CONFIG, GT_DOORBELL_ENABLE);
+		getMember<uint32_t>(mmio, GEN9_GT_PM_CONFIG) = GT_DOORBELL_ENABLE;
+	/*if (GRAPHICS_VER(uncore->i915) == 9) {
+		intel_uncore_rmw(uncore, GEN7_MISCCPCTL, 0,
+				 GEN8_DOP_CLOCK_GATE_GUC_ENABLE);
+
+		intel_uncore_write(uncore, GUC_ARAT_C6DIS, 0x1FF);
+	}*/
+
+
+	//if (GRAPHICS_VER_FULL(uncore->i915) >= IP_VER(12, 50))
+	//	intel_uncore_rmw(uncore, GUC_SHIM_CONTROL2, 0, GUC_ENABLE_DEBUG_REG);
 
 	size_t rsa_size = header->modulus_size_dw ? (header->modulus_size_dw * 4) : 256;
 	size_t rsa_offset = sizeof(uc_css_header) - rsa_size;
@@ -1445,41 +1463,85 @@ unsigned long Gen11::loadGuCBinary(void *that)
 		getMember<uint32_t>(mmio, UOS_RSA_SCRATCH(0)) = static_cast<uint32_t>(rsa_gpu_addr);
 		getMember<uint32_t>(mmio, UOS_RSA_SCRATCH(1)) = static_cast<uint32_t>((rsa_gpu_addr >> 32) & 0xffff) | DMA_ADDRESS_SPACE_GTT;
 	} else {
-		if (rsa_offset + 256 > fw.size) {
-			panic("GUC Firmware too small to extract RSA key!");
-			return 0;
-		}
+
 		for (size_t i = 0; i < 256; i += 4) {
 			getMember<uint32_t>(mmio, UOS_RSA_SCRATCH(i / 4)) = *reinterpret_cast<uint32_t*>(fw.data + rsa_offset + i);
 		}
 	}
-
 	
-	getMember<uint32_t>(mmio, DMA_COPY_SIZE) = static_cast<uint32_t>(total_dma_size);
 	getMember<uint32_t>(mmio, DMA_ADDR_0_LOW) = static_cast<uint32_t>(gpuAddr);
 	getMember<uint32_t>(mmio, DMA_ADDR_0_HIGH) = static_cast<uint32_t>((gpuAddr >> 32) & 0xffff) | DMA_ADDRESS_SPACE_GTT;
-	getMember<uint32_t>(mmio, DMA_ADDR_1_LOW) = 0x2000;                                  // GuC SRAM Offset
-	getMember<uint32_t>(mmio, DMA_ADDR_1_HIGH) = DMA_ADDRESS_SPACE_WOPCM;                // Destination is WOPCM
+	getMember<uint32_t>(mmio, DMA_ADDR_1_LOW) = 0x2000;
+	getMember<uint32_t>(mmio, DMA_ADDR_1_HIGH) = DMA_ADDRESS_SPACE_WOPCM;
+	getMember<uint32_t>(mmio, DMA_COPY_SIZE) = static_cast<uint32_t>(total_dma_size);
 	
-	uint32_t capabilities = getMember<uint32_t>(m_accelerator, 0x1190);
+	u32 base = 0;
+	u32 size = 0x200000;
+	u32 huc_agent = 0;
 
-	if ((capabilities & 0x20) != 0) {
-		getMember<uint32_t>(mmio, GUC_SHIM_CONTROL2) = 3;
-	}
-	
-	uint32_t commCtrl = getMember<uint32_t>(mmio, GUC_SHIM_CONTROL2);
-	commCtrl = (commCtrl & ~GUC_ENABLE_READ_CACHE_FOR_WOPCM_DATA) | ((getMember<uint32_t>(mmio, 0xb00) >> 0x14) & GUC_ENABLE_READ_CACHE_FOR_WOPCM_DATA);
-	getMember<uint32_t>(mmio, GUC_SHIM_CONTROL2) = commCtrl;
-	
-	getMember<uint32_t>(mmio, DMA_GUC_WOPCM_OFFSET) = GUC_WOPCM_OFFSET_VALID;
-	getMember<uint32_t>(mmio, GUC_WOPCM_SIZE) = (0x200 << GUC_WOPCM_SIZE_SHIFT) | GUC_WOPCM_SIZE_LOCKED; // 2MB WOPCM
+	getMember<uint32_t>(mmio, GUC_WOPCM_SIZE) = size | GUC_WOPCM_SIZE_LOCKED;
+	getMember<uint32_t>(mmio, DMA_GUC_WOPCM_OFFSET) = base | huc_agent | GUC_WOPCM_OFFSET_VALID;
+		
 	
 	getMember<uint32_t>(mmio, GEN12_GUC_TLB_INV_CR) = GEN12_GUC_TLB_INV_CR_INVALIDATE;
-	while ((getMember<uint32_t>(mmio, GEN12_GUC_TLB_INV_CR) & GEN12_GUC_TLB_INV_CR_INVALIDATE) != 0) {
-		// Spin wait
-	}
+	while ((getMember<uint32_t>(mmio, GEN12_GUC_TLB_INV_CR) & GEN12_GUC_TLB_INV_CR_INVALIDATE) != 0) {}
 	
-	getMember<uint32_t>(mmio, DMA_CTRL) = 0xffff0000 | UOS_MOVE | START_DMA;
+	getMember<uint32_t>(mmio, DMA_CTRL) = REG_MASKED_FIELD_ENABLE(UOS_MOVE | START_DMA);
+	
+	int dmaRetry = 1000;
+	   while (getMember<uint32_t>(mmio, DMA_CTRL) & START_DMA) {
+		   IODelay(100);
+		   dmaRetry--;
+		   if (dmaRetry <= 0) {
+			   SafeForceWake(m_accelerator, false, 7);
+			   if (fwBuffer) {
+				   IGSharedMappedBufferfree(fwBuffer);
+			   }
+			   return 0;
+		   }
+	   }
+	   
+
+	getMember<uint32_t>(mmio, DMA_CTRL) = REG_MASKED_FIELD_DISABLE(UOS_MOVE);
+	
+	/*
+	uint32_t status = 0;
+	bool success = false;
+	bool done = false;
+	int retryCount = 3; // GUC_LOAD_RETRY_LIMIT
+	
+	for (int count = 0; count < retryCount; count++) {
+		success = true;
+		int innerTimeout = 1000;
+		done = false;
+		
+		while (innerTimeout > 0) {
+			status = getMember<uint32_t>(mmio, GUC_STATUS);
+			uint32_t bootrom = (status & GS_BOOTROM_MASK) >> GS_BOOTROM_SHIFT;
+			uint32_t ukernel = (status & GS_UKERNEL_MASK) >> GS_UKERNEL_SHIFT;
+			
+			if (bootrom != INTEL_BOOTROM_STATUS_NO_KEY_FOUND &&
+				bootrom != INTEL_BOOTROM_STATUS_RSA_FAILED &&
+				bootrom != INTEL_BOOTROM_STATUS_PROD_KEY_CHECK_FAILURE) {
+				if (ukernel == INTEL_GUC_LOAD_STATUS_READY) {
+					success = true;
+					done = true;
+					break;
+				}
+			} else {
+				success = false;
+				done = true;
+				break;
+			}
+			
+			IODelay(1000);
+			innerTimeout--;
+		}
+		
+		if (done) {
+			break;
+		}
+	}*/
 	
 	uint32_t status = getMember<uint32_t>(mmio, GUC_STATUS);
 	uint32_t ukStatus = (status & GS_UKERNEL_MASK) >> GS_UKERNEL_SHIFT;
@@ -1487,19 +1549,17 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	int retryCount = 200;
 	
 	while (ukStatus != 0xF0) {
-
 		if (((status & GS_BOOTROM_MASK) == (0x50 << GS_BOOTROM_SHIFT)) ||
 			(ukStatus == 0x60) ||
 			(status & GS_AUTH_STATUS_BAD)) {
-			
-			panic("\"GUC Binary Load Failure\"@tgl/sched4/IGHardwareGuC.cpp:747");
+			goto fail;
 		}
 		
 		IODelay(1000);
 		
 		retryCount--;
 		if (retryCount == 0) {
-			panic("\"GUC Binary Load Timeout (200ms)\"@tgl/sched4/IGHardwareGuC.cpp:747");
+			goto fail;
 		}
 		
 		status = getMember<uint32_t>(mmio, GUC_STATUS);
@@ -1507,11 +1567,21 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	}
 	
 	SafeForceWake(m_accelerator, false, 7);
-	
-	IGSharedMappedBufferfree(fwBuffer);
+	if (fwBuffer) {
+		IGSharedMappedBufferfree(fwBuffer);
+	}
 	
 	return 1;
+
+fail:
+	SafeForceWake(m_accelerator, false, 7);
+	if (fwBuffer) {
+		IGSharedMappedBufferfree(fwBuffer);
+	}
+	return 0;
 }
+
+
 		
 	
 
@@ -1611,15 +1681,21 @@ unsigned short Gen11::acquireDoorbell(void *that,void *param_1,bool param_2)
 			getMember<uint32_t>(ctx_status, 0x4) = 0;
 			
 			void *m_accelerator=getMember<void *>(that, 0x38);
-			void* mmio_base= &getMember<uint64_t>(m_accelerator, 0x1240);
+			void* mmio= getMember<void*>(m_accelerator, 0x1240);
 			
-			if (mmio_base== nullptr) {
-				panic("mmio pointer is null!");
+			if (mmio == nullptr) {
+				void* mem_mgr = getMember<void*>(m_accelerator, 0x1260);
+				if (mem_mgr) {
+					mmio = getMember<void*>(mem_mgr, 0x18);
+				}
+			}
+			
+			if (mmio== nullptr) {
 				return 0;
 			}
 			
-			getMember<uint32_t>(mmio_base, 0xcee8) = 1;
-			while ((getMember<uint32_t>(mmio_base, 0xcee8) & 1) != 0) {
+			getMember<uint32_t>(mmio, 0xcee8) = 1;
+			while ((getMember<uint32_t>(mmio, 0xcee8) & 1) != 0) {
 			}
 			
 			uint32_t payload[2] = { 0x10, context_id };
@@ -1672,17 +1748,23 @@ void Gen11::releaseDoorbell(void *that,void *param_1)
 		getMember<uint32_t>(ctx_status, 0x0) = 0;
 		
 		void *m_accelerator=getMember<void *>(that, 0x38);
-		void* mmio_base = &getMember<uint64_t>(m_accelerator, 0x1240);
+		void* mmio = getMember<void*>(m_accelerator, 0x1240);
 	
-		if (mmio_base== nullptr) {
-		panic("mmio pointer is null!");
+		if (mmio == nullptr) {
+		void* mem_mgr = getMember<void*>(m_accelerator, 0x1260);
+		if (mem_mgr) {
+			mmio = getMember<void*>(mem_mgr, 0x18);
+		}
+		}
+	
+		if (mmio== nullptr) {
 		return;
 		}
 		
-		uint32_t db_val = getMember<uint32_t>(mmio_base, 0x1000 + db_index * 8);
-		getMember<uint32_t>(mmio_base, 0x1000 + db_index * 8) = db_val & 0xFFFFFFFE;
-		getMember<uint32_t>(mmio_base, 0x1004 + db_index * 8) = 0;
-		getMember<uint32_t>(mmio_base, 0x1000 + db_index * 8) = 0;
+		uint32_t db_val = getMember<uint32_t>(mmio, 0x1000 + db_index * 8);
+		getMember<uint32_t>(mmio, 0x1000 + db_index * 8) = db_val & 0xFFFFFFFE;
+		getMember<uint32_t>(mmio, 0x1004 + db_index * 8) = 0;
+		getMember<uint32_t>(mmio, 0x1000 + db_index * 8) = 0;
 
 		uint32_t payload[2] = { 0x20, context_id };
 		hostToGuCAction(that, payload, 2, 0xf, nullptr);

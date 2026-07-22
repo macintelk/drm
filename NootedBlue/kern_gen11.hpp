@@ -828,6 +828,12 @@ public:
 	static bool configureDevice(void *param_1);
 	mach_vm_address_t oconfigureDevice {};
 	
+	static uint64_t initDeviceMemory(void *that);
+	mach_vm_address_t oinitDeviceMemory {};
+	
+	
+	
+	
 public:
 
 	void init();
