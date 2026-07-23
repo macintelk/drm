@@ -555,14 +555,6 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		static const uint8_t f5[] = {0x40, 0xd2, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 		static const uint8_t r5[] = {0x00, 0xe0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 		
-		static const uint8_t f6[] = {0x48, 0x05, 0x00, 0xc0, 0x00, 0x00, 0xbb, 0xf1, 0xff, 0xff, 0xff};
-		static const uint8_t r6[] = {0x48, 0x05, 0x00, 0xc0, 0x00, 0x00, 0xbb, 0x38, 0xff, 0xff, 0xff};
-		
-		static const uint8_t f6b[] = {0x74, 0x6f, 0x83, 0xfa, 0x60, 0x74, 0x6a};
-		static const uint8_t r6b[] = {0x90, 0x90, 0x83, 0xfa, 0x60, 0x90, 0x90};
-		
-		static const uint8_t f6c[] = {0x4c, 0x01, 0xe0, 0xff, 0xc3, 0x74, 0x3d};
-		static const uint8_t r6c[] = {0x4c, 0x01, 0xe0, 0xff, 0xc3, 0x74, 0x0d};
 		
 			LookupPatchPlus const patches[] = {
 				{&kext, f2, r2, arrsize(f2),	1},
@@ -571,10 +563,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 				{&kext, f3a, r3a, arrsize(f3a),	1},
 				{&kext, f4, r4, arrsize(f4),	1},
 				{&kext, f5, r5, arrsize(f5),	1},
-				
-				{&kext, f6, r6, arrsize(f6),	1},
-				{&kext, f6b, r6b, arrsize(f6b),	1},
-				{&kext, f6c, r6c, arrsize(f6c),	1},
+
 				
 			};
 			PANIC_COND(!LookupPatchPlus::applyAll(patcher, patches , address, size), "nblue", "kextG11HWT Failed to apply patches!");
@@ -1344,10 +1333,6 @@ u64 Gen11::readDoorbellSQIDIConfig(void *that)
 	getMember<uint16_t>(that, 0x9e0) = db_per_client;
 	getMember<uint8_t>(that, 0x9e3) = 8;
 
-	if (getMember<uint8_t>(that, 0x9e2) == 0) {
-		getMember<uint8_t>(that, 0x9e2) = 1;
-	}
-
 	return ((static_cast<uint64_t>(db_per_client >> 8) & 0x7) << 8) | 1;
 }
 
@@ -1368,6 +1353,7 @@ uint64_t Gen11::finitDeviceMemory(void *that)
 
 unsigned long Gen11::loadGuCBinary(void *that)
 {
+	
 	struct intel_display *display = &NBlue::callback->display_base;
 	void *m_accelerator = getMember<void *>(that, 0x38);
 	
@@ -1399,6 +1385,8 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	uint32_t bootrom = 0;
 	uint32_t ukernel = 0;
 	
+	if (!initSchedControl(that)) return 0;
+	
 	fw = getFWByName("tgl_guc_70.1.1.bin");
 	if (!fw.data || fw.size == 0) return 0;
 	if (fw.size < sizeof(uc_css_header)) return 0;
@@ -1417,7 +1405,7 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	
 	min_expected_size = sizeof(uc_css_header) + ucode_size + rsa_size;
 	if (fw.size < min_expected_size) return 0;
-	if (!initSchedControl(that)) return 0;
+	
 	
 	dma_buffer_size = (ucode_size + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
 	
@@ -1440,7 +1428,6 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	}
 	
 	SafeForceWake(m_accelerator, true, 7);
-	m_accelerator = getMember<void *>(that, 0x38);
 	
 	shim_flags = GUC_ENABLE_READ_CACHE_LOGIC |
 			 GUC_ENABLE_READ_CACHE_FOR_SRAM_DATA |
@@ -1461,6 +1448,7 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	}
 	
 	wopcm_size = intel_de_read(display, GUC_WOPCM_SIZE) & GUC_WOPCM_SIZE_MASK;
+	
 	if (wopcm_size == 0) wopcm_size = 0x200000;
 	
 	mask = GUC_WOPCM_SIZE_MASK | GUC_WOPCM_SIZE_LOCKED;
@@ -1482,7 +1470,7 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	intel_de_write(display, DMA_ADDR_1_HIGH, DMA_ADDRESS_SPACE_WOPCM);
 	intel_de_write(display, DMA_COPY_SIZE, ucode_size);
 	
-	intel_de_write(display, DMA_CTRL, REG_MASKED_FIELD_ENABLE(UOS_MOVE | START_DMA));
+	intel_de_write(display, DMA_CTRL, 0xFFFF0011);
 	
 	dmaRetry = 1000;
 	while (intel_de_read(display, DMA_CTRL) & START_DMA) {
@@ -1490,7 +1478,7 @@ unsigned long Gen11::loadGuCBinary(void *that)
 		if (--dmaRetry <= 0) goto fail;
 	}
 	
-	intel_de_write(display, DMA_CTRL, REG_MASKED_FIELD_DISABLE(UOS_MOVE));
+	intel_de_write(display, DMA_CTRL, 0x00100000);
 	
 	retryCount = 3;
 	for (count = 0; count < retryCount; count++) {
@@ -1549,9 +1537,10 @@ void Gen11::setDoorbellPinning(void *that,unsigned short param_1,bool param_2)
 {
 	FunctionCast(setDoorbellPinning, callback->osetDoorbellPinning)( that,param_1,param_2);
 }
-char Gen11::hostToGuCAction(void *that,unsigned int *param_1,unsigned int param_2,int param_3,unsigned int *param_4)
+
+void Gen11::hostToGuCAction(void *that,unsigned int *param_1,unsigned int param_2,int param_3,unsigned int *param_4)
 {
-	return FunctionCast(hostToGuCAction, callback->ohostToGuCAction)( that,param_1,param_2,param_3,param_4);
+	FunctionCast(hostToGuCAction, callback->ohostToGuCAction)( that,param_1,param_2,param_3,param_4);
 }
 void  Gen11::releaseDoorbellId(void *that,unsigned short param_1)
 {
@@ -1639,11 +1628,12 @@ unsigned short Gen11::acquireDoorbell(void *that, void *param_1, bool param_2)
 		
 		uint32_t payload[2] = { 0x10, context_id };
 		uint32_t response = 0;
-		char ret = hostToGuCAction(that, payload, 2, 0xf, &response);
+		//char ret =
+		hostToGuCAction(that, payload, 2, 0xf, &response);
 		
-		if (ret == 0) {
-			ctx_status[0] = 0;
-		}
+		//if (ret == 0) {
+		//	ctx_status[0] = 0;
+		//}
 		
 		if ((response >> 22 & 1) == 0) {
 			ctx_status[0] = 0;
@@ -1779,7 +1769,8 @@ wa_write_clr(struct i915_wa_list *wal, u32 reg, u32 clr)
 static void
 wa_mcr_masked_en(struct i915_wa_list *wal, u32 reg, u32 val)
 {
-	wa_mcr_add(wal, reg, 0, REG_MASKED_FIELD_ENABLE(val), val, true);
+	//wa_mcr_add(wal, reg, 0, REG_MASKED_FIELD_ENABLE(val), val, true);
+	wa_mcr_add(wal, reg, 0, (val << 16) | val, val, true);
 }
 
 static void

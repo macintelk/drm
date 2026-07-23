@@ -7216,30 +7216,7 @@ enum intel_output_type {
 #define GEN7_FF_SLICE_CS_CHICKEN1		_MMIO(0x20e0)
 #define   GEN9_FFSC_PERCTX_PREEMPT_CTRL		(1 << 14)
 
-template<unsigned long long Val>
-constexpr int build_bug_on_zero_impl() {
-	static_assert(Val == 0, "BUILD_BUG_ON_ZERO failed");
-	return 0;
-}
 
-#define BUILD_BUG_ON_ZERO(cond) (build_bug_on_zero_impl<(cond)>())
-
-#define REG_MASKED_FIELD(mask, value) \
-	(BUILD_BUG_ON_ZERO(__builtin_choose_expr(__builtin_constant_p(mask), \
-		(mask) & 0xffff0000, 0)) + \
-	 BUILD_BUG_ON_ZERO(__builtin_choose_expr(__builtin_constant_p(value), \
-		(value) & 0xffff0000, 0)) + \
-	 BUILD_BUG_ON_ZERO(__builtin_choose_expr(__builtin_constant_p(mask) && \
-		__builtin_constant_p(value), (value) & ~(mask), 0)) + \
-	 ((mask) << 16 | (value)))
-
-#define REG_MASKED_FIELD_ENABLE(a) \
-	(__builtin_choose_expr(__builtin_constant_p(a), \
-		REG_MASKED_FIELD((a), (a)), \
-		([&]{ auto a_ = (a); return REG_MASKED_FIELD(a_, a_); }())))
-
-#define REG_MASKED_FIELD_DISABLE(a) \
-	(REG_MASKED_FIELD((a), 0))
 
 struct i915_wa {
 	u32 reg;

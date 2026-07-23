@@ -792,7 +792,7 @@ public:
 	static void setDoorbellPinning(void *that,unsigned short param_1,bool param_2);
 	mach_vm_address_t osetDoorbellPinning {};
 
-	static char hostToGuCAction(void *that,unsigned int *param_1,unsigned int param_2,int param_3,unsigned int *param_4);
+	static void hostToGuCAction(void *that,unsigned int *param_1,unsigned int param_2,int param_3,unsigned int *param_4);
 	mach_vm_address_t ohostToGuCAction {};
 
 	static void  releaseDoorbellId(void *that,unsigned short param_1);
