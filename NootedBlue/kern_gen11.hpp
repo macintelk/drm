@@ -781,7 +781,7 @@ public:
 	static void releaseDoorbell(void *that,void *param_1);
 	mach_vm_address_t oreleaseDoorbell {};
 	
-	
+	static void engines();
 
 	static unsigned int allocDoorbellId(void *param_1);
 	mach_vm_address_t oallocDoorbellId {};
@@ -810,11 +810,11 @@ public:
 	static  void* IGSharedMappedBufferwithOptions(void *param_1,unsigned long param_2,uint param_3,uint param_4);
 	mach_vm_address_t oIGSharedMappedBufferwithOptions {};
 	
-	static long  getVirtualAddress(void *that);
-	mach_vm_address_t ogetVirtualAddress {};
+	static long  fgetVirtualAddress(void *that);
+	mach_vm_address_t ofgetVirtualAddress {};
 	
-	static uint64_t getGPUVirtualAddress(void *that);
-	mach_vm_address_t ogetGPUVirtualAddress {};
+	static uint64_t fgetGPUVirtualAddress(void *that);
+	mach_vm_address_t ofgetGPUVirtualAddress {};
 	
 	static void  checkWOPCMSettings(void *that,unsigned long param_1,void *param_2);
 	mach_vm_address_t ocheckWOPCMSettings {};
@@ -825,11 +825,11 @@ public:
 	static void IGSharedMappedBufferfree(void *param_1);
 	mach_vm_address_t oIGSharedMappedBufferfree {};
 	
-	static bool configureDevice(void *param_1);
-	mach_vm_address_t oconfigureDevice {};
+	static bool fconfigureDevice(void *param_1);
+	mach_vm_address_t ofconfigureDevice {};
 	
-	static uint64_t initDeviceMemory(void *that);
-	mach_vm_address_t oinitDeviceMemory {};
+	static uint64_t finitDeviceMemory(void *that);
+	mach_vm_address_t ofinitDeviceMemory {};
 	
 	
 	

@@ -472,7 +472,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		LookupPatchPlus const patches[] = {
 			{&kextG11HW, f2, r2, arrsize(f2),	1},
 			{&kextG11HW, f2a, r2a, arrsize(f2a),	1},
-			//{&kextG11HW, f2b, r2b, arrsize(f2b),	1},
+			{&kextG11HW, f2b, r2b, arrsize(f2b),	1},
 			{&kextG11HW, f3, r3, arrsize(f3),	1},
 			{&kextG11HW, f3a, r3a, arrsize(f3a),	1},
 			{&kextG11HW, f3b, r3b, arrsize(f3b),	1},
@@ -516,16 +516,15 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			 
 			 {"__ZN13IGHardwareGuC16initSchedControlEv",initSchedControl, this->oinitSchedControl},
 			 {"__ZN20IGSharedMappedBuffer11withOptionsEP11IGAccelTaskmjj",IGSharedMappedBufferwithOptions, this->oIGSharedMappedBufferwithOptions},
-			 {"__ZNK20IGSharedMappedBuffer17getVirtualAddressEv",getVirtualAddress, this->ogetVirtualAddress},
-			 {"__ZNK14IGMappedBuffer20getGPUVirtualAddressEv",getGPUVirtualAddress, this->ogetGPUVirtualAddress},
+			 {"__ZNK20IGSharedMappedBuffer17getVirtualAddressEv",fgetVirtualAddress, this->ofgetVirtualAddress},
+			 {"__ZNK14IGMappedBuffer20getGPUVirtualAddressEv",fgetGPUVirtualAddress, this->ofgetGPUVirtualAddress},
 			 {"__ZN5IGGuC18checkWOPCMSettingsEmR14IOVirtualRange",checkWOPCMSettings, this->ocheckWOPCMSettings},
 			 {"__ZN16IntelAccelerator13SafeForceWakeEbj",SafeForceWake, this->oSafeForceWake},
 			 {"__ZN20IGSharedMappedBuffer4freeEv",IGSharedMappedBufferfree, this->oIGSharedMappedBufferfree},
-			 {"__ZN16IntelAccelerator15configureDeviceEP11IOPCIDevice",configureDevice, this->oconfigureDevice},
-			 {"__ZN15IGMemoryManager16initDeviceMemoryEv",initDeviceMemory, this->oinitDeviceMemory},
+			 {"__ZN16IntelAccelerator15configureDeviceEP11IOPCIDevice",fconfigureDevice, this->ofconfigureDevice},
+			 {"__ZN15IGMemoryManager16initDeviceMemoryEv",finitDeviceMemory, this->ofinitDeviceMemory},
 			 
 			 {"__ZN13IGHardwareGuC13loadGuCBinaryEv",loadGuCBinary, this->oloadGuCBinary},
-			 
 			 
 			 
 		 };
@@ -556,7 +555,14 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		static const uint8_t f5[] = {0x40, 0xd2, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 		static const uint8_t r5[] = {0x00, 0xe0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 		
-
+		static const uint8_t f6[] = {0x48, 0x05, 0x00, 0xc0, 0x00, 0x00, 0xbb, 0xf1, 0xff, 0xff, 0xff};
+		static const uint8_t r6[] = {0x48, 0x05, 0x00, 0xc0, 0x00, 0x00, 0xbb, 0x38, 0xff, 0xff, 0xff};
+		
+		static const uint8_t f6b[] = {0x74, 0x6f, 0x83, 0xfa, 0x60, 0x74, 0x6a};
+		static const uint8_t r6b[] = {0x90, 0x90, 0x83, 0xfa, 0x60, 0x90, 0x90};
+		
+		static const uint8_t f6c[] = {0x4c, 0x01, 0xe0, 0xff, 0xc3, 0x74, 0x3d};
+		static const uint8_t r6c[] = {0x4c, 0x01, 0xe0, 0xff, 0xc3, 0x74, 0x0d};
 		
 			LookupPatchPlus const patches[] = {
 				{&kext, f2, r2, arrsize(f2),	1},
@@ -566,6 +572,9 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 				{&kext, f4, r4, arrsize(f4),	1},
 				{&kext, f5, r5, arrsize(f5),	1},
 				
+				{&kext, f6, r6, arrsize(f6),	1},
+				{&kext, f6b, r6b, arrsize(f6b),	1},
+				{&kext, f6c, r6c, arrsize(f6c),	1},
 				
 			};
 			PANIC_COND(!LookupPatchPlus::applyAll(patcher, patches , address, size), "nblue", "kextG11HWT Failed to apply patches!");
@@ -601,6 +610,17 @@ void intel_de_posting_read(struct intel_display *display, uint32_t reg)
 	NBlue::callback->readReg32(reg);
 }
 
+static inline int intel_uncore_write_and_verify(struct intel_display *display,
+												u32 reg, u32 val,
+						u32 mask, u32 expected_val)
+{
+	u32 reg_val;
+
+	intel_de_write(display, reg, val);
+	reg_val = intel_de_read(display, reg);
+	
+	return (reg_val & mask) != expected_val ? -EINVAL : 0;
+}
 
 void  Gen11::initPlatformWorkarounds(void *that)
 {
@@ -1277,37 +1297,31 @@ void Gen11::setAsyncSliceCount2(void *that, uint32_t val)
 
 void Gen11::initDoorbells(void *that)
 {
-
-		readDoorbellSQIDIConfig(that);
+	readDoorbellSQIDIConfig(that);
+	
+	uint8_t num_clients = getMember<uint8_t>(that, 0x9e2);
+	
+	if (num_clients != 0) {
+		uint16_t db_per_client = getMember<uint16_t>(that, 0x9e0);
 		
-		uint8_t num_clients = getMember<uint8_t>(that, 0x9e2);
-		
-		if (num_clients != 0) {
-			uint16_t db_per_client = getMember<uint16_t>(that, 0x9e0);
-			
-			for (uint32_t client_idx = 0; client_idx < num_clients; client_idx++) {
-				if (db_per_client != 0) {
-					for (uint32_t i = 0; i < db_per_client; i++) {
-						
-						getMember<uint32_t>(that, 0xdc + (client_idx * 0x20) + (i * 4)) = 0;
-						
-						getMember<uint32_t>(that, 0x15c + (client_idx * 0x20) + (i * 4)) = 0;
-					}
+		for (uint32_t client_idx = 0; client_idx < num_clients; client_idx++) {
+			if (db_per_client != 0) {
+				for (uint32_t i = 0; i < db_per_client; i++) {
+					getMember<uint32_t>(that, 0xdc + (client_idx * 0x20) + (i * 4)) = 0;
+					getMember<uint32_t>(that, 0x15c + (client_idx * 0x20) + (i * 4)) = 0;
 				}
 			}
 		}
-		
-		getMember<uint32_t>(that, 0x1dc) = 0;
+	}
+	
+	getMember<uint32_t>(that, 0x1dc) = 0;
 }
 
 u64 Gen11::readDoorbellSQIDIConfig(void *that)
 {
+	struct intel_display *display = &NBlue::callback->display_base;
 
-	void *m_accelerator=getMember<void *>(that, 0x38);
-	void* mmio = getMember<void*>(m_accelerator, 0x1240);
-	
-	
-	uint32_t reg_val = getMember<uint32_t>(mmio, 0xD08);
+	uint32_t reg_val = intel_de_read(display, 0xD08);
 	
 	getMember<uint8_t>(that, 0x9e2) = 0;
 	
@@ -1317,7 +1331,6 @@ u64 Gen11::readDoorbellSQIDIConfig(void *that)
 		uint8_t client_count = 0;
 		uint32_t temp = sqidi_mask;
 		
-
 		while (temp != 0) {
 			temp = temp & (temp - 1);
 			client_count++;
@@ -1325,32 +1338,29 @@ u64 Gen11::readDoorbellSQIDIConfig(void *that)
 		
 		getMember<uint8_t>(that, 0x9e2) = client_count;
 	}
-	
 
 	uint16_t db_per_client = ((reg_val >> 16) & 0xFF) + 1;
-	getMember<uint16_t>(that, 0x9e0) = db_per_client;
 	
+	getMember<uint16_t>(that, 0x9e0) = db_per_client;
 	getMember<uint8_t>(that, 0x9e3) = 8;
-
 
 	if (getMember<uint8_t>(that, 0x9e2) == 0) {
 		getMember<uint8_t>(that, 0x9e2) = 1;
 	}
 
-
 	return ((static_cast<uint64_t>(db_per_client >> 8) & 0x7) << 8) | 1;
 }
 
 
-bool Gen11::configureDevice(void *param_1)
+bool Gen11::fconfigureDevice(void *param_1)
 {
-	auto ret= FunctionCast(configureDevice, callback->oconfigureDevice)( param_1);
+	auto ret= FunctionCast(fconfigureDevice, callback->ofconfigureDevice)( param_1);
 	return ret;
 }
 
-uint64_t Gen11::initDeviceMemory(void *that)
+uint64_t Gen11::finitDeviceMemory(void *that)
 {
-	auto ret= FunctionCast(initDeviceMemory, callback->oinitDeviceMemory)( that);
+	auto ret= FunctionCast(finitDeviceMemory, callback->ofinitDeviceMemory)( that);
 
 	return ret;
 }
@@ -1358,76 +1368,81 @@ uint64_t Gen11::initDeviceMemory(void *that)
 
 unsigned long Gen11::loadGuCBinary(void *that)
 {
-	
-	struct Firmware fw;
-	fw = getFWByName("tgl_guc_70.1.1.bin");
-	
-	if (!fw.data || fw.size == 0) {
-		return 0;
-	}
-	
-	if (fw.size < sizeof(uc_css_header)) {
-		return 0;
-	}
-	
-	struct uc_css_header *header = (struct uc_css_header *)fw.data;
-	
-	if (!initSchedControl(that)) {
-		return 0;
-	}
-	
+	struct intel_display *display = &NBlue::callback->display_base;
 	void *m_accelerator = getMember<void *>(that, 0x38);
-	if (!m_accelerator) return 0;
 	
-	size_t ucode_size = (header->size_dw - header->header_size_dw) * 4;
-	size_t total_dma_size = sizeof(uc_css_header) + ucode_size;
+	if (!display || !m_accelerator) return 0;
 	
-	if (fw.size < total_dma_size) {
+	struct Firmware fw = {};
+	struct uc_css_header *header = nullptr;
+	uint32_t ucode_size = 0;
+	uint32_t rsa_size = 0;
+	size_t min_expected_size = 0;
+	size_t dma_buffer_size = 0;
+	void *igtask = nullptr;
+	void* fwBuffer = nullptr;
+	void* vaddr = nullptr;
+	uint64_t gpuAddr = 0;
+	u32 shim_flags = 0;
+	u32 wopcm_size = 0;
+	u32 mask = 0;
+	size_t rsa_offset = 0;
+	size_t i = 0;
+	int dmaRetry = 0;
+	
+	bool success = false;
+	bool done = false;
+	int retryCount = 0;
+	int count = 0;
+	int innerTimeout = 0;
+	uint32_t status = 0;
+	uint32_t bootrom = 0;
+	uint32_t ukernel = 0;
+	
+	fw = getFWByName("tgl_guc_70.1.1.bin");
+	if (!fw.data || fw.size == 0) return 0;
+	if (fw.size < sizeof(uc_css_header)) return 0;
+	
+	header = (struct uc_css_header *)fw.data;
+	
+	if (header->size_dw > header->header_size_dw) {
+		ucode_size = (header->size_dw - header->header_size_dw) * 4;
+	} else {
+		return 0;
+	}
+	if (ucode_size == 0) return 0;
+	
+	rsa_size = header->key_size_dw * 4;
+	if (rsa_size > 256) rsa_size = 256;
+	
+	min_expected_size = sizeof(uc_css_header) + ucode_size + rsa_size;
+	if (fw.size < min_expected_size) return 0;
+	if (!initSchedControl(that)) return 0;
+	
+	dma_buffer_size = (ucode_size + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
+	
+	igtask = getMember<void*>(m_accelerator, 0x150);
+	fwBuffer = IGSharedMappedBufferwithOptions(igtask, dma_buffer_size, 2, 0);
+	if (!fwBuffer) return 0;
+	
+	vaddr = (void*)fgetVirtualAddress(fwBuffer);
+	if (!vaddr) {
+		IGSharedMappedBufferfree(fwBuffer);
 		return 0;
 	}
 	
-	size_t bufferSize = (total_dma_size + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
+	memcpy(vaddr, (uint8_t*)fw.data + sizeof(uc_css_header), ucode_size);
 	
-	void *igtask = getMember<void*>(m_accelerator, 0x150);
-	void* fwBuffer = IGSharedMappedBufferwithOptions(igtask, bufferSize, 2, 0);
-	
-	if (fwBuffer == nullptr) {
-		return 0;
-	}
-	
-	void* vaddr = (void*)getVirtualAddress(fwBuffer);
-	if (vaddr == nullptr) {
-		return 0;
-	}
-	
-	memcpy(vaddr, fw.data, total_dma_size);
-	
-	uint64_t gpuAddr = getGPUVirtualAddress(fwBuffer);
+	gpuAddr = fgetGPUVirtualAddress(fwBuffer);
 	if (gpuAddr == 0) {
+		IGSharedMappedBufferfree(fwBuffer);
 		return 0;
 	}
 	
 	SafeForceWake(m_accelerator, true, 7);
-	
 	m_accelerator = getMember<void *>(that, 0x38);
-	void* mmio = getMember<void*>(m_accelerator, 0x1240);
 	
-	if (mmio == nullptr) {
-		void* mem_mgr = getMember<void*>(m_accelerator, 0x1260);
-		if (mem_mgr) {
-			mmio = getMember<void*>(mem_mgr, 0x18);
-		}
-	}
-	
-	if (mmio == nullptr) {
-		SafeForceWake(m_accelerator, false, 7);
-		if (fwBuffer) {
-			IGSharedMappedBufferfree(fwBuffer);
-		}
-		return 0;
-	}
-	
-	u32 shim_flags = GUC_ENABLE_READ_CACHE_LOGIC |
+	shim_flags = GUC_ENABLE_READ_CACHE_LOGIC |
 			 GUC_ENABLE_READ_CACHE_FOR_SRAM_DATA |
 			 GUC_ENABLE_READ_CACHE_FOR_WOPCM_DATA |
 			 GUC_ENABLE_MIA_CLOCK_GATING;
@@ -1435,94 +1450,61 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	//if (GRAPHICS_VER_FULL(uncore->i915) < IP_VER(12, 55))
 		shim_flags |= GUC_DISABLE_SRAM_INIT_TO_ZEROES |
 				  GUC_ENABLE_MIA_CACHING;
-
-	//intel_uncore_write(uncore, GUC_SHIM_CONTROL, shim_flags);
-	getMember<uint32_t>(mmio, GUC_SHIM_CONTROL) = shim_flags;
-
-	/*if (IS_GEN9_LP(uncore->i915))
-		intel_uncore_write(uncore, GEN9LP_GT_PM_CONFIG, GT_DOORBELL_ENABLE);
-	else*/
-		//intel_uncore_write(uncore, GEN9_GT_PM_CONFIG, GT_DOORBELL_ENABLE);
-		getMember<uint32_t>(mmio, GEN9_GT_PM_CONFIG) = GT_DOORBELL_ENABLE;
-	/*if (GRAPHICS_VER(uncore->i915) == 9) {
-		intel_uncore_rmw(uncore, GEN7_MISCCPCTL, 0,
-				 GEN8_DOP_CLOCK_GATE_GUC_ENABLE);
-
-		intel_uncore_write(uncore, GUC_ARAT_C6DIS, 0x1FF);
-	}*/
-
-
-	//if (GRAPHICS_VER_FULL(uncore->i915) >= IP_VER(12, 50))
-	//	intel_uncore_rmw(uncore, GUC_SHIM_CONTROL2, 0, GUC_ENABLE_DEBUG_REG);
-
-	size_t rsa_size = header->modulus_size_dw ? (header->modulus_size_dw * 4) : 256;
-	size_t rsa_offset = sizeof(uc_css_header) - rsa_size;
-
-	if (rsa_size > 256) {
-		uint64_t rsa_gpu_addr = gpuAddr + rsa_offset;
-		getMember<uint32_t>(mmio, UOS_RSA_SCRATCH(0)) = static_cast<uint32_t>(rsa_gpu_addr);
-		getMember<uint32_t>(mmio, UOS_RSA_SCRATCH(1)) = static_cast<uint32_t>((rsa_gpu_addr >> 32) & 0xffff) | DMA_ADDRESS_SPACE_GTT;
-	} else {
-
-		for (size_t i = 0; i < 256; i += 4) {
-			getMember<uint32_t>(mmio, UOS_RSA_SCRATCH(i / 4)) = *reinterpret_cast<uint32_t*>(fw.data + rsa_offset + i);
-		}
+	
+	intel_de_write(display, GUC_SHIM_CONTROL, shim_flags);
+	intel_de_write(display, GEN9_GT_PM_CONFIG, GT_DOORBELL_ENABLE);
+	
+	rsa_offset = sizeof(uc_css_header) - rsa_size;
+	for (i = 0; i < rsa_size; i += 4) {
+		uint32_t rsa_val = *reinterpret_cast<uint32_t*>((uint8_t*)fw.data + rsa_offset + i);
+		intel_de_write(display, UOS_RSA_SCRATCH(i / 4), rsa_val);
 	}
 	
-	getMember<uint32_t>(mmio, DMA_ADDR_0_LOW) = static_cast<uint32_t>(gpuAddr);
-	getMember<uint32_t>(mmio, DMA_ADDR_0_HIGH) = static_cast<uint32_t>((gpuAddr >> 32) & 0xffff) | DMA_ADDRESS_SPACE_GTT;
-	getMember<uint32_t>(mmio, DMA_ADDR_1_LOW) = 0x2000;
-	getMember<uint32_t>(mmio, DMA_ADDR_1_HIGH) = DMA_ADDRESS_SPACE_WOPCM;
-	getMember<uint32_t>(mmio, DMA_COPY_SIZE) = static_cast<uint32_t>(total_dma_size);
+	wopcm_size = intel_de_read(display, GUC_WOPCM_SIZE) & GUC_WOPCM_SIZE_MASK;
+	if (wopcm_size == 0) wopcm_size = 0x200000;
 	
-	u32 base = 0;
-	u32 size = 0x200000;
-	u32 huc_agent = 0;
+	mask = GUC_WOPCM_SIZE_MASK | GUC_WOPCM_SIZE_LOCKED;
+	if (intel_uncore_write_and_verify(display, GUC_WOPCM_SIZE, wopcm_size, mask, wopcm_size | GUC_WOPCM_SIZE_LOCKED)) {
+		goto fail;
+	}
 
-	getMember<uint32_t>(mmio, GUC_WOPCM_SIZE) = size | GUC_WOPCM_SIZE_LOCKED;
-	getMember<uint32_t>(mmio, DMA_GUC_WOPCM_OFFSET) = base | huc_agent | GUC_WOPCM_OFFSET_VALID;
-		
+	mask = GUC_WOPCM_OFFSET_MASK | GUC_WOPCM_OFFSET_VALID;
+	if (intel_uncore_write_and_verify(display, DMA_GUC_WOPCM_OFFSET, 0, mask, GUC_WOPCM_OFFSET_VALID)) {
+		goto fail;
+	}
 	
-	getMember<uint32_t>(mmio, GEN12_GUC_TLB_INV_CR) = GEN12_GUC_TLB_INV_CR_INVALIDATE;
-	while ((getMember<uint32_t>(mmio, GEN12_GUC_TLB_INV_CR) & GEN12_GUC_TLB_INV_CR_INVALIDATE) != 0) {}
+	intel_de_write(display, GEN12_GUC_TLB_INV_CR, GEN12_GUC_TLB_INV_CR_INVALIDATE);
+	while ((intel_de_read(display, GEN12_GUC_TLB_INV_CR) & GEN12_GUC_TLB_INV_CR_INVALIDATE) != 0) {}
 	
-	getMember<uint32_t>(mmio, DMA_CTRL) = REG_MASKED_FIELD_ENABLE(UOS_MOVE | START_DMA);
+	intel_de_write(display, DMA_ADDR_0_LOW, static_cast<uint32_t>(gpuAddr));
+	intel_de_write(display, DMA_ADDR_0_HIGH, static_cast<uint32_t>((gpuAddr >> 32) & 0xffff) | DMA_ADDRESS_SPACE_GTT);
+	intel_de_write(display, DMA_ADDR_1_LOW, 0x2000);
+	intel_de_write(display, DMA_ADDR_1_HIGH, DMA_ADDRESS_SPACE_WOPCM);
+	intel_de_write(display, DMA_COPY_SIZE, ucode_size);
 	
-	int dmaRetry = 1000;
-	   while (getMember<uint32_t>(mmio, DMA_CTRL) & START_DMA) {
-		   IODelay(100);
-		   dmaRetry--;
-		   if (dmaRetry <= 0) {
-			   SafeForceWake(m_accelerator, false, 7);
-			   if (fwBuffer) {
-				   IGSharedMappedBufferfree(fwBuffer);
-			   }
-			   return 0;
-		   }
-	   }
-	   
-
-	getMember<uint32_t>(mmio, DMA_CTRL) = REG_MASKED_FIELD_DISABLE(UOS_MOVE);
+	intel_de_write(display, DMA_CTRL, REG_MASKED_FIELD_ENABLE(UOS_MOVE | START_DMA));
 	
-	/*
-	uint32_t status = 0;
-	bool success = false;
-	bool done = false;
-	int retryCount = 3; // GUC_LOAD_RETRY_LIMIT
+	dmaRetry = 1000;
+	while (intel_de_read(display, DMA_CTRL) & START_DMA) {
+		IODelay(100);
+		if (--dmaRetry <= 0) goto fail;
+	}
 	
-	for (int count = 0; count < retryCount; count++) {
+	intel_de_write(display, DMA_CTRL, REG_MASKED_FIELD_DISABLE(UOS_MOVE));
+	
+	retryCount = 3;
+	for (count = 0; count < retryCount; count++) {
 		success = true;
-		int innerTimeout = 1000;
+		innerTimeout = 1000;
 		done = false;
 		
 		while (innerTimeout > 0) {
-			status = getMember<uint32_t>(mmio, GUC_STATUS);
-			uint32_t bootrom = (status & GS_BOOTROM_MASK) >> GS_BOOTROM_SHIFT;
-			uint32_t ukernel = (status & GS_UKERNEL_MASK) >> GS_UKERNEL_SHIFT;
+			status = intel_de_read(display, GUC_STATUS);
+			bootrom = (status & GS_BOOTROM_MASK) >> GS_BOOTROM_SHIFT;
+			ukernel = (status & GS_UKERNEL_MASK) >> GS_UKERNEL_SHIFT;
 			
 			if (bootrom != INTEL_BOOTROM_STATUS_NO_KEY_FOUND &&
-				bootrom != INTEL_BOOTROM_STATUS_RSA_FAILED &&
-				bootrom != INTEL_BOOTROM_STATUS_PROD_KEY_CHECK_FAILURE) {
+				bootrom != INTEL_BOOTROM_STATUS_RSA_FAILED) {
 				if (ukernel == INTEL_GUC_LOAD_STATUS_READY) {
 					success = true;
 					done = true;
@@ -1541,54 +1523,19 @@ unsigned long Gen11::loadGuCBinary(void *that)
 		if (done) {
 			break;
 		}
-	}*/
-	
-	uint32_t status = getMember<uint32_t>(mmio, GUC_STATUS);
-	uint32_t ukStatus = (status & GS_UKERNEL_MASK) >> GS_UKERNEL_SHIFT;
-	
-	int retryCount = 200;
-	
-	while (ukStatus != 0xF0) {
-		if (((status & GS_BOOTROM_MASK) == (0x50 << GS_BOOTROM_SHIFT)) ||
-			(ukStatus == 0x60) ||
-			(status & GS_AUTH_STATUS_BAD)) {
-			goto fail;
-		}
-		
-		IODelay(1000);
-		
-		retryCount--;
-		if (retryCount == 0) {
-			goto fail;
-		}
-		
-		status = getMember<uint32_t>(mmio, GUC_STATUS);
-		ukStatus = (status & GS_UKERNEL_MASK) >> GS_UKERNEL_SHIFT;
 	}
 	
 	SafeForceWake(m_accelerator, false, 7);
-	if (fwBuffer) {
-		IGSharedMappedBufferfree(fwBuffer);
-	}
-	
-	return 1;
+	IGSharedMappedBufferfree(fwBuffer);
+	return success ? 1 : 0;
 
 fail:
 	SafeForceWake(m_accelerator, false, 7);
-	if (fwBuffer) {
-		IGSharedMappedBufferfree(fwBuffer);
-	}
+	IGSharedMappedBufferfree(fwBuffer);
 	return 0;
 }
-
-
 		
 	
-
-
-inline void* mmioPtr(uintptr_t base, size_t offset) {
-	return reinterpret_cast<void*>(base + offset);
-}
 
 unsigned int Gen11::allocDoorbellId(void *param_1)
 {
@@ -1619,13 +1566,14 @@ void* Gen11::IGSharedMappedBufferwithOptions(void *param_1,unsigned long param_2
 {
 	return FunctionCast(IGSharedMappedBufferwithOptions, callback->oIGSharedMappedBufferwithOptions)( param_1,param_2,param_3,param_4);
 }
-long  Gen11::getVirtualAddress(void *that)
+long  Gen11::fgetVirtualAddress(void *that)
 {
-	return FunctionCast(getVirtualAddress, callback->ogetVirtualAddress)( that);
+	//return *((uint64_t *)that + 7);
+	return FunctionCast(fgetVirtualAddress, callback->ofgetVirtualAddress)( that);
 }
-uint64_t Gen11::getGPUVirtualAddress(void *that)
+uint64_t Gen11::fgetGPUVirtualAddress(void *that)
 {
-	return FunctionCast(getGPUVirtualAddress, callback->ogetGPUVirtualAddress)( that);
+	return FunctionCast(fgetGPUVirtualAddress, callback->ofgetGPUVirtualAddress)( that);
 }
 void  Gen11::checkWOPCMSettings(void *that,unsigned long param_1,void *param_2)
 {
@@ -1644,139 +1592,115 @@ void Gen11::IGSharedMappedBufferfree(void *param_1)
 
 
 
-unsigned short Gen11::acquireDoorbell(void *that,void *param_1,bool param_2)
+unsigned short Gen11::acquireDoorbell(void *that, void *param_1, bool param_2)
 {
+	struct intel_display *display = &NBlue::callback->display_base;
+	
 	uint64_t array_base_addr = getMember<uint64_t>(that, 0x50);
-		uint32_t context_id = getMember<uint32_t>(param_1, 0x8);
-		uint64_t ctx_offset = static_cast<uint64_t>(context_id) * 0x20;
+	void* array_base_ptr = reinterpret_cast<void*>(array_base_addr);
+	
+	uint32_t context_id = getMember<uint32_t>(param_1, 0x8);
+	uint64_t ctx_offset = static_cast<uint64_t>(context_id) * 0x20;
+	
+	uint32_t* ctx_status = getMember<uint32_t*>(array_base_ptr, 0x10 + ctx_offset);
+	
+	if (ctx_status[0] == 0) {
+		uint32_t db_id = allocDoorbellId(that);
 		
-		void** ptr_array = reinterpret_cast<void**>(array_base_addr);
+		if (db_id == 0x100) {
+			db_id = stealDoorbellId(that);
+			
+			void* db_entry_val = getMember<void*>(that, 0x1e0 + db_id * 8);
+			releaseDoorbell(that, db_entry_val);
+			
+			uint16_t db_per_client = getMember<uint16_t>(that, 0x9e0);
+			uint16_t local_db_idx = db_id % db_per_client;
+			uint32_t client_idx = db_id / db_per_client;
+			
+			uint32_t word_off = (local_db_idx >> 5) * 4;
+			uint32_t client_off = client_idx * 0x20;
+			
+			uint32_t& bitmap_val = getMember<uint32_t>(that, 0xdc + word_off + client_off);
+			bitmap_val |= (1 << (local_db_idx & 0x1f));
+			
+			if (db_id == 0x100) return 0x100;
+		}
+
+		setDoorbellPinning(that, db_id, param_2);
+		getMember<uint32_t>(param_1, 0x24) = db_id;
 		
-		uint32_t* ctx_status = getMember<uint32_t*>(ptr_array, 0x10 + ctx_offset);
-
-		if (getMember<uint32_t>(ctx_status, 0x0) == 0) {
-			uint32_t db_id = allocDoorbellId( that);
-			
-			if (db_id == 0x100) {
-				db_id = stealDoorbellId(that);
-				releaseDoorbell(that, getMember<void*>(that, 0x1e0 + db_id * 8));
-				
-				uint16_t db_per_client = getMember<uint16_t>(that, 0x9e0);
-				uint16_t local_db_idx = db_id % db_per_client;
-				
-				uint32_t word_off = (local_db_idx >> 5) * 4;
-				uint32_t client_off = (db_id / db_per_client) * 0x20;
-				uint32_t* bitmap_ptr = &getMember<uint32_t>(that, 0xdc + word_off + client_off);
-				*bitmap_ptr |= (1 << (local_db_idx & 0x1f));
-				
-				if (db_id == 0x100) {
-					return 0x100;
-				}
-			}
-
-			setDoorbellPinning(that, db_id, param_2);
-			getMember<uint32_t>(param_1, 0x24) = db_id;
-			
-			getMember<uint32_t>(ctx_status, 0x0) = 1;
-			getMember<uint32_t>(ctx_status, 0x4) = 0;
-			
-			void *m_accelerator=getMember<void *>(that, 0x38);
-			void* mmio= getMember<void*>(m_accelerator, 0x1240);
-			
-			if (mmio == nullptr) {
-				void* mem_mgr = getMember<void*>(m_accelerator, 0x1260);
-				if (mem_mgr) {
-					mmio = getMember<void*>(mem_mgr, 0x18);
-				}
-			}
-			
-			if (mmio== nullptr) {
-				return 0;
-			}
-			
-			getMember<uint32_t>(mmio, 0xcee8) = 1;
-			while ((getMember<uint32_t>(mmio, 0xcee8) & 1) != 0) {
-			}
-			
-			uint32_t payload[2] = { 0x10, context_id };
-			uint32_t response = 0;
-			char ret = hostToGuCAction(that, payload, 2, 0xf, &response);
-			
-			if (ret == 0) {
-				getMember<uint32_t>(ctx_status, 0x0) = 0;
-			}
-			
-			if ((response & (1 << 22)) == 0) {
-				getMember<uint32_t>(ctx_status, 0x0) = 0;
-			} else {
-				getMember<void*>(that, 0x1e0 + db_id * 8) = param_1;
-				
-				uint32_t wq_offset = (response >> 10) & 0xFC0;
-				
-				uint64_t* ctx_ptr_slot = &getMember<uint64_t>(ptr_array, 0x10 + ctx_offset);
-				uint64_t new_ctx_ptr = *ctx_ptr_slot + static_cast<uint64_t>(wq_offset);
-				*ctx_ptr_slot = new_ctx_ptr;
-				
-				getMember<uint32_t>(param_1, 0x18) += wq_offset;
-				getMember<uint64_t>(param_1, 0x1c) += static_cast<uint64_t>(wq_offset);
-				
-				uint32_t* desc_ptr = getMember<uint32_t*>(ptr_array, 0x18 + ctx_offset);
-				
-				getMember<uint32_t>(desc_ptr, 0x00) = getMember<uint32_t>(param_1, 0x8);
-				getMember<int64_t>(desc_ptr, 0x04) = static_cast<int64_t>(new_ctx_ptr);
-				getMember<uint32_t>(desc_ptr, 0x28) = getMember<uint32_t>(param_1, 0x5a70);
-			}
-			return db_id;
+		ctx_status[0] = 1;
+		ctx_status[1] = 0;
+		
+		intel_de_write(display, 0xcee8, 1);
+		while ((intel_de_read(display, 0xcee8) & 1) != 0) {
+			// Spinwait
 		}
 		
-		return getMember<uint16_t>(param_1, 0x24);
+		uint32_t payload[2] = { 0x10, context_id };
+		uint32_t response = 0;
+		char ret = hostToGuCAction(that, payload, 2, 0xf, &response);
+		
+		if (ret == 0) {
+			ctx_status[0] = 0;
+		}
+		
+		if ((response >> 22 & 1) == 0) {
+			ctx_status[0] = 0;
+		} else {
+			getMember<void*>(that, 0x1e0 + db_id * 8) = param_1;
+			
+			uint32_t wq_offset = (response >> 10) & 0xFC0;
+			
+			uint64_t& ctx_ptr_val = getMember<uint64_t>(array_base_ptr, 0x10 + ctx_offset);
+			ctx_ptr_val += wq_offset;
+			uint64_t new_ctx_ptr = ctx_ptr_val;
+			
+			getMember<uint32_t>(param_1, 0x18) += wq_offset;
+			getMember<uint64_t>(param_1, 0x1c) += wq_offset;
+			
+			uint32_t* desc_ptr = getMember<uint32_t*>(array_base_ptr, 0x18 + ctx_offset);
+			
+			desc_ptr[0] = context_id;
+			*reinterpret_cast<uint64_t*>(&desc_ptr[1]) = new_ctx_ptr;
+			desc_ptr[10] = getMember<uint32_t>(param_1, 0x5a70);
+		}
+		return db_id;
+	}
+	
+	return getMember<uint16_t>(param_1, 0x24);
 }
 
-void Gen11::releaseDoorbell(void *that,void *param_1)
+void Gen11::releaseDoorbell(void *that, void *param_1)
 {
+	struct intel_display *display = &NBlue::callback->display_base;
+	
 	uint32_t db_id = getMember<uint32_t>(param_1, 0x24);
-		uint16_t db_per_client = getMember<uint16_t>(that, 0x9e0);
-		uint32_t db_index = (db_id & 0xFFFF) % db_per_client;
-		
-		uint64_t array_base_addr = getMember<uint64_t>(that, 0x50);
-		uint32_t context_id = getMember<uint32_t>(param_1, 0x8);
-		uint64_t ctx_offset = static_cast<uint64_t>(context_id) * 0x20;
-		
-		void** ptr_array = reinterpret_cast<void**>(array_base_addr);
-		
-		uint32_t* ctx_status = getMember<uint32_t*>(ptr_array, 0x10 + ctx_offset);
-		getMember<uint32_t>(ctx_status, 0x0) = 0;
-		
-		void *m_accelerator=getMember<void *>(that, 0x38);
-		void* mmio = getMember<void*>(m_accelerator, 0x1240);
+	uint16_t db_per_client = getMember<uint16_t>(that, 0x9e0);
+	uint32_t db_index = (db_id & 0xFFFF) % db_per_client;
 	
-		if (mmio == nullptr) {
-		void* mem_mgr = getMember<void*>(m_accelerator, 0x1260);
-		if (mem_mgr) {
-			mmio = getMember<void*>(mem_mgr, 0x18);
-		}
-		}
+	uint64_t array_base_addr = getMember<uint64_t>(that, 0x50);
+	uint32_t context_id = getMember<uint32_t>(param_1, 0x8);
+	uint64_t ctx_offset = static_cast<uint64_t>(context_id) * 0x20;
 	
-		if (mmio== nullptr) {
-		return;
-		}
-		
-		uint32_t db_val = getMember<uint32_t>(mmio, 0x1000 + db_index * 8);
-		getMember<uint32_t>(mmio, 0x1000 + db_index * 8) = db_val & 0xFFFFFFFE;
-		getMember<uint32_t>(mmio, 0x1004 + db_index * 8) = 0;
-		getMember<uint32_t>(mmio, 0x1000 + db_index * 8) = 0;
-
-		uint32_t payload[2] = { 0x20, context_id };
-		hostToGuCAction(that, payload, 2, 0xf, nullptr);
-		
-		releaseDoorbellId(that, static_cast<uint16_t>(db_id));
-		
-		getMember<uint64_t>(that, 0x1e0 + (db_id & 0xFFFF) * 8) = 0;
-		
-		getMember<uint32_t>(param_1, 0x24) = 0x100;
+	uint32_t** ctx_status_slot = reinterpret_cast<uint32_t**>(array_base_addr + 0x10 + ctx_offset);
+	uint32_t* ctx_status = *ctx_status_slot;
 	
+	getMember<uint32_t>(ctx_status, 0x0) = 0;
+	
+	uint32_t db_val = intel_de_read(display, 0x1000 + db_index * 8);
+	intel_de_write(display, 0x1000 + db_index * 8, db_val & 0xFFFFFFFE);
+	intel_de_write(display, 0x1004 + db_index * 8, 0);
+	intel_de_write(display, 0x1000 + db_index * 8, 0);
+	
+	uint32_t payload[2] = { 0x20, context_id };
+	hostToGuCAction(that, payload, 2, 0xf, nullptr);
+	
+	releaseDoorbellId(that, static_cast<uint16_t>(db_id));
+	
+	getMember<uint64_t>(that, 0x1e0 + (db_id & 0xFFFF) * 8) = 0;
+	getMember<uint32_t>(param_1, 0x24) = 0x100;
 }
-
 
 
 static void wa_masked_en(struct i915_wa_list *wal, u32 reg, u32 mask)
@@ -2274,7 +2198,7 @@ void intel_engine_apply_whitelist(struct intel_engine_cs *engine)
 
 
 
-void engines()
+void Gen11::engines()
 {
 
 	struct intel_engine_cs linux_engine;
