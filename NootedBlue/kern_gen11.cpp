@@ -1284,57 +1284,7 @@ void Gen11::setAsyncSliceCount2(void *that, uint32_t val)
 	FunctionCast(setAsyncSliceCount2, callback->osetAsyncSliceCount2)( that,requestedConfig.raw);
 }
 
-void Gen11::initDoorbells(void *that)
-{
-	readDoorbellSQIDIConfig(that);
-	
-	uint8_t num_clients = getMember<uint8_t>(that, 0x9e2);
-	
-	if (num_clients != 0) {
-		uint16_t db_per_client = getMember<uint16_t>(that, 0x9e0);
-		
-		for (uint32_t client_idx = 0; client_idx < num_clients; client_idx++) {
-			if (db_per_client != 0) {
-				for (uint32_t i = 0; i < db_per_client; i++) {
-					getMember<uint32_t>(that, 0xdc + (client_idx * 0x20) + (i * 4)) = 0;
-					getMember<uint32_t>(that, 0x15c + (client_idx * 0x20) + (i * 4)) = 0;
-				}
-			}
-		}
-	}
-	
-	getMember<uint32_t>(that, 0x1dc) = 0;
-}
 
-u64 Gen11::readDoorbellSQIDIConfig(void *that)
-{
-	struct intel_display *display = &NBlue::callback->display_base;
-
-	uint32_t reg_val = intel_de_read(display, 0xD08);
-	
-	getMember<uint8_t>(that, 0x9e2) = 0;
-	
-	uint32_t sqidi_mask = reg_val & 0xFFFF;
-	
-	if (sqidi_mask != 0) {
-		uint8_t client_count = 0;
-		uint32_t temp = sqidi_mask;
-		
-		while (temp != 0) {
-			temp = temp & (temp - 1);
-			client_count++;
-		}
-		
-		getMember<uint8_t>(that, 0x9e2) = client_count;
-	}
-
-	uint16_t db_per_client = ((reg_val >> 16) & 0xFF) + 1;
-	
-	getMember<uint16_t>(that, 0x9e0) = db_per_client;
-	getMember<uint8_t>(that, 0x9e3) = 8;
-
-	return ((static_cast<uint64_t>(db_per_client >> 8) & 0x7) << 8) | 1;
-}
 
 
 bool Gen11::fconfigureDevice(void *param_1)
@@ -1407,7 +1357,7 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	if (fw.size < min_expected_size) return 0;
 	
 	
-	dma_buffer_size = (ucode_size + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
+	dma_buffer_size = (fw.size + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
 	
 	igtask = getMember<void*>(m_accelerator, 0x150);
 	fwBuffer = IGSharedMappedBufferwithOptions(igtask, dma_buffer_size, 2, 0);
@@ -1419,7 +1369,7 @@ unsigned long Gen11::loadGuCBinary(void *that)
 		return 0;
 	}
 	
-	memcpy(vaddr, (uint8_t*)fw.data + sizeof(uc_css_header), ucode_size);
+	memcpy(vaddr, fw.data , fw.size);
 	
 	gpuAddr = fgetGPUVirtualAddress(fwBuffer);
 	if (gpuAddr == 0) {
@@ -1429,6 +1379,7 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	
 	SafeForceWake(m_accelerator, true, 7);
 	
+	//guc_prepare_xfer
 	shim_flags = GUC_ENABLE_READ_CACHE_LOGIC |
 			 GUC_ENABLE_READ_CACHE_FOR_SRAM_DATA |
 			 GUC_ENABLE_READ_CACHE_FOR_WOPCM_DATA |
@@ -1439,36 +1390,45 @@ unsigned long Gen11::loadGuCBinary(void *that)
 				  GUC_ENABLE_MIA_CACHING;
 	
 	intel_de_write(display, GUC_SHIM_CONTROL, shim_flags);
+	
+	/*if (IS_GEN9_LP(uncore->i915))
+		intel_uncore_write(uncore, GEN9LP_GT_PM_CONFIG, GT_DOORBELL_ENABLE);
+	else*/
 	intel_de_write(display, GEN9_GT_PM_CONFIG, GT_DOORBELL_ENABLE);
 	
-	rsa_offset = sizeof(uc_css_header) - rsa_size;
+	//if (GRAPHICS_VER_FULL(uncore->i915) >= IP_VER(12, 50))
+		//intel_uncore_rmw(uncore, GUC_SHIM_CONTROL2, 0, GUC_ENABLE_DEBUG_REG);
+	
+	//guc_xfer_rsa
+	rsa_offset = sizeof(struct uc_css_header) + ucode_size;
 	for (i = 0; i < rsa_size; i += 4) {
 		uint32_t rsa_val = *reinterpret_cast<uint32_t*>((uint8_t*)fw.data + rsa_offset + i);
 		intel_de_write(display, UOS_RSA_SCRATCH(i / 4), rsa_val);
 	}
 	
+	//uc_init_wopcm
 	wopcm_size = intel_de_read(display, GUC_WOPCM_SIZE) & GUC_WOPCM_SIZE_MASK;
-	
 	if (wopcm_size == 0) wopcm_size = 0x200000;
-	
+	if ((sizeof(struct uc_css_header) + ucode_size) >= wopcm_size) {
+		panic("wopcm_size");
+	}
 	mask = GUC_WOPCM_SIZE_MASK | GUC_WOPCM_SIZE_LOCKED;
 	if (intel_uncore_write_and_verify(display, GUC_WOPCM_SIZE, wopcm_size, mask, wopcm_size | GUC_WOPCM_SIZE_LOCKED)) {
 		goto fail;
 	}
-
 	mask = GUC_WOPCM_OFFSET_MASK | GUC_WOPCM_OFFSET_VALID;
 	if (intel_uncore_write_and_verify(display, DMA_GUC_WOPCM_OFFSET, 0, mask, GUC_WOPCM_OFFSET_VALID)) {
 		goto fail;
 	}
-	
+
 	intel_de_write(display, GEN12_GUC_TLB_INV_CR, GEN12_GUC_TLB_INV_CR_INVALIDATE);
 	while ((intel_de_read(display, GEN12_GUC_TLB_INV_CR) & GEN12_GUC_TLB_INV_CR_INVALIDATE) != 0) {}
 	
 	intel_de_write(display, DMA_ADDR_0_LOW, static_cast<uint32_t>(gpuAddr));
-	intel_de_write(display, DMA_ADDR_0_HIGH, static_cast<uint32_t>((gpuAddr >> 32) & 0xffff) | DMA_ADDRESS_SPACE_GTT);
+	intel_de_write(display, DMA_ADDR_0_HIGH, static_cast<uint32_t>((gpuAddr >> 32) & 0xffff));
 	intel_de_write(display, DMA_ADDR_1_LOW, 0x2000);
 	intel_de_write(display, DMA_ADDR_1_HIGH, DMA_ADDRESS_SPACE_WOPCM);
-	intel_de_write(display, DMA_COPY_SIZE, ucode_size);
+	intel_de_write(display, DMA_COPY_SIZE, sizeof(struct uc_css_header) + ucode_size);
 	
 	intel_de_write(display, DMA_CTRL, 0xFFFF0011);
 	
@@ -1580,6 +1540,57 @@ void Gen11::IGSharedMappedBufferfree(void *param_1)
 }
 
 
+void Gen11::initDoorbells(void *that)
+{
+	readDoorbellSQIDIConfig(that);
+	
+	uint8_t num_clients = getMember<uint8_t>(that, 0x9e2);
+	
+	if (num_clients != 0) {
+		uint16_t db_per_client = getMember<uint16_t>(that, 0x9e0);
+		
+		for (uint32_t client_idx = 0; client_idx < num_clients; client_idx++) {
+			if (db_per_client != 0) {
+				for (uint32_t i = 0; i < db_per_client; i++) {
+					getMember<uint32_t>(that, 0xdc + (client_idx * 0x20) + (i * 4)) = 0;
+					getMember<uint32_t>(that, 0x15c + (client_idx * 0x20) + (i * 4)) = 0;
+				}
+			}
+		}
+	}
+	
+	getMember<uint32_t>(that, 0x1dc) = 0;
+}
+
+u64 Gen11::readDoorbellSQIDIConfig(void *that)
+{
+	struct intel_display *display = &NBlue::callback->display_base;
+
+	uint32_t reg_val = intel_de_read(display, 0xD08);
+	
+	getMember<uint8_t>(that, 0x9e2) = 0;
+	
+	uint32_t sqidi_mask = reg_val & 0xFFFF;
+	
+	if (sqidi_mask != 0) {
+		uint8_t client_count = 0;
+		uint32_t temp = sqidi_mask;
+		
+		while (temp != 0) {
+			temp = temp & (temp - 1);
+			client_count++;
+		}
+		
+		getMember<uint8_t>(that, 0x9e2) = client_count;
+	}
+
+	uint16_t db_per_client = ((reg_val >> 16) & 0xFF) + 1;
+	
+	getMember<uint16_t>(that, 0x9e0) = db_per_client;
+	getMember<uint8_t>(that, 0x9e3) = 8;
+
+	return ((static_cast<uint64_t>(db_per_client >> 8) & 0x7) << 8) | 1;
+}
 
 unsigned short Gen11::acquireDoorbell(void *that, void *param_1, bool param_2)
 {
@@ -1593,26 +1604,27 @@ unsigned short Gen11::acquireDoorbell(void *that, void *param_1, bool param_2)
 	
 	uint32_t* ctx_status = getMember<uint32_t*>(array_base_ptr, 0x10 + ctx_offset);
 	
+	if (!ctx_status) return 0x100;
+	
 	if (ctx_status[0] == 0) {
 		uint32_t db_id = allocDoorbellId(that);
 		
 		if (db_id == 0x100) {
 			db_id = stealDoorbellId(that);
+			if (db_id == 0x100) return 0x100;
 			
 			void* db_entry_val = getMember<void*>(that, 0x1e0 + db_id * 8);
-			releaseDoorbell(that, db_entry_val);
-			
-			uint16_t db_per_client = getMember<uint16_t>(that, 0x9e0);
-			uint16_t local_db_idx = db_id % db_per_client;
-			uint32_t client_idx = db_id / db_per_client;
-			
-			uint32_t word_off = (local_db_idx >> 5) * 4;
-			uint32_t client_off = client_idx * 0x20;
-			
-			uint32_t& bitmap_val = getMember<uint32_t>(that, 0xdc + word_off + client_off);
-			bitmap_val |= (1 << (local_db_idx & 0x1f));
-			
-			if (db_id == 0x100) return 0x100;
+			if (db_entry_val) {
+				releaseDoorbell(that, db_entry_val);
+			} else {
+				// If there's no object attached, just clear the bitmap manually
+				uint16_t db_per_client = getMember<uint16_t>(that, 0x9e0);
+				uint16_t local_db_idx = db_id % db_per_client;
+				uint32_t client_idx = db_id / db_per_client;
+				uint32_t word_off = (local_db_idx >> 5) * 4;
+				uint32_t client_off = client_idx * 0x20;
+				getMember<uint32_t>(that, 0xdc + word_off + client_off) &= ~(1 << (local_db_idx & 0x1f));
+			}
 		}
 
 		setDoorbellPinning(that, db_id, param_2);
@@ -1621,10 +1633,10 @@ unsigned short Gen11::acquireDoorbell(void *that, void *param_1, bool param_2)
 		ctx_status[0] = 1;
 		ctx_status[1] = 0;
 		
-		intel_de_write(display, 0xcee8, 1);
+		/*intel_de_write(display, 0xcee8, 1);
 		while ((intel_de_read(display, 0xcee8) & 1) != 0) {
 			// Spinwait
-		}
+		}*/
 		
 		uint32_t payload[2] = { 0x10, context_id };
 		uint32_t response = 0;
@@ -1650,6 +1662,10 @@ unsigned short Gen11::acquireDoorbell(void *that, void *param_1, bool param_2)
 			getMember<uint64_t>(param_1, 0x1c) += wq_offset;
 			
 			uint32_t* desc_ptr = getMember<uint32_t*>(array_base_ptr, 0x18 + ctx_offset);
+			if (!desc_ptr) {
+				ctx_status[0] = 0;
+				return 0x100;
+			}
 			
 			desc_ptr[0] = context_id;
 			*reinterpret_cast<uint64_t*>(&desc_ptr[1]) = new_ctx_ptr;
@@ -1665,31 +1681,34 @@ void Gen11::releaseDoorbell(void *that, void *param_1)
 {
 	struct intel_display *display = &NBlue::callback->display_base;
 	
-	uint32_t db_id = getMember<uint32_t>(param_1, 0x24);
-	uint16_t db_per_client = getMember<uint16_t>(that, 0x9e0);
-	uint32_t db_index = (db_id & 0xFFFF) % db_per_client;
-	
 	uint64_t array_base_addr = getMember<uint64_t>(that, 0x50);
+	void* array_base_ptr = reinterpret_cast<void*>(array_base_addr);
+	
+	if (!array_base_ptr) return;
+	
+	uint32_t db_id = getMember<uint32_t>(param_1, 0x24);
 	uint32_t context_id = getMember<uint32_t>(param_1, 0x8);
 	uint64_t ctx_offset = static_cast<uint64_t>(context_id) * 0x20;
 	
-	uint32_t** ctx_status_slot = reinterpret_cast<uint32_t**>(array_base_addr + 0x10 + ctx_offset);
-	uint32_t* ctx_status = *ctx_status_slot;
+	// 1. Clear driver-side context status
+	uint32_t* ctx_status = getMember<uint32_t*>(array_base_ptr, 0x10 + ctx_offset);
+	if (ctx_status) {
+		ctx_status[0] = 0;
+	}
 	
-	getMember<uint32_t>(ctx_status, 0x0) = 0;
+	// 2. DO NOT touch MMIO 0x1000 / 0x1004 here!
+	// Let the GuC firmware handle the hardware doorbell invalidation
+	// to avoid hibernate/resume race conditions.
 	
-	uint32_t db_val = intel_de_read(display, 0x1000 + db_index * 8);
-	intel_de_write(display, 0x1000 + db_index * 8, db_val & 0xFFFFFFFE);
-	intel_de_write(display, 0x1004 + db_index * 8, 0);
-	intel_de_write(display, 0x1000 + db_index * 8, 0);
-	
+	// 3. Tell the GuC to release the doorbell (Action 0x20)
 	uint32_t payload[2] = { 0x20, context_id };
 	hostToGuCAction(that, payload, 2, 0xf, nullptr);
 	
+	// 4. Free internal driver tracking (bitmap & pointer array)
 	releaseDoorbellId(that, static_cast<uint16_t>(db_id));
 	
-	getMember<uint64_t>(that, 0x1e0 + (db_id & 0xFFFF) * 8) = 0;
-	getMember<uint32_t>(param_1, 0x24) = 0x100;
+	getMember<uint64_t>(that, 0x1e0 + (static_cast<uint64_t>(db_id) & 0xFFFF) * 8) = 0;
+	getMember<uint32_t>(param_1, 0x24) = 0x100; // GUC_INVALID_DOORBELL_ID
 }
 
 
