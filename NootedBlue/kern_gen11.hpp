@@ -792,17 +792,16 @@ public:
 	static void setDoorbellPinning(void *that,unsigned short param_1,bool param_2);
 	mach_vm_address_t osetDoorbellPinning {};
 
+	
+	static bool hostToGuCAction2(void *that,uint *param_1,uint param_2,int param_3,uint *param_4,bool param_5);
+	mach_vm_address_t ohostToGuCAction2 {};
+	
 	static void hostToGuCAction(void *that,unsigned int *param_1,unsigned int param_2,int param_3,unsigned int *param_4);
 	mach_vm_address_t ohostToGuCAction {};
 
 	static void  releaseDoorbellId(void *that,unsigned short param_1);
 	mach_vm_address_t oreleaseDoorbellId {};
 	
-	static void initDoorbells(void *that);
-	mach_vm_address_t oinitDoorbells {};
-	
-	static u64 readDoorbellSQIDIConfig(void *that);
-	mach_vm_address_t oreadDoorbellSQIDIConfig {};
 	
 	static bool  initSchedControl(void *that);
 	mach_vm_address_t oinitSchedControl {};

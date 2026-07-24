@@ -7384,7 +7384,7 @@ struct intel_dbuf_state {
 
 #define SOFT_SCRATCH(n)			_MMIO(0xc180 + (n) * 4)
 #define SOFT_SCRATCH_COUNT		16
-
+#define GUC_CTL_MAX_DWORDS		(SOFT_SCRATCH_COUNT - 2)
 #define GEN11_SOFT_SCRATCH(n)		_MMIO(0x190240 + (n) * 4)
 #define MEDIA_SOFT_SCRATCH(n)		_MMIO(0x190310 + (n) * 4)
 #define GEN11_SOFT_SCRATCH_COUNT	4
@@ -7566,6 +7566,19 @@ enum intel_bootrom_load_status {
 	INTEL_BOOTROM_STATUS_MPUMAP_INCORRECT             = 0x7A,
 	INTEL_BOOTROM_STATUS_EXCEPTION                    = 0x7E,
 };
+
+#define GEN10_DFR_RATIO_EN_AND_CHICKEN		MCR_REG(0x9550)
+#define   DFR_DISABLE				(1 << 9)
+#define VLV_G3DCTL				_MMIO(0x9024)
+#define GEN6_GFXPAUSE				_MMIO(0xa000)
+#define GEN6_RPNSWREQ				_MMIO(0xa008)
+#define GEN6_PMINTRMSK				_MMIO(0xa168)
+#define   GEN8_PMINTR_DISABLE_REDIRECT_TO_GUC	(1 << 31)
+#define   ARAT_EXPIRED_INTRMSK			(1 << 9)
+#define   DMA_ADDRESS_SPACE_WOPCM	  (7 << 16)
+#define   DMA_ADDRESS_SPACE_GTT		  (8 << 16)
+
+
 
 
 
