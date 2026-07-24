@@ -7633,7 +7633,8 @@ enum intel_bootrom_load_status {
 
 #define GUC_CTL_MAX_DWORDS		(SOFT_SCRATCH_COUNT - 2) /* [1..14] */
 
-
+#define VDBOX_CGCTL3F10(base)			_MMIO((base) + 0x3f10)
+#define   IECPUNIT_CLKGATE_DIS			REG_BIT(22)
 
 
 

@@ -1296,10 +1296,128 @@ uint64_t Gen11::finitDeviceMemory(void *that)
 	return ret;
 }
 
+static void wa_masked_en(struct i915_wa_list *wal, u32 reg, u32 mask)
+{
+	struct i915_wa *wa = &wal->wa[wal->count++];
+	wa->reg = reg;
+	wa->clr = mask;
+	wa->set = mask;
+	wa->is_mcr = false;
+}
+
+static void wa_masked_field_set(struct i915_wa_list *wal, u32 reg, u32 mask, u32 val)
+{
+	struct i915_wa *wa = &wal->wa[wal->count++];
+	wa->reg = reg;
+	wa->clr = mask;
+	wa->set = val;
+	wa->is_mcr = false;
+}
+
+static void wa_add(struct i915_wa_list *wal, u32 reg, u32 clr, u32 set, u32 read, bool verify)
+{
+	struct i915_wa *wa = &wal->wa[wal->count++];
+	wa->reg = reg;
+	wa->clr = clr;
+	wa->set = set;
+	wa->is_mcr = false;
+}
+
+static void wa_mcr_write_or(struct i915_wa_list *wal, u32 reg, u32 set)
+{
+	struct i915_wa *wa = &wal->wa[wal->count++];
+	wa->reg = reg;
+	wa->clr = ~0u;
+	wa->set = set;
+	wa->is_mcr = true;
+}
+
+static void wa_init_start(struct i915_wa_list *wal, void *dev, const char *name, const char *engine_name)
+{
+	wal->name = name;
+	wal->dev = dev;
+	wal->count = 0;
+}
+
+static void wa_init_finish(struct i915_wa_list *wal)
+{
+}
+
+static void
+wa_write_clr_set(struct i915_wa_list *wal, u32 reg, u32 clear, u32 set)
+{
+	wa_add(wal, reg, clear, set, clear | set, false);
+}
+
+static void wa_mcr_add(struct i915_wa_list *wal, u32 reg,
+			   u32 clear, u32 set, u32 read_mask, bool masked_reg)
+{
+
+	struct i915_wa *wa = &wal->wa[wal->count++];
+	wa->mcr_reg = reg;
+	wa->clr  = clear;
+	wa->set  = set;
+	wa->read = read_mask;
+	wa->masked_reg = masked_reg;
+	wa->is_mcr = 1;
+	
+}
+
+static void
+wa_write_clr(struct i915_wa_list *wal, u32 reg, u32 clr)
+{
+	wa_write_clr_set(wal, reg, clr, 0);
+}
+
+static void
+wa_mcr_masked_en(struct i915_wa_list *wal, u32 reg, u32 val)
+{
+	//wa_mcr_add(wal, reg, 0, REG_MASKED_FIELD_ENABLE(val), val, true);
+	wa_mcr_add(wal, reg, 0, (val << 16) | val, val, true);
+}
+
+static void
+wa_write_or(struct i915_wa_list *wal, u32 reg, u32 set)
+{
+	wa_write_clr_set(wal, reg, set, set);
+}
+
+static void wa_list_apply(struct i915_wa_list *wal)
+{
+	void *dev = wal->dev;
+	struct i915_wa *wa;
+	unsigned int i;
+
+	if (!wal->count)
+		return;
+
+	for (i = 0, wa = wal->wa; i < wal->count; i++, wa++) {
+		u32 val, old = 0;
+
+		if (wa->clr) {
+			if (wa->is_mcr)
+				old = NBlue::callback->readReg32(wa->mcr_reg);
+			else
+				old = NBlue::callback->readReg32(wa->reg);
+		}
+
+		val = (old & ~wa->clr) | wa->set;
+		
+		if (val != old || !wa->clr) {
+			
+			if (wa->is_mcr)
+				NBlue::callback->writeReg32(wa->mcr_reg, val);
+			else
+				NBlue::callback->writeReg32(wa->reg, val);
+		}
+	}
+}
+
+
 
 
 static void
-gen12_gt_workarounds_init()
+gen12_gt_workarounds_init(struct i915_wa_list *wal)
 {
 	struct intel_display *display = &NBlue::callback->display_base;
 	
@@ -1307,10 +1425,48 @@ gen12_gt_workarounds_init()
 
 	/* Wa_14011060649:tgl,rkl,dg1,adl-s,adl-p */
 	//wa_14011060649(gt, wal);
+	
+	struct intel_engine_cs linux_engine;
+	for (int i = 0; i < 6; i++) {
+		switch (i) {
+			case 0: // RCS
+				linux_engine.mmio_base = RENDER_RING_BASE;
+				linux_engine.engine_class = RENDER_CLASS;
+				break;
+			case 1: // CCS0
+				continue;
+			case 2: // BCS
+				linux_engine.mmio_base = BLT_RING_BASE;
+				linux_engine.engine_class = COPY_ENGINE_CLASS;
+				break;
+			case 3: // VCS0
+				linux_engine.mmio_base = GEN11_BSD_RING_BASE;
+				linux_engine.engine_class = VIDEO_DECODE_CLASS;
+				break;
+			case 4: // VCS2
+				linux_engine.mmio_base = GEN11_BSD3_RING_BASE;
+				linux_engine.engine_class = VIDEO_DECODE_CLASS;
+				break;
+			case 5: // VECS0
+				linux_engine.mmio_base = GEN11_VEBOX_RING_BASE;
+				linux_engine.engine_class = VIDEO_ENHANCE_CLASS;
+				break;
+				
+			default:
+				continue;
+		}
+		
+		if (linux_engine.engine_class != VIDEO_DECODE_CLASS /*||
+			(engine->instance % 2)*/)
+			continue;
+
+		wa_write_or(wal, VDBOX_CGCTL3F10(linux_engine.mmio_base),
+				IECPUNIT_CLKGATE_DIS);
+		
+	}
 
 	/* Wa_14011059788:tgl,rkl,adl-s,dg1,adl-p */
-	//wa_mcr_write_or(wal, GEN10_DFR_RATIO_EN_AND_CHICKEN, DFR_DISABLE);
-	intel_de_write(display, GEN10_DFR_RATIO_EN_AND_CHICKEN, DFR_DISABLE);
+	wa_mcr_write_or(wal, GEN10_DFR_RATIO_EN_AND_CHICKEN, DFR_DISABLE);
 	
 	/*
 	 * Wa_14015795083
@@ -1321,10 +1477,9 @@ gen12_gt_workarounds_init()
 	 * workaround doesn't stick due to firmware behavior, it's not an error
 	 * that we want CI to flag.
 	 */
-//	wa_add(wal, GEN7_MISCCPCTL, GEN12_DOP_CLOCK_GATE_RENDER_ENABLE,
-	//	   0, 0, false);
+	wa_add(wal, GEN7_MISCCPCTL, GEN12_DOP_CLOCK_GATE_RENDER_ENABLE,
+		   0, 0, false);
 	
-	intel_de_write(display, GEN7_MISCCPCTL, 0x10);
 }
 
 
@@ -1569,11 +1724,17 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	
 	SafeForceWake(m_accelerator, true, 7);
 	
-	guc_init_params(params);
-	intel_guc_write_params(params);
+	//guc_init_params(params);
+	//intel_guc_write_params(params);
 	
-	gen12_gt_workarounds_init();
 	
+	struct i915_wa_list wal;
+
+	wa_init_start(&wal, nullptr, "GT", "global");
+	gen12_gt_workarounds_init(&wal);
+	wa_init_finish(&wal);
+	
+	wa_list_apply(&wal);
 	
 	//guc_prepare_xfer
 	shim_flags = GUC_ENABLE_READ_CACHE_LOGIC |
@@ -1908,91 +2069,7 @@ void Gen11::releaseDoorbell(void *that, void *param_1)
 }
 
 
-static void wa_masked_en(struct i915_wa_list *wal, u32 reg, u32 mask)
-{
-	struct i915_wa *wa = &wal->wa[wal->count++];
-	wa->reg = reg;
-	wa->clr = mask;
-	wa->set = mask;
-	wa->is_mcr = false;
-}
 
-static void wa_masked_field_set(struct i915_wa_list *wal, u32 reg, u32 mask, u32 val)
-{
-	struct i915_wa *wa = &wal->wa[wal->count++];
-	wa->reg = reg;
-	wa->clr = mask;
-	wa->set = val;
-	wa->is_mcr = false;
-}
-
-static void wa_add(struct i915_wa_list *wal, u32 reg, u32 clr, u32 set, u32 read, bool verify)
-{
-	struct i915_wa *wa = &wal->wa[wal->count++];
-	wa->reg = reg;
-	wa->clr = clr;
-	wa->set = set;
-	wa->is_mcr = false;
-}
-
-static void wa_mcr_write_or(struct i915_wa_list *wal, u32 reg, u32 set)
-{
-	struct i915_wa *wa = &wal->wa[wal->count++];
-	wa->reg = reg;
-	wa->clr = ~0u;
-	wa->set = set;
-	wa->is_mcr = true;
-}
-
-static void wa_init_start(struct i915_wa_list *wal, void *dev, const char *name, const char *engine_name)
-{
-	wal->name = name;
-	wal->dev = dev;
-	wal->count = 0;
-}
-
-static void wa_init_finish(struct i915_wa_list *wal)
-{
-}
-
-static void
-wa_write_clr_set(struct i915_wa_list *wal, u32 reg, u32 clear, u32 set)
-{
-	wa_add(wal, reg, clear, set, clear | set, false);
-}
-
-static void wa_mcr_add(struct i915_wa_list *wal, u32 reg,
-			   u32 clear, u32 set, u32 read_mask, bool masked_reg)
-{
-
-	struct i915_wa *wa = &wal->wa[wal->count++];
-	wa->mcr_reg = reg;
-	wa->clr  = clear;
-	wa->set  = set;
-	wa->read = read_mask;
-	wa->masked_reg = masked_reg;
-	wa->is_mcr = 1;
-	
-}
-
-static void
-wa_write_clr(struct i915_wa_list *wal, u32 reg, u32 clr)
-{
-	wa_write_clr_set(wal, reg, clr, 0);
-}
-
-static void
-wa_mcr_masked_en(struct i915_wa_list *wal, u32 reg, u32 val)
-{
-	//wa_mcr_add(wal, reg, 0, REG_MASKED_FIELD_ENABLE(val), val, true);
-	wa_mcr_add(wal, reg, 0, (val << 16) | val, val, true);
-}
-
-static void
-wa_write_or(struct i915_wa_list *wal, u32 reg, u32 set)
-{
-	wa_write_clr_set(wal, reg, set, set);
-}
 
 static void whitelist_reg_ext(struct i915_wa_list *wal, u32 reg, u32 flags)
 {
@@ -2074,36 +2151,7 @@ static void tgl_whitelist_build(struct intel_engine_cs *engine)
 
 
 
-static void wa_list_apply(struct i915_wa_list *wal)
-{
-	void *dev = wal->dev;
-	struct i915_wa *wa;
-	unsigned int i;
 
-	if (!wal->count)
-		return;
-
-	for (i = 0, wa = wal->wa; i < wal->count; i++, wa++) {
-		u32 val, old = 0;
-
-		if (wa->clr) {
-			if (wa->is_mcr)
-				old = NBlue::callback->readReg32(wa->mcr_reg);
-			else
-				old = NBlue::callback->readReg32(wa->reg);
-		}
-
-		val = (old & ~wa->clr) | wa->set;
-		
-		if (val != old || !wa->clr) {
-			
-			if (wa->is_mcr)
-				NBlue::callback->writeReg32(wa->mcr_reg, val);
-			else
-				NBlue::callback->writeReg32(wa->reg, val);
-		}
-	}
-}
 
 static void whitelist_apply(struct intel_engine_cs *engine)
 {
