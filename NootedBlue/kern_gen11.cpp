@@ -1597,6 +1597,8 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	
 	intel_de_rmw(display, GEN6_PMINTRMSK, ARAT_EXPIRED_INTRMSK, 0);
 	
+	//DRBMISC1
+	intel_de_write(display, 0x1984, 1);
 	
 	//guc_xfer_rsa
 	rsa_offset = sizeof(struct uc_css_header) + ucode_size;
@@ -1759,15 +1761,11 @@ unsigned short Gen11::acquireDoorbell(void *that, void *param_1, bool param_2)
 	struct intel_display *display = &NBlue::callback->display_base;
 	
 	uint64_t array_base_addr = getMember<uint64_t>(that, 0x50);
-	void* array_base_ptr = reinterpret_cast<void*>(array_base_addr);
+	uintptr_t array_base = static_cast<uintptr_t>(array_base_addr);
 	
 	uint32_t context_id = getMember<uint32_t>(param_1, 0x8);
 	uint64_t ctx_offset = static_cast<uint64_t>(context_id) * 0x20;
-	
-	uint32_t** ctx_ptr_ptr = reinterpret_cast<uint32_t**>(reinterpret_cast<uintptr_t>(array_base_ptr) + 0x10 + ctx_offset);
-	uint32_t* ctx_desc = *ctx_ptr_ptr;
-	
-	if (!ctx_desc) return 0x100;
+	uint32_t* ctx_desc = *reinterpret_cast<uint32_t**>(array_base + 0x10 + ctx_offset);
 	
 	if (ctx_desc[0] == 0) {
 		uint16_t db_id = allocDoorbellId(that);
@@ -1776,9 +1774,21 @@ unsigned short Gen11::acquireDoorbell(void *that, void *param_1, bool param_2)
 			db_id = stealDoorbellId(that);
 			
 			void* db_entry_val = getMember<void*>(that, 0x1e0 + static_cast<uint64_t>(db_id) * 8);
-			if (db_entry_val) {
-				releaseDoorbell(that, db_entry_val);
+			
+			if (!db_entry_val) {
+				uint16_t db_per_client = getMember<uint16_t>(that, 0x9e0);
+				uint16_t local_db_idx = db_id % db_per_client;
+				uint32_t client_idx = db_id / db_per_client;
+				uint32_t word_off = (local_db_idx >> 5) * 4;
+				uint32_t client_off = client_idx * 0x20;
+				
+				uint32_t& bitmap_val = getMember<uint32_t>(that, 0xdc + word_off + client_off);
+				bitmap_val &= ~(1 << (local_db_idx & 0x1f));
+				
+				return 0x100;
 			}
+			
+			releaseDoorbell(that, db_entry_val);
 
 			uint16_t db_per_client = getMember<uint16_t>(that, 0x9e0);
 			uint16_t local_db_idx = db_id % db_per_client;
@@ -1823,19 +1833,15 @@ unsigned short Gen11::acquireDoorbell(void *that, void *param_1, bool param_2)
 			
 			uint32_t wq_offset = (response >> 10) & 0xFC0;
 			
-			uint64_t& ctx_ptr_val = getMember<uint64_t>(array_base_ptr, 0x10 + ctx_offset);
+			uint64_t& ctx_ptr_val = *reinterpret_cast<uint64_t*>(reinterpret_cast<uintptr_t>(array_base) + 0x10 + ctx_offset);
+																 
 			ctx_ptr_val += wq_offset;
 			uint64_t new_ctx_ptr = ctx_ptr_val;
 			
 			getMember<uint32_t>(param_1, 0x18) += wq_offset;
 			getMember<uint64_t>(param_1, 0x1c) += wq_offset;
 			
-			uint32_t** desc_ptr_ptr = reinterpret_cast<uint32_t**>(reinterpret_cast<uintptr_t>(array_base_ptr) + 0x18 + ctx_offset);
-			uint32_t* desc_ptr = *desc_ptr_ptr;
-			if (!desc_ptr) {
-				ctx_desc[0] = 0;
-				return 0x100;
-			}
+			uint32_t* desc_ptr = *reinterpret_cast<uint32_t**>(array_base + 0x18 + ctx_offset);
 			
 			desc_ptr[0] = context_id;
 			*reinterpret_cast<uint64_t*>(&desc_ptr[1]) = new_ctx_ptr;
@@ -1849,48 +1855,47 @@ unsigned short Gen11::acquireDoorbell(void *that, void *param_1, bool param_2)
 
 void Gen11::releaseDoorbell(void *that, void *param_1)
 {
-	struct intel_display *display = &NBlue::callback->display_base;
 	
 	uint64_t array_base_addr = getMember<uint64_t>(that, 0x50);
-	void* array_base_ptr = reinterpret_cast<void*>(array_base_addr);
-	
-	if (!array_base_ptr) return;
+	uintptr_t array_base = static_cast<uintptr_t>(array_base_addr);
 	
 	uint32_t db_id = getMember<uint32_t>(param_1, 0x24);
 	uint32_t context_id = getMember<uint32_t>(param_1, 0x8);
 	uint16_t num_doorbells = getMember<uint16_t>(that, 0x9e0);
 	
 	uint64_t ctx_offset = static_cast<uint64_t>(context_id) * 0x20;
-	uintptr_t entry_addr = reinterpret_cast<uintptr_t>(array_base_ptr) + 0x10 + ctx_offset;
-	uint32_t* desc_ptr = *reinterpret_cast<uint32_t**>(entry_addr);
-	if (desc_ptr) {
-		*desc_ptr = 0;
-	}
+	uint32_t* desc_ptr = *reinterpret_cast<uint32_t**>(array_base + 0x10 + ctx_offset);
+	*desc_ptr = 0;
 	
 	uint32_t db_index = (db_id & 0xFFFF) % num_doorbells;
 	uint32_t db_instance = ((db_id & 0xFF) / num_doorbells) & 7;
 	uint32_t instance_select = db_instance << 24;
 	
-	uint32_t db_reg_offset = 0x1000 + db_index * 8;
-	uint32_t db_reg_hi_offset = 0x1004 + db_index * 8;
-	
-	uint32_t saved_select = intel_de_read(display, 0xFD4);
-	
-	intel_de_write(display, 0xFD4, instance_select);
-	uint32_t db_val = intel_de_read(display, db_reg_offset);
-	intel_de_write(display, 0xFD4, saved_select);
-	
-	intel_de_write(display, 0xFD4, instance_select);
-	intel_de_write(display, db_reg_offset, db_val & 0xFFFFFFFE);
-	intel_de_write(display, 0xFD4, saved_select);
-	
-	intel_de_write(display, 0xFD4, instance_select);
-	intel_de_write(display, db_reg_hi_offset, 0);
-	intel_de_write(display, 0xFD4, saved_select);
-	
-	intel_de_write(display, 0xFD4, instance_select);
-	intel_de_write(display, db_reg_offset, 0);
-	intel_de_write(display, 0xFD4, saved_select);
+	#define GEN11_DOORBELL_INSTANCE_SELECT 0xfd4
+	volatile uint32_t *mmio_base=NBlue::callback->rmmioPtr;
+	uint32_t db_reg_offset = GEN8_DRBREGL(db_index);
+	uint32_t db_reg_hi_offset = GEN8_DRBREGU(db_index);
+	volatile uint32_t* fd4_reg = reinterpret_cast<volatile uint32_t*>(mmio_base + GEN11_DOORBELL_INSTANCE_SELECT);
+	volatile uint32_t* db_reg = reinterpret_cast<volatile uint32_t*>(mmio_base + db_reg_offset);
+	volatile uint32_t* db_reg_hi = reinterpret_cast<volatile uint32_t*>(mmio_base + db_reg_hi_offset);
+		
+	uint32_t saved_select = *fd4_reg;
+		
+	*fd4_reg = instance_select;
+	uint32_t db_val = *db_reg;
+	*fd4_reg = saved_select;
+		
+	*db_reg = db_val & 0xFFFFFFFE;
+	saved_select = *fd4_reg;
+		
+	*fd4_reg = instance_select;
+	*db_reg_hi = 0;
+	*fd4_reg = saved_select;
+		
+	saved_select = *fd4_reg;
+	*fd4_reg = instance_select;
+	*db_reg = 0;
+	*fd4_reg = saved_select;
 	
 	uint32_t payload[2] = { 0x20, context_id };
 	hostToGuCAction(that, payload, 2, 0xF, nullptr);
