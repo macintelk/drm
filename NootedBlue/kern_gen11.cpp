@@ -1327,6 +1327,169 @@ gen12_gt_workarounds_init()
 	intel_de_write(display, GEN7_MISCCPCTL, 0x10);
 }
 
+
+static u32 guc_ctl_debug_flags()
+{
+	u32 flags = 0;
+
+	//if (!GUC_LOG_LEVEL_IS_VERBOSE(level))
+		flags |= GUC_LOG_DISABLED;
+	/*else
+		flags |= GUC_LOG_LEVEL_TO_VERBOSITY(level) <<
+			 GUC_LOG_VERBOSITY_SHIFT;
+*/
+	return flags;
+}
+
+static u32 guc_ctl_feature_flags()
+{
+	u32 flags = 0;
+
+	/*
+	 * Enable PXP GuC autoteardown flow.
+	 * NB: MTL does things differently.
+	 */
+	//if (HAS_PXP(gt->i915) && !IS_METEORLAKE(gt->i915))
+	//	flags |= GUC_CTL_ENABLE_GUC_PXP_CTL;
+
+	//if (!intel_guc_submission_is_used(guc))
+	//	flags |= GUC_CTL_DISABLE_SCHEDULER;
+
+	//if (intel_guc_slpc_is_used(guc))
+		flags |= GUC_CTL_ENABLE_SLPC;
+
+	return flags;
+}
+
+static u32 guc_ctl_log_params_flags()
+{
+	u32 offset, flags=0;
+
+	/*GEM_BUG_ON(!log->sizes_initialised);
+
+	offset = intel_guc_ggtt_offset(guc, log->vma) >> PAGE_SHIFT;
+
+	flags = GUC_LOG_VALID |
+		GUC_LOG_NOTIFY_ON_HALF_FULL |
+		log->sizes[GUC_LOG_SECTIONS_DEBUG].flag |
+		log->sizes[GUC_LOG_SECTIONS_CAPTURE].flag |
+		(log->sizes[GUC_LOG_SECTIONS_CRASH].count << GUC_LOG_CRASH_SHIFT) |
+		(log->sizes[GUC_LOG_SECTIONS_DEBUG].count << GUC_LOG_DEBUG_SHIFT) |
+		(log->sizes[GUC_LOG_SECTIONS_CAPTURE].count << GUC_LOG_CAPTURE_SHIFT) |
+		(offset << GUC_LOG_BUF_ADDR_SHIFT);
+*/
+	return flags;
+}
+
+static u32 guc_ctl_ads_flags()
+{
+	/*u32 flags = ads << GUC_ADS_ADDR_SHIFT;
+
+	return flags;
+	*/
+	return 0;
+}
+
+static u32 guc_ctl_wa_flags()
+{
+	u32 flags = 0;
+
+	/* Wa_22012773006:gen11,gen12 < XeHP */
+//	if (GRAPHICS_VER(gt->i915) >= 11 &&
+	//	GRAPHICS_VER_FULL(gt->i915) < IP_VER(12, 55))
+		flags |= GUC_WA_POLLCS;
+
+	/* Wa_14014475959 */
+	//if (IS_GFX_GT_IP_STEP(gt, IP_VER(12, 70), STEP_A0, STEP_B0) ||
+	//	IS_DG2(gt->i915))
+	//	flags |= GUC_WA_HOLD_CCS_SWITCHOUT;
+
+	/* Wa_16019325821 */
+	/* Wa_14019159160 */
+	//if (IS_GFX_GT_IP_RANGE(gt, IP_VER(12, 70), IP_VER(12, 74)))
+	//	flags |= GUC_WA_RCS_CCS_SWITCHOUT;
+
+	/*
+	 * Wa_14012197797
+	 * Wa_22011391025
+	 *
+	 * The same WA bit is used for both and 22011391025 is applicable to
+	 * all DG2.
+	 *
+	 * Platforms post DG2 prevent this issue in hardware by stalling
+	 * submissions. With this flag GuC will schedule as to avoid such
+	 * stalls.
+	 */
+	/*if (IS_DG2(gt->i915) ||
+		(CCS_MASK(gt) && GRAPHICS_VER_FULL(gt->i915) >= IP_VER(12, 70)))
+		flags |= GUC_WA_DUAL_QUEUE;
+*/
+	/* Wa_22011802037: graphics version 11/12 */
+	//if (intel_engine_reset_needs_wa_22011802037(gt))
+		flags |= GUC_WA_PRE_PARSER;
+
+	/*
+	 * Wa_22012727170
+	 * Wa_22012727685
+	 */
+//	if (IS_DG2_G11(gt->i915))
+	//	flags |= GUC_WA_CONTEXT_ISOLATION;
+
+	/*
+	 * Wa_14018913170: Applicable to all platforms supported by i915 so
+	 * don't bother testing for all X/Y/Z platforms explicitly.
+	 */
+	//if (GUC_FIRMWARE_VER(guc) >= MAKE_GUC_VER(70, 7, 0))
+		flags |= GUC_WA_ENABLE_TSC_CHECK_ON_RC6;
+
+	return flags;
+}
+
+static u32 guc_ctl_devid()
+{
+	
+	return (NBlue::callback->deviceId << 16) | NBlue::callback->pciRevision;
+}
+
+/*
+ * Initialise the GuC parameter block before starting the firmware
+ * transfer. These parameters are read by the firmware on startup
+ * and cannot be changed thereafter.
+ */
+static void guc_init_params(u32 params[GUC_CTL_MAX_DWORDS])
+{
+	int i;
+
+	//BUILD_BUG_ON(sizeof(guc->params) != GUC_CTL_MAX_DWORDS * sizeof(u32));
+
+	//params[GUC_CTL_LOG_PARAMS] = guc_ctl_log_params_flags();
+	params[GUC_CTL_FEATURE] = guc_ctl_feature_flags();
+	params[GUC_CTL_DEBUG] = guc_ctl_debug_flags();
+	//params[GUC_CTL_ADS] = guc_ctl_ads_flags();
+	params[GUC_CTL_WA] = guc_ctl_wa_flags();
+	params[GUC_CTL_DEVID] = guc_ctl_devid();
+
+
+}
+
+void intel_guc_write_params(u32 params[GUC_CTL_MAX_DWORDS])
+{
+	int i;
+	struct intel_display *display = &NBlue::callback->display_base;
+	/*
+	 * All SOFT_SCRATCH registers are in FORCEWAKE_GT domain and
+	 * they are power context saved so it's ok to release forcewake
+	 * when we are done here and take it again at xfer time.
+	 */
+	//intel_uncore_forcewake_get(uncore, FORCEWAKE_GT);
+
+	intel_de_write(display,  SOFT_SCRATCH(0), 0);
+
+	for (i = 0; i < GUC_CTL_MAX_DWORDS; i++)
+		intel_de_write(display,  SOFT_SCRATCH(1 + i), params[i]);
+
+	//intel_uncore_forcewake_put(uncore, FORCEWAKE_GT);
+}
 unsigned long Gen11::loadGuCBinary(void *that)
 {
 	
@@ -1406,7 +1569,11 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	
 	SafeForceWake(m_accelerator, true, 7);
 	
+	guc_init_params(params);
+	intel_guc_write_params(params);
+	
 	gen12_gt_workarounds_init();
+	
 	
 	//guc_prepare_xfer
 	shim_flags = GUC_ENABLE_READ_CACHE_LOGIC |
@@ -1460,8 +1627,8 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	}*/
 	//panic("lll");
 	
-	intel_de_write(display, DMA_ADDR_0_LOW, static_cast<uint32_t>(gpuAddr));
-	intel_de_write(display, DMA_ADDR_0_HIGH, static_cast<uint32_t>((gpuAddr >> 32) & 0xffff)| DMA_ADDRESS_SPACE_GTT);
+	intel_de_write(display, DMA_ADDR_0_LOW, lower_32_bits(gpuAddr));
+	intel_de_write(display, DMA_ADDR_0_HIGH, upper_32_bits(gpuAddr) | DMA_ADDRESS_SPACE_GTT);
 	intel_de_write(display, DMA_ADDR_1_LOW, 0x2000);
 	intel_de_write(display, DMA_ADDR_1_HIGH, DMA_ADDRESS_SPACE_WOPCM);
 	intel_de_write(display, DMA_COPY_SIZE, sizeof(struct uc_css_header) + ucode_size);

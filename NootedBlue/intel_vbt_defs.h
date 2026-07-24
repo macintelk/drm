@@ -7578,6 +7578,61 @@ enum intel_bootrom_load_status {
 #define   DMA_ADDRESS_SPACE_WOPCM	  (7 << 16)
 #define   DMA_ADDRESS_SPACE_GTT		  (8 << 16)
 
+#define upper_32_bits(n) ((u32)(((n) >> 16) >> 16))
+#define lower_32_bits(n) ((u32)((n) & 0xffffffff))
+
+#define GUC_CTL_LOG_PARAMS		0
+#define   GUC_LOG_VALID			BIT(0)
+#define   GUC_LOG_NOTIFY_ON_HALF_FULL	BIT(1)
+#define   GUC_LOG_CAPTURE_ALLOC_UNITS	BIT(2)
+#define   GUC_LOG_LOG_ALLOC_UNITS	BIT(3)
+#define   GUC_LOG_CRASH_SHIFT		4
+#define   GUC_LOG_CRASH_MASK		(0x3 << GUC_LOG_CRASH_SHIFT)
+#define   GUC_LOG_DEBUG_SHIFT		6
+#define   GUC_LOG_DEBUG_MASK	        (0xF << GUC_LOG_DEBUG_SHIFT)
+#define   GUC_LOG_CAPTURE_SHIFT		10
+#define   GUC_LOG_CAPTURE_MASK	        (0x3 << GUC_LOG_CAPTURE_SHIFT)
+#define   GUC_LOG_BUF_ADDR_SHIFT	12
+
+#define GUC_CTL_WA			1
+#define   GUC_WA_GAM_CREDITS		BIT(10)
+#define   GUC_WA_DUAL_QUEUE		BIT(11)
+#define   GUC_WA_RCS_RESET_BEFORE_RC6	BIT(13)
+#define   GUC_WA_PRE_PARSER		BIT(14)
+#define   GUC_WA_CONTEXT_ISOLATION	BIT(15)
+#define   GUC_WA_RCS_CCS_SWITCHOUT	BIT(16)
+#define   GUC_WA_HOLD_CCS_SWITCHOUT	BIT(17)
+#define   GUC_WA_POLLCS			BIT(18)
+#define   GUC_WA_RCS_REGS_IN_CCS_REGS_LIST	BIT(21)
+#define   GUC_WA_ENABLE_TSC_CHECK_ON_RC6	BIT(22)
+
+#define GUC_CTL_FEATURE			2
+#define   GUC_CTL_ENABLE_GUC_PXP_CTL	BIT(1)
+#define   GUC_CTL_ENABLE_SLPC		BIT(2)
+#define   GUC_CTL_DISABLE_SCHEDULER	BIT(14)
+
+#define GUC_CTL_DEBUG			3
+#define   GUC_LOG_VERBOSITY_SHIFT	0
+#define   GUC_LOG_VERBOSITY_LOW		(0 << GUC_LOG_VERBOSITY_SHIFT)
+#define   GUC_LOG_VERBOSITY_MED		(1 << GUC_LOG_VERBOSITY_SHIFT)
+#define   GUC_LOG_VERBOSITY_HIGH	(2 << GUC_LOG_VERBOSITY_SHIFT)
+#define   GUC_LOG_VERBOSITY_ULTRA	(3 << GUC_LOG_VERBOSITY_SHIFT)
+/* Verbosity range-check limits, without the shift */
+#define	  GUC_LOG_VERBOSITY_MIN		0
+#define	  GUC_LOG_VERBOSITY_MAX		3
+#define	  GUC_LOG_VERBOSITY_MASK	0x0000000f
+#define	  GUC_LOG_DESTINATION_MASK	(3 << 4)
+#define   GUC_LOG_DISABLED		(1 << 6)
+#define   GUC_PROFILE_ENABLED		(1 << 7)
+
+#define GUC_CTL_ADS			4
+#define   GUC_ADS_ADDR_SHIFT		1
+#define   GUC_ADS_ADDR_MASK		(0xFFFFF << GUC_ADS_ADDR_SHIFT)
+
+#define GUC_CTL_DEVID			5
+
+#define GUC_CTL_MAX_DWORDS		(SOFT_SCRATCH_COUNT - 2) /* [1..14] */
+
 
 
 
