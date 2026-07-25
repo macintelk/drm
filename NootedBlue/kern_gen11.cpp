@@ -1869,7 +1869,7 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	dma_flags=UOS_MOVE;
 	intel_de_write(display, DMA_ADDR_0_LOW, lower_32_bits(gpuAddr));
 	intel_de_write(display, DMA_ADDR_0_HIGH, upper_32_bits(gpuAddr) | DMA_ADDRESS_SPACE_GTT);
-	intel_de_write(display, DMA_ADDR_1_LOW, guc_wopcm_base);
+	intel_de_write(display, DMA_ADDR_1_LOW, 0x2000);
 	intel_de_write(display, DMA_ADDR_1_HIGH, DMA_ADDRESS_SPACE_WOPCM);
 	intel_de_write(display, DMA_COPY_SIZE, sizeof(struct uc_css_header) + ucode_size);
 	
