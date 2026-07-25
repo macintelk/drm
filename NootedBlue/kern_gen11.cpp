@@ -1640,7 +1640,50 @@ void intel_guc_write_params(u32 params[GUC_CTL_MAX_DWORDS])
 }
 
 
+static inline bool guc_load_done(u32 *status, bool *success)
+{
+	struct intel_display *display = &NBlue::callback->display_base;
+	u32 val = intel_de_read(display, GUC_STATUS);
+	u32 uk_val = REG_FIELD_GET(GS_UKERNEL_MASK, val);
+	u32 br_val = REG_FIELD_GET(GS_BOOTROM_MASK, val);
 
+	*status = val;
+	switch (uk_val) {
+	case INTEL_GUC_LOAD_STATUS_READY:
+		*success = true;
+		return true;
+
+	case INTEL_GUC_LOAD_STATUS_ERROR_DEVID_BUILD_MISMATCH:
+	case INTEL_GUC_LOAD_STATUS_GUC_PREPROD_BUILD_MISMATCH:
+	case INTEL_GUC_LOAD_STATUS_ERROR_DEVID_INVALID_GUCTYPE:
+	case INTEL_GUC_LOAD_STATUS_HWCONFIG_ERROR:
+	case INTEL_GUC_LOAD_STATUS_DPC_ERROR:
+	case INTEL_GUC_LOAD_STATUS_EXCEPTION:
+	case INTEL_GUC_LOAD_STATUS_INIT_DATA_INVALID:
+	case INTEL_GUC_LOAD_STATUS_MPU_DATA_INVALID:
+	case INTEL_GUC_LOAD_STATUS_INIT_MMIO_SAVE_RESTORE_INVALID:
+	case INTEL_GUC_LOAD_STATUS_KLV_WORKAROUND_INIT_ERROR:
+		*success = false;
+		return true;
+	}
+
+	switch (br_val) {
+	case INTEL_BOOTROM_STATUS_NO_KEY_FOUND:
+	case INTEL_BOOTROM_STATUS_RSA_FAILED:
+	case INTEL_BOOTROM_STATUS_PAVPC_FAILED:
+	case INTEL_BOOTROM_STATUS_WOPCM_FAILED:
+	case INTEL_BOOTROM_STATUS_LOADLOC_FAILED:
+	case INTEL_BOOTROM_STATUS_JUMP_FAILED:
+	case INTEL_BOOTROM_STATUS_RC6CTXCONFIG_FAILED:
+	case INTEL_BOOTROM_STATUS_MPUMAP_INCORRECT:
+	case INTEL_BOOTROM_STATUS_EXCEPTION:
+	case INTEL_BOOTROM_STATUS_PROD_KEY_CHECK_FAILURE:
+		*success = false;
+		return true;
+	}
+
+	return false;
+}
 unsigned long Gen11::loadGuCBinary(void *that)
 {
 	
@@ -1885,26 +1928,19 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	
 	retryCount = 3;
 	for (count = 0; count < retryCount; count++) {
-		success = true;
+		success = false;
 		innerTimeout = 1000;
 		done = false;
 		
 		while (innerTimeout > 0) {
-			status = intel_de_read(display, GUC_STATUS);
+			//status = intel_de_read(display, GUC_STATUS);
+			guc_load_done(&status,&success);
 			bootrom = REG_FIELD_GET(GS_BOOTROM_MASK, status);
 			ukernel = REG_FIELD_GET(GS_UKERNEL_MASK, status);
 			
-			if (bootrom != INTEL_BOOTROM_STATUS_NO_KEY_FOUND &&
-				bootrom != INTEL_BOOTROM_STATUS_RSA_FAILED) {
-				if (ukernel == INTEL_GUC_LOAD_STATUS_READY) {
-					success = true;
+			if (success) {
 					done = true;
 					break;
-				}
-			} else {
-				success = false;
-				done = true;
-				break;
 			}
 			
 			IODelay(1000);
@@ -1921,7 +1957,9 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	IGSharedMappedBufferfree(fwBuffer);
 	
 	auth = status & GS_AUTH_STATUS_MASK;
-	//panic("auth %x bootrom %x ukernel %x guc_wopcm_base %x guc_wopcm_size %x",auth,bootrom,ukernel,guc_wopcm_base,guc_wopcm_size);
+	
+	if (!success)
+	panic("auth %x bootrom %x ukernel %x guc_wopcm_base %x guc_wopcm_size %x",auth,bootrom,ukernel,guc_wopcm_base,guc_wopcm_size);
 	
 	return success ? 1 : 0;
 
