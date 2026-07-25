@@ -7549,13 +7549,16 @@ enum intel_guc_load_status {
 	INTEL_GUC_LOAD_STATUS_INVALID_INIT_DATA_RANGE_START,
 	INTEL_GUC_LOAD_STATUS_MPU_DATA_INVALID                 = 0x73,
 	INTEL_GUC_LOAD_STATUS_INIT_MMIO_SAVE_RESTORE_INVALID   = 0x74,
+	INTEL_GUC_LOAD_STATUS_KLV_WORKAROUND_INIT_ERROR        = 0x75,
 	INTEL_GUC_LOAD_STATUS_INVALID_INIT_DATA_RANGE_END,
 
 	INTEL_GUC_LOAD_STATUS_READY                            = 0xF0,
 };
+
 enum intel_bootrom_load_status {
 	INTEL_BOOTROM_STATUS_NO_KEY_FOUND                 = 0x13,
 	INTEL_BOOTROM_STATUS_AES_PROD_KEY_FOUND           = 0x1A,
+	INTEL_BOOTROM_STATUS_PROD_KEY_CHECK_FAILURE       = 0x2B,
 	INTEL_BOOTROM_STATUS_RSA_FAILED                   = 0x50,
 	INTEL_BOOTROM_STATUS_PAVPC_FAILED                 = 0x73,
 	INTEL_BOOTROM_STATUS_WOPCM_FAILED                 = 0x74,
@@ -7635,7 +7638,20 @@ enum intel_bootrom_load_status {
 
 #define VDBOX_CGCTL3F10(base)			_MMIO((base) + 0x3f10)
 #define   IECPUNIT_CLKGATE_DIS			REG_BIT(22)
+#define SZ_8M				0x00800000
+#define SZ_16K				0x00004000
+#define SZ_32K				0x00008000
+#define SZ_4K				0x00001000
+#define SZ_2M				0x00200000
 
+#define GEN11_WOPCM_SIZE		SZ_2M
+#define MAX_WOPCM_SIZE			SZ_8M
+#define WOPCM_RESERVED_SIZE		SZ_16K
+#define GUC_WOPCM_OFFSET_ALIGNMENT	(1UL << GUC_WOPCM_OFFSET_SHIFT)
+#define __ALIGN_KERNEL_MASK(x, mask)	(((x) + (mask)) & ~(mask))
+#define __ALIGN_KERNEL(x, a)		__ALIGN_KERNEL_MASK(x, (__typeof__(x))(a) - 1)
+#define ALIGN(x, a)		__ALIGN_KERNEL((x), (a))
+#define ICL_WOPCM_HW_CTX_RESERVED	(SZ_32K + SZ_4K)
 
 
 

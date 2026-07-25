@@ -1606,11 +1606,7 @@ static u32 guc_ctl_devid()
 	return (NBlue::callback->deviceId << 16) | NBlue::callback->pciRevision;
 }
 
-/*
- * Initialise the GuC parameter block before starting the firmware
- * transfer. These parameters are read by the firmware on startup
- * and cannot be changed thereafter.
- */
+
 static void guc_init_params(u32 params[GUC_CTL_MAX_DWORDS])
 {
 	int i;
@@ -1631,11 +1627,8 @@ void intel_guc_write_params(u32 params[GUC_CTL_MAX_DWORDS])
 {
 	int i;
 	struct intel_display *display = &NBlue::callback->display_base;
-	/*
-	 * All SOFT_SCRATCH registers are in FORCEWAKE_GT domain and
-	 * they are power context saved so it's ok to release forcewake
-	 * when we are done here and take it again at xfer time.
-	 */
+
+	
 	//intel_uncore_forcewake_get(uncore, FORCEWAKE_GT);
 
 	intel_de_write(display,  SOFT_SCRATCH(0), 0);
@@ -1645,6 +1638,9 @@ void intel_guc_write_params(u32 params[GUC_CTL_MAX_DWORDS])
 
 	//intel_uncore_forcewake_put(uncore, FORCEWAKE_GT);
 }
+
+
+
 unsigned long Gen11::loadGuCBinary(void *that)
 {
 	
@@ -1653,23 +1649,34 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	
 	if (!display || !m_accelerator) return 0;
 	
+	int err;
 	struct Firmware fw = {};
 	struct uc_css_header *header = nullptr;
 	uint32_t ucode_size = 0;
 	uint32_t rsa_size = 0;
 	size_t min_expected_size = 0;
 	size_t dma_buffer_size = 0;
+	u32 reg_base;
+	u32 reg_size;
 	void *igtask = nullptr;
 	void* fwBuffer = nullptr;
 	void* vaddr = nullptr;
+	u32 dma_flags;
 	uint64_t gpuAddr = 0;
 	u32 shim_flags = 0;
+	u32 ctx_rsvd;
+	u32 guc_wopcm_base;
+	uint32_t total_wopcm_size;
+	uint32_t wopcm_offset_val;
 	u32 wopcm_size = 0;
+	u32 guc_wopcm_size;
 	u32 mask = 0;
-	size_t rsa_offset = 0;
-	size_t i = 0;
+	u32 base = 0;
+	u32 rsa_offset = 0;
+	u32 i = 0;
 	int dmaRetry = 0;
-	
+	u32 huc_agent =0;
+	uint32_t auth;
 	bool success = false;
 	bool done = false;
 	int retryCount = 0;
@@ -1679,6 +1686,15 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	uint32_t bootrom = 0;
 	uint32_t ukernel = 0;
 	u32 params[GUC_CTL_MAX_DWORDS];
+	uint8_t* rsa_bytes;
+	uint32_t* rsa_words;
+	uint32_t rsa_val;
+	struct i915_wa_list wal;
+	IOVirtualRange guc_range;
+	u32 offset, flags;
+	void* log_buffer_obj;
+	uint64_t log_gpu_addr;
+	
 	
 	if (!initSchedControl(that)) return 0;//guc_init_params
 	
@@ -1702,7 +1718,7 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	if (fw.size < min_expected_size) return 0;
 	
 	
-	dma_buffer_size = (fw.size + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
+	dma_buffer_size = ((sizeof(uc_css_header) + ucode_size) + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
 	
 	igtask = getMember<void*>(m_accelerator, 0x150);
 	fwBuffer = IGSharedMappedBufferwithOptions(igtask, dma_buffer_size, 2, 0);
@@ -1714,7 +1730,7 @@ unsigned long Gen11::loadGuCBinary(void *that)
 		return 0;
 	}
 	
-	memcpy(vaddr, fw.data , fw.size);
+	memcpy(vaddr, fw.data , sizeof(uc_css_header) + ucode_size);
 	
 	gpuAddr = fgetGPUVirtualAddress(fwBuffer);
 	if (gpuAddr == 0) {
@@ -1724,17 +1740,50 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	
 	SafeForceWake(m_accelerator, true, 7);
 	
-	//guc_init_params(params);
-	//intel_guc_write_params(params);
-	
-	
-	struct i915_wa_list wal;
-
 	wa_init_start(&wal, nullptr, "GT", "global");
 	gen12_gt_workarounds_init(&wal);
 	wa_init_finish(&wal);
-	
 	wa_list_apply(&wal);
+	
+	
+	guc_init_params(params);
+	
+	log_buffer_obj = getMember<void*>(that, 0x60);
+	log_gpu_addr = fgetGPUVirtualAddress(log_buffer_obj);
+	
+		offset = log_gpu_addr >> PAGE_SHIFT;
+		flags = GUC_LOG_VALID |
+			GUC_LOG_NOTIFY_ON_HALF_FULL |
+			GUC_LOG_CAPTURE_ALLOC_UNITS |
+			(0 << GUC_LOG_CRASH_SHIFT) |
+			(0 << GUC_LOG_DEBUG_SHIFT) |
+			(7 << GUC_LOG_CAPTURE_SHIFT) |
+			(offset << GUC_LOG_BUF_ADDR_SHIFT);
+	params[GUC_CTL_LOG_PARAMS]=flags;
+	
+	log_buffer_obj = getMember<void*>(that, 0x9e8);
+	log_gpu_addr = fgetGPUVirtualAddress(log_buffer_obj);
+	offset =  log_gpu_addr >> PAGE_SHIFT;
+	flags = offset << GUC_ADS_ADDR_SHIFT;
+	params[GUC_CTL_ADS]=flags;
+	
+	//setupContextPool
+	//log_buffer_obj = getMember<void*>(that, 0x68);
+	//log_gpu_addr = fgetGPUVirtualAddress(log_buffer_obj);
+	
+	intel_guc_write_params(params);
+	
+	/*
+	intel_de_write(display, SOFT_SCRATCH(0), 0);
+	
+	for (int i = 0; i < 0x18; i += 4) {
+		uint32_t val = getMember<uint32_t>(that, 0x8c + i);
+		intel_de_write(display, 0xC184 + i, val);
+	}
+*/
+	
+	
+	
 	
 	//guc_prepare_xfer
 	shim_flags = GUC_ENABLE_READ_CACHE_LOGIC |
@@ -1758,45 +1807,73 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	
 	intel_de_rmw(display, GEN6_PMINTRMSK, ARAT_EXPIRED_INTRMSK, 0);
 	
-	//DRBMISC1
-	intel_de_write(display, 0x1984, 1);
-	
 	//guc_xfer_rsa
 	rsa_offset = sizeof(struct uc_css_header) + ucode_size;
-	for (i = 0; i < rsa_size; i += 4) {
-		uint32_t rsa_val = *reinterpret_cast<uint32_t*>((uint8_t*)fw.data + rsa_offset + i);
-		intel_de_write(display, UOS_RSA_SCRATCH(i / 4), rsa_val);
+	rsa_bytes = reinterpret_cast<uint8_t*>(fw.data) + rsa_offset;
+	rsa_words = reinterpret_cast<uint32_t*>(rsa_bytes);
+
+	for ( i = 0; i < UOS_RSA_SCRATCH_COUNT; i++) {
+		rsa_val = rsa_words[i];
+		intel_de_write(display, UOS_RSA_SCRATCH(i), rsa_val);
 	}
 	
-	//uc_init_wopcm
-	wopcm_size = intel_de_read(display, GUC_WOPCM_SIZE) & GUC_WOPCM_SIZE_MASK;
-	if (wopcm_size == 0) wopcm_size = 0x200000;
-	if ((sizeof(struct uc_css_header) + ucode_size) >= wopcm_size) {
-		panic("wopcm_size");
-	}
-	mask = GUC_WOPCM_SIZE_MASK | GUC_WOPCM_SIZE_LOCKED;
-	if (intel_uncore_write_and_verify(display, GUC_WOPCM_SIZE, wopcm_size, mask, wopcm_size | GUC_WOPCM_SIZE_LOCKED)) {
-		goto fail;
-	}
-	mask = GUC_WOPCM_OFFSET_MASK | GUC_WOPCM_OFFSET_VALID;
-	if (intel_uncore_write_and_verify(display, DMA_GUC_WOPCM_OFFSET, 0, mask, GUC_WOPCM_OFFSET_VALID)) {
-		goto fail;
-	}
 
-	/*intel_de_write(display, GEN12_GUC_TLB_INV_CR, GEN12_GUC_TLB_INV_CR_INVALIDATE);
+//gen11_rc6_enable
+	
+	wopcm_size = GEN11_WOPCM_SIZE;
+	ctx_rsvd=ICL_WOPCM_HW_CTX_RESERVED;
+	
+	reg_base = intel_de_read(display, DMA_GUC_WOPCM_OFFSET);
+	reg_size = intel_de_read(display, GUC_WOPCM_SIZE);
+	huc_agent=0;
+	
+	if (!(reg_size & GUC_WOPCM_SIZE_LOCKED) ||
+		!(reg_base & GUC_WOPCM_OFFSET_VALID))
+	{
+		guc_wopcm_base = WOPCM_RESERVED_SIZE;
+		guc_wopcm_base = ALIGN(guc_wopcm_base, GUC_WOPCM_OFFSET_ALIGNMENT);
+		guc_wopcm_base = min(guc_wopcm_base, wopcm_size - ctx_rsvd);
+		guc_wopcm_size = wopcm_size - ctx_rsvd - guc_wopcm_base;
+		guc_wopcm_size &= GUC_WOPCM_SIZE_MASK;
+	}
+	else
+	{
+		guc_wopcm_base = reg_base & GUC_WOPCM_OFFSET_MASK;
+		guc_wopcm_size = reg_size & GUC_WOPCM_SIZE_MASK;
+		//wopcm_size = MAX_WOPCM_SIZE;
+	}
+	
+	/*checkWOPCMSettings(that,0x100,&guc_range);
+	guc_wopcm_base=guc_range.address;
+	guc_wopcm_size=(guc_range.length;
+*/
+	mask = GUC_WOPCM_SIZE_MASK | GUC_WOPCM_SIZE_LOCKED;
+	err = intel_uncore_write_and_verify(display, GUC_WOPCM_SIZE, guc_wopcm_size, mask,
+										guc_wopcm_size | GUC_WOPCM_SIZE_LOCKED);
+	if (err) goto fail;
+	
+	mask = GUC_WOPCM_OFFSET_MASK | GUC_WOPCM_OFFSET_VALID | huc_agent;
+	 err = intel_uncore_write_and_verify(display, DMA_GUC_WOPCM_OFFSET,
+										 guc_wopcm_base | huc_agent, mask,
+										 guc_wopcm_base | huc_agent | GUC_WOPCM_OFFSET_VALID);
+	if (err) goto fail;
+		
+	
+	intel_de_write(display, GEN12_GUC_TLB_INV_CR, GEN12_GUC_TLB_INV_CR_INVALIDATE);
 	while ((intel_de_read(display, GEN12_GUC_TLB_INV_CR) & GEN12_GUC_TLB_INV_CR_INVALIDATE) != 0)
 	{
 		// Spinwait
-	}*/
+	}
 	//panic("lll");
 	
+	dma_flags=UOS_MOVE;
 	intel_de_write(display, DMA_ADDR_0_LOW, lower_32_bits(gpuAddr));
 	intel_de_write(display, DMA_ADDR_0_HIGH, upper_32_bits(gpuAddr) | DMA_ADDRESS_SPACE_GTT);
-	intel_de_write(display, DMA_ADDR_1_LOW, 0x2000);
+	intel_de_write(display, DMA_ADDR_1_LOW, guc_wopcm_base);
 	intel_de_write(display, DMA_ADDR_1_HIGH, DMA_ADDRESS_SPACE_WOPCM);
 	intel_de_write(display, DMA_COPY_SIZE, sizeof(struct uc_css_header) + ucode_size);
 	
-	intel_de_write(display, DMA_CTRL, 0xFFFF0011);
+	intel_de_write(display, DMA_CTRL, REG_MASKED_FIELD_ENABLE(dma_flags | START_DMA));
 	
 	dmaRetry = 1000;
 	while (intel_de_read(display, DMA_CTRL) & START_DMA) {
@@ -1804,7 +1881,7 @@ unsigned long Gen11::loadGuCBinary(void *that)
 		if (--dmaRetry <= 0) goto fail;
 	}
 	
-	intel_de_write(display, DMA_CTRL, 0x00100000);
+	intel_de_write(display, DMA_CTRL, REG_MASKED_FIELD_DISABLE(dma_flags));
 	
 	retryCount = 3;
 	for (count = 0; count < retryCount; count++) {
@@ -1814,8 +1891,8 @@ unsigned long Gen11::loadGuCBinary(void *that)
 		
 		while (innerTimeout > 0) {
 			status = intel_de_read(display, GUC_STATUS);
-			bootrom = (status & GS_BOOTROM_MASK) >> GS_BOOTROM_SHIFT;
-			ukernel = (status & GS_UKERNEL_MASK) >> GS_UKERNEL_SHIFT;
+			bootrom = REG_FIELD_GET(GS_BOOTROM_MASK, status);
+			ukernel = REG_FIELD_GET(GS_UKERNEL_MASK, status);
 			
 			if (bootrom != INTEL_BOOTROM_STATUS_NO_KEY_FOUND &&
 				bootrom != INTEL_BOOTROM_STATUS_RSA_FAILED) {
@@ -1843,7 +1920,8 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	SafeForceWake(m_accelerator, false, 7);
 	IGSharedMappedBufferfree(fwBuffer);
 	
-	//if (success) panic("lll");
+	auth = status & GS_AUTH_STATUS_MASK;
+	//panic("auth %x bootrom %x ukernel %x guc_wopcm_base %x guc_wopcm_size %x",auth,bootrom,ukernel,guc_wopcm_base,guc_wopcm_size);
 	
 	return success ? 1 : 0;
 

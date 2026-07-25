@@ -86,6 +86,9 @@ struct AGDCDPPortConfig_t { /* PlaceHolder Structure */
 
 #define REG_FIELD_PREP(mask, val) (((val) << (__builtin_ffsll(mask) - 1)) & (mask))
 
+#define REG_MASKED_FIELD_ENABLE(mask)  (((mask) << 16) | (mask))
+#define REG_MASKED_FIELD_DISABLE(mask) ((mask) << 16)
+
 struct PACKED bdb_block_header {
 	u8 vid;
 	u8 _0; /* padding */
