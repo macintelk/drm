@@ -3509,6 +3509,12 @@ enum intel_region_id {
 #define CLKREQ_POLICY			_MMIO(0x101038)
 #define  CLKREQ_POLICY_MEM_UP_OVRD	REG_BIT(1)
 
+#define _BCS(n) (BCS0 + (n))
+#define _VCS(n) (VCS0 + (n))
+#define _VECS(n) (VECS0 + (n))
+#define _CCS(n) (CCS0 + (n))
+#define INVALID_ENGINE ((enum intel_engine_id)-1)
+
 enum intel_engine_id {
 	RCS0 = 0,
 	BCS0,
@@ -3520,7 +3526,7 @@ enum intel_engine_id {
 	BCS6,
 	BCS7,
 	BCS8,
-#define _BCS(n) (BCS0 + (n))
+
 	VCS0,
 	VCS1,
 	VCS2,
@@ -3529,20 +3535,20 @@ enum intel_engine_id {
 	VCS5,
 	VCS6,
 	VCS7,
-#define _VCS(n) (VCS0 + (n))
+
 	VECS0,
 	VECS1,
 	VECS2,
 	VECS3,
-#define _VECS(n) (VECS0 + (n))
+
 	CCS0,
 	CCS1,
 	CCS2,
 	CCS3,
-#define _CCS(n) (CCS0 + (n))
+
 	GSC0,
 	I915_NUM_ENGINES
-#define INVALID_ENGINE ((enum intel_engine_id)-1)
+
 };
 
 
@@ -4904,12 +4910,6 @@ enum hpd_pin {
 	HPD_NUM_PINS
 };
 
-
-
-struct intel_psr {
-	/* Mutex for PSR state of the transcoder */
-	//struct mutex lock;
-
 #define I915_PSR_DEBUG_MODE_MASK		0x0f
 #define I915_PSR_DEBUG_DEFAULT			0x00
 #define I915_PSR_DEBUG_DISABLE			0x01
@@ -4919,6 +4919,10 @@ struct intel_psr {
 #define I915_PSR_DEBUG_IRQ			0x10
 #define I915_PSR_DEBUG_SU_REGION_ET_DISABLE	0x20
 #define I915_PSR_DEBUG_PANEL_REPLAY_DISABLE	0x40
+
+struct intel_psr {
+	/* Mutex for PSR state of the transcoder */
+	//struct mutex lock;
 
 	u32 debug;
 	bool sink_support;
@@ -4994,11 +4998,14 @@ struct intel_scaler {
 	int vscale;
 };
 
-struct intel_crtc_scaler_state {
 #define SKL_NUM_SCALERS 2
+#define SKL_CRTC_INDEX 31
+
+struct intel_crtc_scaler_state {
+
 	struct intel_scaler scalers[SKL_NUM_SCALERS];
 
-#define SKL_CRTC_INDEX 31
+
 	unsigned scaler_users;
 
 	/* scaler used by crtc for panel fitting purpose */
@@ -5123,6 +5130,9 @@ struct drm_display_mode {
 	//enum hdmi_picture_aspect picture_aspect_ratio;
 
 };
+
+#define PIPE_CONFIG_QUIRK_MODE_SYNC_FLAGS	(1<<0) /* unreliable sync mode.flags */
+
 struct intel_crtc_state {
 
 	struct {
@@ -5134,7 +5144,7 @@ struct intel_crtc_state {
 		//struct intel_casf casf_params;
 	} hw;
 	
-#define PIPE_CONFIG_QUIRK_MODE_SYNC_FLAGS	(1<<0) /* unreliable sync mode.flags */
+
 	unsigned long quirks;
 
 	unsigned fb_bits; /* framebuffers to flip */
@@ -5726,13 +5736,12 @@ struct intel_display {
 	struct intel_dp intel_dp0;
 	
 	enum intel_pch pch_type;
-	bool initok;
+	
 
 	
 	struct intel_hotplug hotplug;
 	
 	int port_clock;
-	u32 private_data_size;
 	
 	struct {
 		const struct intel_display_device_info *__device_info;
@@ -6153,7 +6162,7 @@ enum tc_port {
 #define  EDP_FORCE_VDD			REG_BIT(3)
 
 
-enum intel_display_wa {
+enum intel_display_waa {
 	INTEL_DISPLAY_WA_1409120013,
 	INTEL_DISPLAY_WA_1409767108,
 	INTEL_DISPLAY_WA_13012396614,
@@ -6200,7 +6209,7 @@ enum intel_display_wa {
 #define IS_DISPLAY_STEP(__display, since, until) \
 	 INTEL_DISPLAY_STEP(__display) >= (since) && INTEL_DISPLAY_STEP(__display) < (until)
 
-bool __intel_display_wa(struct intel_display *display, enum intel_display_wa wa, const char *name)
+inline bool intel_display_wab(struct intel_display *display, enum intel_display_waa wa, const char *name)
 {
 	switch (wa) {
 	case INTEL_DISPLAY_WA_1409120013:
@@ -6295,7 +6304,7 @@ bool __intel_display_wa(struct intel_display *display, enum intel_display_wa wa,
 #define __stringify(x...)	__stringify_1(x)
 
 #define intel_display_wa(__display, __wa) \
-	__intel_display_wa((__display), __wa, __stringify(__wa))
+	intel_display_wab((__display), __wa, __stringify(__wa))
 
 #define _CLKGATE_DIS_PSL_EXT_A		0x4654C
 #define _CLKGATE_DIS_PSL_EXT_B		0x46550
@@ -6403,7 +6412,7 @@ bool __intel_display_wa(struct intel_display *display, enum intel_display_wa wa,
 #define  RESET_PCH_HANDSHAKE_ENABLE	REG_BIT(4)
 #define HAS_PCH_NOP(display)			(INTEL_PCH_TYPE(display) == PCH_NOP)
 
-bool intel_phy_is_combo(struct intel_display *display, enum phy phy)
+inline bool intel_phy_is_combo(struct intel_display *display, enum phy phy)
 {
 	if (phy == PHY_NONE)
 		return false;
@@ -6542,25 +6551,45 @@ static const struct icl_procmon {
 #define  DBUF_TRACKER_STATE_SERVICE_MASK		REG_GENMASK(23, 19)
 #define  DBUF_TRACKER_STATE_SERVICE(x)			REG_FIELD_PREP(DBUF_TRACKER_STATE_SERVICE_MASK, x)
 #define BIT_WORD(nr)		((nr) / BITS_PER_LONG)
-static inline unsigned int find_next_bit(const unsigned long *addr,
-										  unsigned int size,
-										  unsigned int offset)
+
+inline unsigned long find_next_bit(const unsigned long *addr,
+								  unsigned long size,
+								  unsigned long offset)
 {
 	if (offset >= size)
 		return size;
 
-	for (unsigned int i = offset; i < size; i++) {
-		if (addr[BIT_WORD(i)] & (1UL << (i % BITS_PER_LONG)))
-			return i;
+	unsigned long i = offset;
+	unsigned long word_offset = i % BITS_PER_LONG;
+
+	if (word_offset != 0) {
+		unsigned long mask = addr[BIT_WORD(i)] >> word_offset;
+		if (mask) {
+			return i + __builtin_ctzl(mask);
+		}
+		i += BITS_PER_LONG - word_offset;
 	}
+
+	for (; i < size; i += BITS_PER_LONG) {
+		unsigned long word = addr[BIT_WORD(i)];
+		
+		if (i + BITS_PER_LONG > size) {
+			word &= (1UL << (size - i)) - 1;
+		}
+		
+		if (word) {
+			return i + __builtin_ctzl(word);
+		}
+	}
+	
 	return size;
 }
 
 #define for_each_set_bit(bit, addr, size) \
 	for ((bit) = 0; \
-		 (bit) = static_cast<unsigned int>(find_next_bit((addr), \
-				  static_cast<unsigned int>(size), \
-				  static_cast<unsigned int>(bit))), \
+		 (bit) = static_cast<unsigned long>(find_next_bit((addr), \
+				  static_cast<unsigned long>(size), \
+				  static_cast<unsigned long>(bit))), \
 		 (bit) < (size); \
 		 (bit)++)
 
@@ -6660,14 +6689,17 @@ static const struct buddy_page_mask wa_1409767108_buddy_page_masks[] = {
 };
 
 # define DP_SET_ANSI_128B132B               (1 << 1)
+
 struct i915_irq_regs {
 	u32 imr;
 	u32 ier;
 	u32 iir;
 };
+
 #define DP_SUPPORTED_LINK_RATES		    0x010
 # define DP_MAX_SUPPORTED_RATES		     8
-static inline constexpr i915_irq_regs make_i915_irq_regs(u32 imr, u32 ier, u32 iir)
+
+inline constexpr i915_irq_regs make_i915_irq_regs(u32 imr, u32 ier, u32 iir)
 {
 	return { static_cast<u32>(imr), static_cast<u32>(ier), static_cast<u32>(iir) };
 }
@@ -7188,6 +7220,8 @@ enum intel_output_type {
 #define   RING_FORCE_TO_NONPRIV_RANGE_4     (1 << 0)
 #define I915_ENGINE_HAS_RELATIVE_MMIO BIT(6)
 
+#define RING_NOPID(base)			_MMIO((base) + 0x94)
+
 #define RENDER_RING_BASE	0x02000
 #define BSD_RING_BASE		0x04000
 #define GEN6_BSD_RING_BASE	0x12000
@@ -7251,29 +7285,29 @@ enum intel_output_type {
 
 
 struct i915_wa {
-	u32 reg;
-	u32        clr;
-	u32        set;
-	u32        val;
-	bool       is_mcr;
-	u32		masked_reg:1;
-	u32	mcr_reg;
+	union {
+		u32	reg;
+		u32	mcr_reg;
+	};
+	u32		clr;
+	u32		set;
 	u32		read;
-};
 
-struct intel_gt	*gt;
+	u32		masked_reg:1;
+	u32		is_mcr:1;
+};
 
 struct i915_wa_list {
 	struct intel_gt	*gt;
 	const char	*name;
 	const char	*engine_name;
-	//struct i915_wa	*list;
+	struct i915_wa	*list;
 	unsigned int	count;
 	unsigned int	wa_count;
-	struct i915_wa       wa[64];
 };
 
 
+#define WA_LIST_CHUNK (1 << 4)
 
 
 #define HSW_PWR_WELL_CTL1			_MMIO(0x45400)
@@ -7488,13 +7522,11 @@ struct intel_dbuf_state {
 #define   GUC_SEM_INTR_ENABLE_ALL	(0xff)
 
 #define GUC_NUM_DOORBELLS		256
-
-/* format of the HW-monitored doorbell cacheline */
-struct guc_doorbell_info {
-	u32 db_status;
 #define GUC_DOORBELL_DISABLED		0
 #define GUC_DOORBELL_ENABLED		1
 
+struct guc_doorbell_info {
+	u32 db_status;
 	u32 cookie;
 	u32 reserved[14];
 } __packed;
@@ -7788,7 +7820,7 @@ struct intel_guc_log {
 	bool sizes_initialised;
 
 	/* Combined buffer allocation */
-	//struct i915_vma *vma;
+	void *vma;
 	void *buf_addr;
 
 	/* RelayFS support */
@@ -8067,7 +8099,6 @@ struct sseu_dev_info {
 	u8 max_eus_per_subslice;
 };
 
-struct drm_i915_private;
 
 struct intel_engine_cs {
 	void    *dev;
@@ -8153,14 +8184,7 @@ enum intel_steering_type {
 	GAM,
 	DSS,
 	OADDRM,
-
-	/*
-	 * On some platforms there are multiple types of MCR registers that
-	 * will always return a non-terminated value at instance (0, 0).  We'll
-	 * lump those all into a single category to keep things simple.
-	 */
 	INSTANCE0,
-
 	NUM_STEERING_TYPES
 };
 
@@ -8173,13 +8197,12 @@ struct intel_mmio_range {
 
 
 struct drm_i915_private {
-	
+	bool initok;
 	struct intel_display *display;
 	const struct intel_device_info *__info; /* Use INTEL_INFO() to access. */
 	struct intel_runtime_info __runtime; /* Use RUNTIME_INFO() to access. */
 	struct intel_driver_caps caps;
 	struct intel_gt *gt[I915_MAX_GT];
-	struct intel_gt *media_gt;
 	
 };
 
@@ -8204,7 +8227,7 @@ struct drm_i915_private {
 #define RUNTIME_INFO(i915)	(&(i915)->__runtime)
 
 
-static unsigned int
+inline unsigned int
 __platform_mask_index(const struct intel_runtime_info *info,
 			  enum intel_platform p)
 {
@@ -8217,7 +8240,7 @@ __platform_mask_index(const struct intel_runtime_info *info,
 	return p / pbits;
 }
 
-static unsigned int
+inline unsigned int
 __platform_mask_bit(const struct intel_runtime_info *info,
 			enum intel_platform p)
 {
@@ -8227,7 +8250,7 @@ __platform_mask_bit(const struct intel_runtime_info *info,
 	return p % pbits + INTEL_SUBPLATFORM_BITS;
 }
 
-static bool
+inline bool
 IS_PLATFORM(const struct drm_i915_private *i915, enum intel_platform p)
 {
 	const struct intel_runtime_info *info = RUNTIME_INFO(i915);
@@ -8239,13 +8262,22 @@ IS_PLATFORM(const struct drm_i915_private *i915, enum intel_platform p)
 	return info->platform_mask[pi] & BIT(pb);
 }
 
+#define IS_DG2(i915)	IS_PLATFORM(i915, INTEL_DG2)
+#define IS_TIGERLAKE(i915)	IS_PLATFORM(i915, INTEL_TIGERLAKE)
+#define IS_ROCKETLAKE(i915)	IS_PLATFORM(i915, INTEL_ROCKETLAKE)
+#define IS_DG1(i915)        IS_PLATFORM(i915, INTEL_DG1)
+#define IS_ALDERLAKE_S(i915) IS_PLATFORM(i915, INTEL_ALDERLAKE_S)
+#define IS_ALDERLAKE_P(i915) IS_PLATFORM(i915, INTEL_ALDERLAKE_P)
+#define IS_DG2(i915)	IS_PLATFORM(i915, INTEL_DG2)
+#define IS_METEORLAKE(i915) IS_PLATFORM(i915, INTEL_METEORLAKE)
+
 
 #define GRAPHICS_VER(i915)		(RUNTIME_INFO(i915)->graphics.ip.ver)
 #define GRAPHICS_VER_FULL(i915)		IP_VER(RUNTIME_INFO(i915)->graphics.ip.ver, \
 						   RUNTIME_INFO(i915)->graphics.ip.rel)
 #define IS_GRAPHICS_VER(i915, from, until) \
 	(GRAPHICS_VER(i915) >= (from) && GRAPHICS_VER(i915) <= (until))
-#define IS_DG2(i915)	IS_PLATFORM(i915, INTEL_DG2)
+
 
 /* ICL */
 #define INTEL_SUBPLATFORM_PORTF	(0)
@@ -8373,7 +8405,7 @@ IS_PLATFORM(const struct drm_i915_private *i915, enum intel_platform p)
 
 
 
-static inline unsigned long find_next_zero_bit(const unsigned long *addr,
+inline unsigned long find_next_zero_bit(const unsigned long *addr,
 											   unsigned long size,
 											   unsigned long offset)
 {
@@ -8776,6 +8808,156 @@ struct iosys_map {
 	bool is_iomem;
 };
 
+struct __guc_capture_bufstate {
+	u32 size;
+	void *data;
+	u32 rd;
+	u32 wr;
+};
+
+#define CAP_GRP_HDR_CAPTURE_VFID GENMASK(7, 0)
+#define CAP_GRP_HDR_NUM_CAPTURES GENMASK(7, 0)
+#define CAP_GRP_HDR_CAPTURE_TYPE GENMASK(15, 8)
+#define PREALLOC_NODES_MAX_COUNT (3 * GUC_MAX_ENGINE_CLASSES * GUC_MAX_INSTANCES_PER_CLASS)
+#define PREALLOC_NODES_DEFAULT_NUMREGS 64
+#define CAP_HDR_CAPTURE_VFID GENMASK(7, 0)
+#define CAP_HDR_CAPTURE_TYPE GENMASK(3, 0) /* see enum guc_capture_type */
+#define CAP_HDR_ENGINE_CLASS GENMASK(7, 4) /* see GUC_MAX_ENGINE_CLASSES */
+#define CAP_HDR_ENGINE_INSTANCE GENMASK(11, 8)
+#define CAP_HDR_NUM_MMIOS GENMASK(9, 0)
+#define GUC_CAPTURELISTHDR_NUMDESCR GENMASK(15, 0)
+#define GCAP_PARSED_REGLIST_INDEX_GLOBAL   BIT(GUC_CAPTURE_LIST_TYPE_GLOBAL)
+#define GCAP_PARSED_REGLIST_INDEX_ENGCLASS BIT(GUC_CAPTURE_LIST_TYPE_ENGINE_CLASS)
+#define GCAP_PARSED_REGLIST_INDEX_ENGINST  BIT(GUC_CAPTURE_LIST_TYPE_ENGINE_INSTANCE)
+
+
+enum guc_capture_type {
+	GUC_CAPTURE_LIST_TYPE_GLOBAL = 0,
+	GUC_CAPTURE_LIST_TYPE_ENGINE_CLASS,
+	GUC_CAPTURE_LIST_TYPE_ENGINE_INSTANCE,
+	GUC_CAPTURE_LIST_TYPE_MAX,
+};
+
+/* Class indices for capture_class and capture_instance arrays */
+enum {
+	GUC_CAPTURE_LIST_CLASS_RENDER_COMPUTE = 0,
+	GUC_CAPTURE_LIST_CLASS_VIDEO = 1,
+	GUC_CAPTURE_LIST_CLASS_VIDEOENHANCE = 2,
+	GUC_CAPTURE_LIST_CLASS_BLITTER = 3,
+	GUC_CAPTURE_LIST_CLASS_GSC_OTHER = 4,
+};
+
+
+struct __guc_capture_parsed_output {
+
+	struct list_head link;
+	bool is_partial;
+	u32 eng_class;
+	u32 eng_inst;
+	u32 guc_id;
+	u32 lrca;
+	struct gcap_reg_list_info {
+		u32 vfid;
+		u32 num_regs;
+		struct guc_mmio_reg *regs;
+	} reginfo[GUC_CAPTURE_LIST_TYPE_MAX];
+
+};
+
+
+struct guc_debug_capture_list_header {
+	u32 info;
+} __packed;
+
+struct guc_debug_capture_list {
+	struct guc_debug_capture_list_header header;
+	struct guc_mmio_reg regs[];
+} __packed;
+
+
+struct __guc_mmio_reg_descr {
+	u32 reg;
+	u32 flags;
+	u32 mask;
+	const char *regname;
+};
+
+struct __guc_mmio_reg_descr_group {
+	const struct __guc_mmio_reg_descr *list;
+	u32 num_regs;
+	u32 owner; /* see enum guc_capture_owner */
+	u32 type; /* see enum guc_capture_type */
+	u32 engine; /* as per MAX_ENGINE_CLASS */
+	struct __guc_mmio_reg_descr *extlist; /* only used for steered registers */
+};
+
+
+
+
+struct guc_state_capture_header_t {
+	u32 owner;
+	u32 info;
+
+	u32 lrca; /* if type-instance, LRCA (address) that hung, else set to ~0 */
+	u32 guc_id; /* if type-instance, context index of hung context, else set to ~0 */
+	u32 num_mmios;
+} __packed;
+
+struct guc_state_capture_t {
+	struct guc_state_capture_header_t header;
+	struct guc_mmio_reg mmio_entries[];
+} __packed;
+
+enum guc_capture_group_types {
+	GUC_STATE_CAPTURE_GROUP_TYPE_FULL,
+	GUC_STATE_CAPTURE_GROUP_TYPE_PARTIAL,
+	GUC_STATE_CAPTURE_GROUP_TYPE_MAX,
+};
+
+
+
+
+struct guc_state_capture_group_header_t {
+	u32 owner;
+	u32 info;
+
+} __packed;
+
+struct guc_state_capture_group_t {
+	struct guc_state_capture_group_header_t grp_header;
+	struct guc_state_capture_t capture_entries[];
+} __packed;
+
+
+struct __guc_capture_ads_cache {
+	bool is_valid;
+	void *ptr;
+	size_t size;
+	int status;
+};
+struct intel_guc_state_capture {
+
+	const struct __guc_mmio_reg_descr_group *reglists;
+
+
+	struct __guc_mmio_reg_descr_group *extlists;
+
+	struct __guc_capture_ads_cache ads_cache[GUC_CAPTURE_LIST_INDEX_MAX]
+						[GUC_CAPTURE_LIST_TYPE_MAX]
+						[GUC_MAX_ENGINE_CLASSES];
+
+
+	void *ads_null_cache;
+
+	struct list_head cachelist;
+
+
+	int max_mmio_per_node;
+
+
+	struct list_head outlist;
+};
+
 struct intel_guc {
 	
 	struct intel_gt *gt;
@@ -8789,7 +8971,7 @@ struct intel_guc {
 	/** @slpc: sub-structure containing SLPC related data and objects */
 	//struct intel_guc_slpc slpc;
 	/** @capture: the error-state-capture module's data and objects */
-///	struct intel_guc_state_capture *capture;
+	struct intel_guc_state_capture *capture;
 
 	/** @dbgfs_node: debugfs node */
 	//struct dentry *dbgfs_node;
@@ -9360,13 +9542,7 @@ struct intel_gt {
 #define info_map_read(map_, field_) \
 	iosys_map_rd_field(map_, 0, struct guc_gt_system_info, field_)
 
-enum {
-	GUC_CAPTURE_LIST_CLASS_RENDER_COMPUTE = 0,
-	GUC_CAPTURE_LIST_CLASS_VIDEO = 1,
-	GUC_CAPTURE_LIST_CLASS_VIDEOENHANCE = 2,
-	GUC_CAPTURE_LIST_CLASS_BLITTER = 3,
-	GUC_CAPTURE_LIST_CLASS_GSC_OTHER = 4,
-};
+
 
 #define IS_DGFX(i915)   (INTEL_INFO(i915)->is_dgfx)
 
@@ -9382,6 +9558,58 @@ constexpr int ilog2(T n) {
 	}
 	return log;
 }
+
+#define	GEN10_MIRROR_FUSE3			_MMIO(0x9118)
+#define   GEN10_L3BANK_MASK			0x0F
+
+#define GEN9_SLICE_PGCTL_ACK(slice)		_MMIO(0x804c + (slice) * 0x4)
+#define   GEN9_PGCTL_SS_ACK(subslice)		REG_BIT(2 + (subslice) * 2)
+#define   GEN9_PGCTL_SLICE_ACK			REG_BIT(0)
+
+#define GEN10_SLICE_PGCTL_ACK(slice)		_MMIO(0x804c + ((slice) / 3) * 0x34 + \
+							  ((slice) % 3) * 0x4)
+#define   GEN10_PGCTL_VALID_SS_MASK(slice)	((slice) == 0 ? REG_GENMASK(6, 0) : REG_GENMASK(4, 0))
+
+#define GEN9_SS01_EU_PGCTL_ACK(slice)		_MMIO(0x805c + (slice) * 0x8)
+#define GEN10_SS01_EU_PGCTL_ACK(slice)		_MMIO(0x805c + ((slice) / 3) * 0x30 + \
+							  ((slice) % 3) * 0x8)
+#define GEN9_SS23_EU_PGCTL_ACK(slice)		_MMIO(0x8060 + (slice) * 0x8)
+#define GEN10_SS23_EU_PGCTL_ACK(slice)		_MMIO(0x8060 + ((slice) / 3) * 0x30 + \
+							  ((slice) % 3) * 0x8)
+#define   GEN9_PGCTL_SSB_EU311_ACK			REG_BIT(14)
+#define   GEN9_PGCTL_SSB_EU210_ACK			REG_BIT(12)
+#define   GEN9_PGCTL_SSB_EU19_ACK			REG_BIT(10)
+#define   GEN9_PGCTL_SSB_EU08_ACK			REG_BIT(8)
+#define   GEN9_PGCTL_SSA_EU311_ACK			REG_BIT(6)
+#define   GEN9_PGCTL_SSA_EU210_ACK			REG_BIT(4)
+#define   GEN9_PGCTL_SSA_EU19_ACK			REG_BIT(2)
+#define   GEN9_PGCTL_SSA_EU08_ACK			REG_BIT(0)
+
+#define max_t(type, x, y) \
+	([=]() -> type { \
+		type _x = (x); \
+		type _y = (y); \
+		return _x > _y ? _x : _y; \
+	}())
+
+
+inline struct intel_guc *gt_to_guc(struct intel_gt *gt)
+{
+	return &gt->uc.guc;
+}
+inline struct intel_gt *to_gt(const struct drm_i915_private *i915)
+{
+	return i915->gt[0];
+}
+
+#define GEN8_MCR_SELECTOR			_MMIO(0xfdc)
+#define   GEN11_MCR_SLICE(slice)		(((slice) & 0xf) << 27)
+#define   GEN11_MCR_SLICE_MASK			GEN11_MCR_SLICE(0xf)
+#define   GEN11_MCR_SUBSLICE(subslice)		(((subslice) & 0x7) << 24)
+#define   GEN11_MCR_SUBSLICE_MASK		GEN11_MCR_SUBSLICE(0x7)
+#define XELPD_DISPLAY_ERR_FATAL_MASK	_MMIO(0x4421c)
+
+
 
 
 #ifdef __cplusplus

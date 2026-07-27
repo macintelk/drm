@@ -106,6 +106,14 @@ struct list_head {
 	struct list_head *next, *prev;
 };
 
+inline unsigned int REG_MASKED_FIELD(unsigned int mask, unsigned int value)
+{
+	// We add '& 0xFFFF' to the value as a runtime safety net
+	// to replace the compile-time checks we stripped out.
+	return (mask << 16) | (value & 0xFFFF);
+}
+
+
 #define container_of(ptr, type, member) ({          \
 	const __typeof( ((type *)0)->member ) *__mptr = (ptr);    \
 	(type *)( (char *)__mptr - offsetof(type,member) );})
@@ -127,6 +135,10 @@ struct list_head {
 		 !list_entry_is_head(pos, head, member);			\
 		 pos = list_next_entry(pos, member))
 
+#define WRITE_ONCE(x, val)						\
+do {									\
+	*(volatile __typeof(x) *)&(x) = (val);				\
+} while (0)
 
 
 
@@ -616,15 +628,30 @@ static const struct gmbus_pin gmbus_pins_icp[] = {
 	[GMBUS_PIN_14_TC6_TGP] = { "tc6", GPIOO },
 };
 
-#define WRITE_ONCE(x, val)						\
-do {									\
-	*(volatile __typeof(x) *)&(x) = (val);				\
-} while (0)
-static inline void INIT_LIST_HEAD(struct list_head *list)
+
+inline void INIT_LIST_HEAD(struct list_head *list)
 {
 	WRITE_ONCE(list->next, list);
 	WRITE_ONCE(list->prev, list);
 }
+
+inline void __list_add(struct list_head *new2,
+				  struct list_head *prev,
+				  struct list_head *next)
+{
+
+	next->prev = new2;
+	new2->next = next;
+	new2->prev = prev;
+	WRITE_ONCE(prev->next, new2);
+}
+
+inline void list_add_tail(struct list_head *new2, struct list_head *head)
+{
+	__list_add(new2, head->prev, head);
+}
+
+
 
 #define DRM_DISPLAY_MODE_LEN	32
 #define DRM_MODE_TYPE_PREFERRED	(1<<3)

@@ -788,6 +788,8 @@ bool Gen11::dofalse()
 	return false;
 }
 
+
+
 void Gen11::FBMemMgr_Init(void *that)
 {
 	
@@ -1296,55 +1298,93 @@ uint64_t Gen11::finitDeviceMemory(void *that)
 	return ret;
 }
 
-
-static void wa_add(struct i915_wa_list *wal, u32 reg, u32 clr, u32 set, u32 read, bool verify)
+static void _wa_add(struct i915_wa_list *wal, const struct i915_wa *wa)
 {
-	struct i915_wa *wa = &wal->wa[wal->count++];
-	wa->reg = reg;
-	wa->clr = clr;
-	wa->set = set;
-	wa->is_mcr = false;
+	unsigned int addr = i915_mmio_reg_offset(wa->reg);
+	struct drm_i915_private *i915 = wal->gt->i915;
+	unsigned int start = 0, end = wal->count;
+	const unsigned int grow = WA_LIST_CHUNK;
+	struct i915_wa *wa_;
+
+	//GEM_BUG_ON(!is_power_of_2(grow));
+
+	if (IS_ALIGNED(wal->count, grow)) { /* Either uninitialized or full. */
+		struct i915_wa *list;
+
+		list = (struct i915_wa *)IOMalloc(sizeof(*list));//, ALIGN(wal->count + 1, grow));
+		if (!list) {
+			return;
+		}
+
+		if (wal->list) {
+			memcpy(list, wal->list, sizeof(*wa) * wal->count);
+			IOFree( wal->list,sizeof(*list));
+		}
+
+		wal->list = list;
+	}
+
+	while (start < end) {
+		unsigned int mid = start + (end - start) / 2;
+
+		if (i915_mmio_reg_offset(wal->list[mid].reg) < addr) {
+			start = mid + 1;
+		} else if (i915_mmio_reg_offset(wal->list[mid].reg) > addr) {
+			end = mid;
+		} else {
+			wa_ = &wal->list[mid];
+
+			if ((wa->clr | wa_->clr) && !(wa->clr & ~wa_->clr)) {
+				wa_->set &= ~wa->clr;
+			}
+
+			wal->wa_count++;
+			wa_->set |= wa->set;
+			wa_->clr |= wa->clr;
+			wa_->read |= wa->read;
+			return;
+		}
+	}
+
+	wal->wa_count++;
+	wa_ = &wal->list[wal->count++];
+	*wa_ = *wa;
+
+	while (wa_-- > wal->list) {
+		if (i915_mmio_reg_offset(wa_[1].reg) >
+			i915_mmio_reg_offset(wa_[0].reg))
+			break;
+
+		swap(wa_[1], wa_[0]);
+	}
+}
+static void wa_add(struct i915_wa_list *wal, u32 reg,
+		   u32 clear, u32 set, u32 read_mask, bool masked_reg)
+{
+	struct i915_wa wa = {
+		.reg  = reg,
+		.clr  = clear,
+		.set  = set,
+		.read = read_mask,
+		.masked_reg = masked_reg,
+	};
+
+	_wa_add(wal, &wa);
 }
 
-static void wa_masked_en(struct i915_wa_list *wal, u32 reg, u32 mask)
+static void wa_mcr_add(struct i915_wa_list *wal, u32 reg,
+			   u32 clear, u32 set, u32 read_mask, bool masked_reg)
 {
-	struct i915_wa *wa = &wal->wa[wal->count++];
-	wa->reg = reg;
-	wa->clr = mask;
-	wa->set = mask;
-	wa->is_mcr = false;
-}
+	struct i915_wa wa = {
+		.mcr_reg = reg,
+		.clr  = clear,
+		.set  = set,
+		.read = read_mask,
+		.masked_reg = masked_reg,
+		.is_mcr = 1,
+	};
 
-static void wa_masked_field_set(struct i915_wa_list *wal, u32 reg, u32 mask, u32 val)
-{
-	struct i915_wa *wa = &wal->wa[wal->count++];
-	wa->reg = reg;
-	wa->clr = mask;
-	wa->set = val;
-	wa->is_mcr = false;
-}
-
-
-
-static void wa_mcr_write_or(struct i915_wa_list *wal, u32 reg, u32 set)
-{
-	struct i915_wa *wa = &wal->wa[wal->count++];
-	wa->reg = reg;
-	wa->clr = ~0u;
-	wa->set = set;
-	wa->is_mcr = true;
-}
-
-static void wa_init_start(struct i915_wa_list *wal, struct intel_gt *gt,
-			  const char *name, const char *engine_name)
-{
-	wal->gt = gt;
-	wal->name = name;
-	wal->engine_name = engine_name;
-}
-
-static void wa_init_finish(struct i915_wa_list *wal)
-{
+	_wa_add(wal, &wa);
 }
 
 static void
@@ -1353,18 +1393,28 @@ wa_write_clr_set(struct i915_wa_list *wal, u32 reg, u32 clear, u32 set)
 	wa_add(wal, reg, clear, set, clear | set, false);
 }
 
-static void wa_mcr_add(struct i915_wa_list *wal, u32 reg,
-			   u32 clear, u32 set, u32 read_mask, bool masked_reg)
+static void
+wa_mcr_write_clr_set(struct i915_wa_list *wal, u32 reg, u32 clear, u32 set)
 {
+	wa_mcr_add(wal, reg, clear, set, clear | set, false);
+}
 
-	struct i915_wa *wa = &wal->wa[wal->count++];
-	wa->mcr_reg = reg;
-	wa->clr  = clear;
-	wa->set  = set;
-	wa->read = read_mask;
-	wa->masked_reg = masked_reg;
-	wa->is_mcr = 1;
-	
+static void
+wa_write(struct i915_wa_list *wal, u32 reg, u32 set)
+{
+	wa_write_clr_set(wal, reg, ~0, set);
+}
+
+static void
+wa_write_or(struct i915_wa_list *wal, u32 reg, u32 set)
+{
+	wa_write_clr_set(wal, reg, set, set);
+}
+
+static void
+wa_mcr_write_or(struct i915_wa_list *wal, u32 reg, u32 set)
+{
+	wa_mcr_write_clr_set(wal, reg, set, set);
 }
 
 static void
@@ -1374,47 +1424,97 @@ wa_write_clr(struct i915_wa_list *wal, u32 reg, u32 clr)
 }
 
 static void
-wa_mcr_masked_en(struct i915_wa_list *wal, u32 reg, u32 val)
+wa_mcr_write_clr(struct i915_wa_list *wal, u32 reg, u32 clr)
 {
-	//wa_mcr_add(wal, reg, 0, REG_MASKED_FIELD_ENABLE(val), val, true);
-	wa_mcr_add(wal, reg, 0, (val << 16) | val, val, true);
+	wa_mcr_write_clr_set(wal, reg, clr, 0);
+}
+
+
+static void
+wa_masked_en(struct i915_wa_list *wal, u32 reg, u32 val)
+{
+	wa_add(wal, reg, 0, REG_MASKED_FIELD_ENABLE(val), val, true);
 }
 
 static void
-wa_write_or(struct i915_wa_list *wal, u32 reg, u32 set)
+wa_mcr_masked_en(struct i915_wa_list *wal, u32 reg, u32 val)
 {
-	wa_write_clr_set(wal, reg, set, set);
+	wa_mcr_add(wal, reg, 0, REG_MASKED_FIELD_ENABLE(val), val, true);
 }
 
-static void wa_list_apply(struct i915_wa_list *wal)
+static void
+wa_masked_dis(struct i915_wa_list *wal, u32 reg, u32 val)
+{
+	wa_add(wal, reg, 0, REG_MASKED_FIELD_DISABLE(val), val, true);
+}
+
+static void
+wa_mcr_masked_dis(struct i915_wa_list *wal, u32 reg, u32 val)
+{
+	wa_mcr_add(wal, reg, 0, REG_MASKED_FIELD_DISABLE(val), val, true);
+}
+
+static void
+wa_masked_field_set(struct i915_wa_list *wal, u32 reg,
+			u32 mask, u32 val)
+{
+	wa_add(wal, reg, 0, REG_MASKED_FIELD(mask, val), mask, true);
+}
+
+static void
+wa_mcr_masked_field_set(struct i915_wa_list *wal, u32 reg,
+			u32 mask, u32 val)
+{
+	wa_mcr_add(wal, reg, 0, REG_MASKED_FIELD(mask, val), mask, true);
+}
+static void wa_list_apply(const struct i915_wa_list *wal)
 {
 	struct intel_gt *gt = wal->gt;
+	struct drm_i915_private *i915=gt->i915;
+	struct intel_display *display = i915->display;
+	
+	unsigned long flags;
 	struct i915_wa *wa;
 	unsigned int i;
 
 	if (!wal->count)
 		return;
+/*
+	fw = wal_get_fw_for_rmw(uncore, wal);
 
-	for (i = 0, wa = wal->wa; i < wal->count; i++, wa++) {
+	intel_gt_mcr_lock(gt, &flags);
+	spin_lock(&uncore->lock);
+	intel_uncore_forcewake_get__locked(uncore, fw);
+*/
+	
+	for (i = 0, wa = wal->list; i < wal->count; i++, wa++) {
 		u32 val, old = 0;
 
-		if (wa->clr) {
+		/* open-coded rmw due to steering */
+		if (wa->clr)
+			old = wa->is_mcr ?
+			intel_de_read(display, wa->mcr_reg) :
+			intel_de_read(display, wa->reg);
+		val = (old & ~wa->clr) | wa->set;
+		if (val != old || !wa->clr) {
 			if (wa->is_mcr)
-				old = NBlue::callback->readReg32(wa->mcr_reg);
+				intel_de_write(display, wa->mcr_reg, val);
 			else
-				old = NBlue::callback->readReg32(wa->reg);
+				intel_de_write(display, wa->reg, val);
 		}
 
-		val = (old & ~wa->clr) | wa->set;
-		
-		if (val != old || !wa->clr) {
-			
-			if (wa->is_mcr)
-				NBlue::callback->writeReg32(wa->mcr_reg, val);
-			else
-				NBlue::callback->writeReg32(wa->reg, val);
-		}
+		/*if (IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM)) {
+			u32 val = wa->is_mcr ?
+				intel_gt_mcr_read_any_fw(gt, wa->mcr_reg) :
+			intel_de_read(uncore, wa->reg);
+
+			wa_verify(gt, wa, val, wal->name, "application");
+		}*/
 	}
+
+	/*intel_uncore_forcewake_put__locked(uncore, fw);
+	spin_unlock(&uncore->lock);
+	intel_gt_mcr_unlock(gt, flags);*/
 }
 
 
@@ -1434,37 +1534,73 @@ wa_14011060649(struct intel_gt *gt, struct i915_wa_list *wal)
 	}
 }
 
+
+static void __set_mcr_steering(struct i915_wa_list *wal,
+				   u32 steering_reg,
+				   unsigned int slice, unsigned int subslice)
+{
+	u32 mcr, mcr_mask;
+
+	mcr = GEN11_MCR_SLICE(slice) | GEN11_MCR_SUBSLICE(subslice);
+	mcr_mask = GEN11_MCR_SLICE_MASK | GEN11_MCR_SUBSLICE_MASK;
+
+	wa_write_clr_set(wal, steering_reg, mcr_mask, mcr);
+}
+
+unsigned int
+intel_sseu_get_hsw_subslices(const struct sseu_dev_info *sseu, u8 slice)
+{
+	//WARN_ON(sseu->has_xehp_dss);
+	if ((slice >= sseu->max_slices))
+		return 0;
+
+	return sseu->subslice_mask.hsw[slice];
+}
+
+static void __add_mcr_wa(struct intel_gt *gt, struct i915_wa_list *wal,
+			 unsigned int slice, unsigned int subslice)
+{
+	__set_mcr_steering(wal, GEN8_MCR_SELECTOR, slice, subslice);
+
+	gt->default_steering.groupid = slice;
+	gt->default_steering.instanceid = subslice;
+
+	//debug_dump_steering(gt);
+}
+
+static void
+icl_wa_init_mcr(struct intel_gt *gt, struct i915_wa_list *wal)
+{
+	const struct sseu_dev_info *sseu = &gt->info.sseu;
+	unsigned int subslice;
+
+	//GEM_BUG_ON(GRAPHICS_VER(gt->i915) < 11);
+	//GEM_BUG_ON(hweight8(sseu->slice_mask) > 1);
+
+	subslice = __ffs(intel_sseu_get_hsw_subslices(sseu, 0));
+
+	if (gt->info.l3bank_mask & BIT(subslice))
+		gt->steering_table[L3BANK] = NULL;
+
+	__add_mcr_wa(gt, wal, 0, subslice);
+}
+
 static void
 gen12_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
 {
-	struct intel_display *display = NBlue::callback->i915b->display;
-	
-	//icl_wa_init_mcr(gt, wal);
+	icl_wa_init_mcr(gt, wal);
 
-	/* Wa_14011060649:tgl,rkl,dg1,adl-s,adl-p */
 	wa_14011060649(gt, wal);
-	
 
-
-	/* Wa_14011059788:tgl,rkl,adl-s,dg1,adl-p */
 	wa_mcr_write_or(wal, GEN10_DFR_RATIO_EN_AND_CHICKEN, DFR_DISABLE);
 	
-	/*
-	 * Wa_14015795083
-	 *
-	 * Firmware on some gen12 platforms locks the MISCCPCTL register,
-	 * preventing i915 from modifying it for this workaround.  Skip the
-	 * readback verification for this workaround on debug builds; if the
-	 * workaround doesn't stick due to firmware behavior, it's not an error
-	 * that we want CI to flag.
-	 */
 	wa_add(wal, GEN7_MISCCPCTL, GEN12_DOP_CLOCK_GATE_RENDER_ENABLE,
 		   0, 0, false);
 	
 }
 
 
-static u32 guc_ctl_debug_flags()
+static u32 guc_ctl_debug_flags(struct intel_guc *guc)
 {
 	u32 flags = 0;
 
@@ -1477,7 +1613,7 @@ static u32 guc_ctl_debug_flags()
 	return flags;
 }
 
-static u32 guc_ctl_feature_flags()
+static u32 guc_ctl_feature_flags(struct intel_guc *guc)
 {
 	u32 flags = 0;
 
@@ -1558,11 +1694,43 @@ static void _guc_log_init_sizes(struct intel_guc_log *log)
 	log->sizes_initialised = true;
 }
 
-static u32 guc_ctl_log_params_flags()
+static inline u64 __i915_vma_offset(void *vma)
+{
+	return (u64) Gen11::callback->fgetGPUVirtualAddress(vma);
+	//vma->node.start + vma->guard;
+}
+static inline u64 i915_vma_offset(void *vma)
+{
+	//GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
+	return __i915_vma_offset(vma);
+}
+
+static inline u32 i915_ggtt_offset(void *vma)
+{
+	/*GEM_BUG_ON(!i915_vma_is_ggtt(vma));
+	GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
+	GEM_BUG_ON(upper_32_bits(i915_vma_offset(vma)));
+	GEM_BUG_ON(upper_32_bits(i915_vma_offset(vma) +
+				 i915_vma_size(vma) - 1));*/
+	return lower_32_bits(i915_vma_offset(vma));
+}
+
+static inline u32 intel_guc_ggtt_offset(struct intel_guc *guc,
+					void *vma)
+{
+	u32 offset = i915_ggtt_offset(vma);
+
+	//GEM_BUG_ON(offset < i915_ggtt_pin_bias(vma));
+	//GEM_BUG_ON(range_overflows_t(u64, offset, vma->size, GUC_GGTT_TOP));
+
+	return offset;
+}
+
+static u32 guc_ctl_log_params_flags(struct intel_guc *guc)
 {
 	u32 offset, flags=0;
-
-	/*GEM_BUG_ON(!log->sizes_initialised);
+	struct intel_guc_log *log = &guc->log;
+	//GEM_BUG_ON(!log->sizes_initialised);
 
 	offset = intel_guc_ggtt_offset(guc, log->vma) >> PAGE_SHIFT;
 
@@ -1574,32 +1742,34 @@ static u32 guc_ctl_log_params_flags()
 		(log->sizes[GUC_LOG_SECTIONS_DEBUG].count << GUC_LOG_DEBUG_SHIFT) |
 		(log->sizes[GUC_LOG_SECTIONS_CAPTURE].count << GUC_LOG_CAPTURE_SHIFT) |
 		(offset << GUC_LOG_BUF_ADDR_SHIFT);
-*/
+
 	return flags;
 }
 
-static u32 guc_ctl_ads_flags()
+static u32 guc_ctl_ads_flags(struct intel_guc *guc)
 {
-	/*u32 flags = ads << GUC_ADS_ADDR_SHIFT;
+	u32 ads = intel_guc_ggtt_offset(guc, guc->ads_vma) >> PAGE_SHIFT;
+	u32 flags = ads << GUC_ADS_ADDR_SHIFT;
 
 	return flags;
-	*/
-	return 0;
+
 }
 
-static u32 guc_ctl_wa_flags()
+
+static u32 guc_ctl_wa_flags(struct intel_guc *guc)
 {
 	u32 flags = 0;
-
+	struct intel_gt *gt = guc->gt;
+	
 	/* Wa_22012773006:gen11,gen12 < XeHP */
-//	if (GRAPHICS_VER(gt->i915) >= 11 &&
-	//	GRAPHICS_VER_FULL(gt->i915) < IP_VER(12, 55))
+	if (GRAPHICS_VER(gt->i915) >= 11 &&
+		GRAPHICS_VER_FULL(gt->i915) < IP_VER(12, 55))
 		flags |= GUC_WA_POLLCS;
 
 	/* Wa_14014475959 */
-	//if (IS_GFX_GT_IP_STEP(gt, IP_VER(12, 70), STEP_A0, STEP_B0) ||
-	//	IS_DG2(gt->i915))
-	//	flags |= GUC_WA_HOLD_CCS_SWITCHOUT;
+	/*if (IS_GFX_GT_IP_STEP(gt, IP_VER(12, 70), STEP_A0, STEP_B0) ||
+		IS_DG2(gt->i915))
+		flags |= GUC_WA_HOLD_CCS_SWITCHOUT;*/
 
 	/* Wa_16019325821 */
 	/* Wa_14019159160 */
@@ -1642,30 +1812,30 @@ static u32 guc_ctl_wa_flags()
 	return flags;
 }
 
-static u32 guc_ctl_devid()
+static u32 guc_ctl_devid(struct intel_guc *guc)
 {
 	
 	return (NBlue::callback->deviceId << 16) | NBlue::callback->pciRevision;
 }
 
 
-static void guc_init_params(u32 params[GUC_CTL_MAX_DWORDS])
+static void guc_init_params(struct intel_guc *guc)
 {
 	int i;
-
+	u32 *params = guc->params;
 	//BUILD_BUG_ON(sizeof(guc->params) != GUC_CTL_MAX_DWORDS * sizeof(u32));
 
-	//params[GUC_CTL_LOG_PARAMS] = guc_ctl_log_params_flags();
-	params[GUC_CTL_FEATURE] = guc_ctl_feature_flags();
-	params[GUC_CTL_DEBUG] = guc_ctl_debug_flags();
-	//params[GUC_CTL_ADS] = guc_ctl_ads_flags();
-	params[GUC_CTL_WA] = guc_ctl_wa_flags();
-	params[GUC_CTL_DEVID] = guc_ctl_devid();
+	params[GUC_CTL_LOG_PARAMS] = guc_ctl_log_params_flags(guc);
+	params[GUC_CTL_FEATURE] = guc_ctl_feature_flags(guc);
+	params[GUC_CTL_DEBUG] = guc_ctl_debug_flags(guc);
+	params[GUC_CTL_ADS] = guc_ctl_ads_flags(guc);
+	params[GUC_CTL_WA] = guc_ctl_wa_flags(guc);
+	params[GUC_CTL_DEVID] = guc_ctl_devid(guc);
 
 
 }
 
-void intel_guc_write_params(u32 params[GUC_CTL_MAX_DWORDS])
+void intel_guc_write_params(struct intel_guc *guc)
 {
 	int i;
 	struct intel_display *display = NBlue::callback->i915b->display;
@@ -1676,7 +1846,7 @@ void intel_guc_write_params(u32 params[GUC_CTL_MAX_DWORDS])
 	intel_de_write(display,  SOFT_SCRATCH(0), 0);
 
 	for (i = 0; i < GUC_CTL_MAX_DWORDS; i++)
-		intel_de_write(display,  SOFT_SCRATCH(1 + i), params[i]);
+		intel_de_write(display,  SOFT_SCRATCH(1 + i), guc->params[i]);
 
 	//intel_uncore_forcewake_put(uncore, FORCEWAKE_GT);
 }
@@ -1727,6 +1897,37 @@ static inline bool guc_load_done(u32 *status, bool *success)
 	return false;
 }
 
+static void wa_init_start(struct i915_wa_list *wal, struct intel_gt *gt,
+			  const char *name, const char *engine_name)
+{
+	wal->gt = gt;
+	wal->name = name;
+	wal->engine_name = engine_name;
+}
+
+
+static void wa_init_finish(struct i915_wa_list *wal)
+{
+	if (!IS_ALIGNED(wal->count, WA_LIST_CHUNK)) {
+		
+		size_t new_size = wal->count * sizeof(struct i915_wa);
+		struct i915_wa *list = (struct i915_wa *)IOMalloc(new_size);
+
+		if (list) {
+			memcpy(list, wal->list, new_size);
+			
+			size_t old_size = ((wal->count + WA_LIST_CHUNK - 1) / WA_LIST_CHUNK) * WA_LIST_CHUNK * sizeof(struct i915_wa);
+			
+			IOFree(wal->list, old_size);
+			
+			wal->list = list;
+		}
+	}
+
+	if (!wal->count)
+		return;
+}
+
 void intel_gt_init_workarounds(struct intel_gt *gt)
 {
 	struct i915_wa_list *wal = &gt->wa_list;
@@ -1740,8 +1941,10 @@ void intel_gt_init_workarounds(struct intel_gt *gt)
 unsigned long Gen11::loadGuCBinary(void *that)
 {
 	struct drm_i915_private *i915=NBlue::callback->i915b;
-	struct intel_gt *gt=i915->gt[0];
+	struct intel_gt *gt=to_gt(i915);
 	struct intel_display *display = i915->display;
+	struct intel_guc *guc = gt_to_guc(gt);
+	
 	void *m_accelerator = getMember<void *>(that, 0x38);
 	
 	if (!display || !m_accelerator) return 0;
@@ -1763,12 +1966,9 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	u32 shim_flags = 0;
 	u32 ctx_rsvd;
 	u32 guc_wopcm_base;
-	uint32_t total_wopcm_size;
-	uint32_t wopcm_offset_val;
 	u32 wopcm_size = 0;
 	u32 guc_wopcm_size;
 	u32 mask = 0;
-	u32 base = 0;
 	u32 rsa_offset = 0;
 	u32 i = 0;
 	int dmaRetry = 0;
@@ -1782,15 +1982,9 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	uint32_t status = 0;
 	uint32_t bootrom = 0;
 	uint32_t ukernel = 0;
-	u32 params[GUC_CTL_MAX_DWORDS];
 	uint8_t* rsa_bytes;
 	uint32_t* rsa_words;
 	uint32_t rsa_val;
-	struct i915_wa_list wal;
-	IOVirtualRange guc_range;
-	u32 offset, flags;
-	void* log_buffer_obj;
-	uint64_t log_gpu_addr;
 	
 	
 	fw = getFWByName("tgl_guc_70.1.1.bin");
@@ -1806,7 +2000,7 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	}
 	if (ucode_size == 0) return 0;
 	
-	display->private_data_size=header->private_data_size;
+	guc->fw.private_data_size=header->private_data_size;
 	
 	rsa_size = header->key_size_dw * 4;
 	if (rsa_size > 256) rsa_size = 256;
@@ -1842,36 +2036,15 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	intel_gt_init_workarounds(gt);
 	wa_list_apply(&gt->wa_list);
 	
-	guc_init_params(params);
 	
-	log_buffer_obj = getMember<void*>(that, 0x60);
-	log_gpu_addr = fgetGPUVirtualAddress(log_buffer_obj);
+	_guc_log_init_sizes(&guc->log);
 	
-	struct intel_guc_log log0;
-	struct intel_guc_log *log=&log0;
-	_guc_log_init_sizes(log);
+	guc->log.vma=getMember<void*>(that, 0x60);
+	guc->log.vma=(void*)fgetGPUVirtualAddress(guc->log.vma);
 	
-	offset = log_gpu_addr >> PAGE_SHIFT;
-
-	flags = GUC_LOG_VALID |
-		GUC_LOG_NOTIFY_ON_HALF_FULL |
-		log->sizes[GUC_LOG_SECTIONS_DEBUG].flag |
-		log->sizes[GUC_LOG_SECTIONS_CAPTURE].flag |
-		(log->sizes[GUC_LOG_SECTIONS_CRASH].count << GUC_LOG_CRASH_SHIFT) |
-		(log->sizes[GUC_LOG_SECTIONS_DEBUG].count << GUC_LOG_DEBUG_SHIFT) |
-		(log->sizes[GUC_LOG_SECTIONS_CAPTURE].count << GUC_LOG_CAPTURE_SHIFT) |
-		(offset << GUC_LOG_BUF_ADDR_SHIFT);
-	
-	params[GUC_CTL_LOG_PARAMS]=flags;
-	
-	log_buffer_obj = getMember<void*>(that, 0x9e8);
-	log_gpu_addr = fgetGPUVirtualAddress(log_buffer_obj);
-	offset =  log_gpu_addr >> PAGE_SHIFT;
-	flags = offset << GUC_ADS_ADDR_SHIFT;
-	params[GUC_CTL_ADS]=flags;
-	
-	getMember<void*>(that, 0x8c)=params;
-	intel_guc_write_params(params);
+	guc_init_params(guc);
+	//getMember<void*>(that, 0x8c)=params;
+	intel_guc_write_params(guc);
 	
 
 	//guc_prepare_xfer
@@ -1891,8 +2064,8 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	else*/
 	intel_de_write(display, GEN9_GT_PM_CONFIG, GT_DOORBELL_ENABLE);
 	
-	if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 50))
-		intel_de_rmw(display, GUC_SHIM_CONTROL2, 0, GUC_ENABLE_DEBUG_REG);
+	//if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 50))
+	//	intel_de_rmw(display, GUC_SHIM_CONTROL2, 0, GUC_ENABLE_DEBUG_REG);
 	
 	intel_de_rmw(display, GEN6_PMINTRMSK, ARAT_EXPIRED_INTRMSK, 0);
 	
@@ -2235,10 +2408,11 @@ void Gen11::releaseDoorbell(void *that, void *param_1)
 
 static void whitelist_reg_ext(struct i915_wa_list *wal, u32 reg, u32 flags)
 {
-		struct i915_wa wa;
-		wa.reg = reg;
-		wa.reg|= flags;
-		wal->wa[wal->count++] = wa;
+	struct i915_wa wa = {
+		.reg = reg
+	};
+	wa.reg |= flags;
+	_wa_add(wal, &wa);
 }
 
 static void whitelist_reg(struct i915_wa_list *wal, u32 reg)
@@ -2315,60 +2489,42 @@ static void tgl_whitelist_build(struct intel_engine_cs *engine)
 
 
 
-static void whitelist_apply(struct intel_engine_cs *engine)
-{
-	struct i915_wa_list *wal = &engine->whitelist;
-	void *dev = engine->dev;
-	struct i915_wa *wa;
-	unsigned int i;
-
-	if (!wal->count)
-		return;
-
-	for (i = 0, wa = wal->wa; i < wal->count; i++, wa++) {
-
-		u32 non_priv_reg = RING_FORCE_TO_NONPRIV(engine->mmio_base, i);
-		NBlue::callback->writeReg32(non_priv_reg, wa->reg | wa->val);
-
-	}
-}
 
 
 
 
 
 static void
-add_render_compute_tuning_settings(/*struct intel_gt *gt,*/
-				   struct i915_wa_list *wal)
+add_render_compute_tuning_settings(struct intel_gt *gt, struct i915_wa_list *wal)
 {
-	/*struct drm_i915_private *i915 = gt->i915;
+	struct drm_i915_private *i915 = gt->i915;
 
-	if (IS_GFX_GT_IP_RANGE(gt, IP_VER(12, 70), IP_VER(12, 74)) || IS_DG2(i915))
+	/*if (IS_GFX_GT_IP_RANGE(gt, IP_VER(12, 70), IP_VER(12, 74)) || IS_DG2(i915))
 		wa_mcr_write_clr_set(wal, RT_CTRL, STACKID_CTRL, STACKID_CTRL_512);
 
 
 	if (INTEL_INFO(i915)->tuning_thread_rr_after_dep)
 		wa_mcr_masked_field_set(wal, GEN9_ROW_CHICKEN4, THREAD_EX_ARB_MODE,
 					THREAD_EX_ARB_MODE_RR_AFTER_DEP);
-
-	if (GRAPHICS_VER(i915) == 12 && GRAPHICS_VER_FULL(i915) < IP_VER(12, 55))*/
+*/
+	if (GRAPHICS_VER(i915) == 12 && GRAPHICS_VER_FULL(i915) < IP_VER(12, 55))
 		wa_write_clr(wal, GEN8_GARBCNTL, GEN12_BUS_HASH_CTL_BIT_EXC);
 }
 static void
 general_render_compute_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 {
-	//struct drm_i915_private *i915 = engine->i915;
-	//struct intel_gt *gt = engine->gt;
+	struct drm_i915_private *i915 = engine->i915;
+	struct intel_gt *gt = engine->gt;
 
-	add_render_compute_tuning_settings( wal);
+	add_render_compute_tuning_settings( gt, wal);
 
 
 
-	//if (GRAPHICS_VER(i915) >= 11) {
+	if (GRAPHICS_VER(i915) >= 11) {
 		wa_mcr_masked_en(wal,
 				 GEN10_SAMPLER_MODE,
 				 GEN11_INDIRECT_STATE_BASE_ADDR_OVERRIDE);
-	//}
+	}
 
 	/*if (IS_GFX_GT_IP_STEP(gt, IP_VER(12, 70), STEP_B0, STEP_FOREVER) ||
 		IS_GFX_GT_IP_STEP(gt, IP_VER(12, 71), STEP_B0, STEP_FOREVER) ||
@@ -2479,16 +2635,16 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 	
 
 	
-	//if (IS_DG2(i915) || IS_ALDERLAKE_P(i915) || IS_ALDERLAKE_S(i915) ||
-	//	IS_DG1(i915) || IS_ROCKETLAKE(i915) || IS_TIGERLAKE(i915)) {
+	if (IS_DG2(i915) || IS_ALDERLAKE_P(i915) || IS_ALDERLAKE_S(i915) ||
+		IS_DG1(i915) || IS_ROCKETLAKE(i915) || IS_TIGERLAKE(i915)) {
 
 		wa_masked_en(wal,
 				 GEN9_CS_DEBUG_MODE1,
 				 FF_DOP_CLOCK_GATE_DISABLE);
-	//}
+	}
 
-	//if (IS_ALDERLAKE_P(i915) || IS_ALDERLAKE_S(i915) || IS_DG1(i915) ||
-	//	IS_ROCKETLAKE(i915) || IS_TIGERLAKE(i915)) {
+	if (IS_ALDERLAKE_P(i915) || IS_ALDERLAKE_S(i915) || IS_DG1(i915) ||
+		IS_ROCKETLAKE(i915) || IS_TIGERLAKE(i915)) {
 
 		wa_mcr_masked_en(wal, GEN8_ROW_CHICKEN2, GEN12_DISABLE_EARLY_READ);
 
@@ -2500,29 +2656,29 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 		wa_mcr_masked_en(wal,
 				 GEN10_SAMPLER_MODE,
 				 ENABLE_SMALLPL);
-	//}
+	}
 
-	//if (IS_ALDERLAKE_P(i915) || IS_ALDERLAKE_S(i915) ||
-	//	IS_ROCKETLAKE(i915) || IS_TIGERLAKE(i915)) {
+	if (IS_ALDERLAKE_P(i915) || IS_ALDERLAKE_S(i915) ||
+		IS_ROCKETLAKE(i915) || IS_TIGERLAKE(i915)) {
 
 		wa_mcr_masked_en(wal, GEN8_ROW_CHICKEN2,
 				 GEN12_PUSH_CONST_DEREF_HOLD_DIS);
 
 
 		wa_mcr_masked_en(wal, GEN9_ROW_CHICKEN4, GEN12_DISABLE_TDL_PUSH);
-	//}
+	}
 
-	//if (IS_ROCKETLAKE(i915) || IS_TIGERLAKE(i915) || IS_ALDERLAKE_P(i915)) {
+	if (IS_ROCKETLAKE(i915) || IS_TIGERLAKE(i915) || IS_ALDERLAKE_P(i915)) {
 
 		wa_masked_en(wal,
 				 RING_PSMI_CTL(RENDER_RING_BASE),
 				 GEN12_WAIT_FOR_EVENT_POWER_DOWN_DISABLE |
 				 GEN8_RC_SEMA_IDLE_MSG_DISABLE);
-	//}
+	}
 
 
 	
-	//if (GRAPHICS_VER(i915) >= 9)
+	if (GRAPHICS_VER(i915) >= 9)
 		wa_masked_en(wal,
 				 GEN7_FF_SLICE_CS_CHICKEN1,
 				 GEN9_FFSC_PERCTX_PREEMPT_CTRL);
@@ -2533,10 +2689,10 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 
 static void ccs_engine_wa_mode(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 {
-	//struct intel_gt *gt = engine->gt;
+	struct intel_gt *gt = engine->gt;
 	u32 mode;
 
-	//if (!IS_DG2(gt->i915))
+	if (!IS_DG2(gt->i915))
 		return;
 
 
@@ -2637,7 +2793,27 @@ void intel_engine_apply_workarounds(struct intel_engine_cs *engine)
 
 void intel_engine_apply_whitelist(struct intel_engine_cs *engine)
 {
-	whitelist_apply(engine);
+	struct drm_i915_private *i915 = engine->gt->i915;
+	struct intel_display *display=i915->display;
+	
+	struct i915_wa_list *wal = &engine->whitelist;
+	const u32 base = engine->mmio_base;
+	struct i915_wa *wa;
+	unsigned int i;
+
+
+	if (!wal->count)
+		return;
+
+	for (i = 0, wa = wal->list; i < wal->count; i++, wa++)
+		intel_de_write(display,
+				   RING_FORCE_TO_NONPRIV(base, i),
+				   i915_mmio_reg_offset(wa->reg));
+
+	for (; i < RING_MAX_NONPRIV_SLOTS; i++)
+		intel_de_write(display,
+				   RING_FORCE_TO_NONPRIV(base, i),
+				   i915_mmio_reg_offset(RING_NOPID(base)));
 }
 
 
@@ -2773,9 +2949,9 @@ static intel_engine_mask_t init_engine_mask(struct intel_gt *gt)
 	engine_mask_apply_compute_fuses(gt);
 
 
-	/*if (__HAS_ENGINE(info->engine_mask, GSC0) && !intel_uc_wants_gsc_uc(&gt->uc)) {
+	if (__HAS_ENGINE(info->engine_mask, GSC0) /*&& !intel_uc_wants_gsc_uc(&gt->uc)*/) {
 		info->engine_mask &= ~BIT(GSC0);
-	}*/
+	}
 
 	/*if (IS_DG2(gt->i915)) {
 		u8 first_ccs = __ffs(CCS_MASK(gt));
@@ -2890,7 +3066,9 @@ const char *intel_engine_class_repr(u8 classb)
 static void __sprint_engine_name(struct intel_engine_cs *engine)
 {
 
-	snprintf(engine->name, sizeof(engine->name), "%s'%u", intel_engine_class_repr(engine->classb));
+	(snprintf(engine->name, sizeof(engine->name), "%s'%u",
+				 intel_engine_class_repr(engine->classb),
+				 engine->instance) >= sizeof(engine->name));
 }
 
 
@@ -3242,15 +3420,184 @@ intel_sseu_from_device_info(const struct sseu_dev_info *sseu)
 	return value;
 }
 
+void intel_sseu_set_info(struct sseu_dev_info *sseu, u8 max_slices,
+			 u8 max_subslices, u8 max_eus_per_subslice)
+{
+	sseu->max_slices = max_slices;
+	sseu->max_subslices = max_subslices;
+	sseu->max_eus_per_subslice = max_eus_per_subslice;
+}
+
+
+
+static inline bool
+intel_sseu_has_subslice(const struct sseu_dev_info *sseu, int slice,
+			int subslice)
+{
+	if (slice >= sseu->max_slices ||
+		subslice >= sseu->max_subslices)
+		return false;
+
+	if (sseu->has_xehp_dss)
+		return test_bit(subslice, sseu->subslice_mask.xehp);
+	else
+		return sseu->subslice_mask.hsw[slice] & BIT(subslice);
+}
+
+static void sseu_set_eus(struct sseu_dev_info *sseu, int slice, int subslice,
+			 u16 eu_mask)
+{
+	//GEM_WARN_ON(eu_mask && __fls(eu_mask) >= sseu->max_eus_per_subslice);
+	if (sseu->has_xehp_dss) {
+		//GEM_WARN_ON(slice > 0);
+		sseu->eu_mask.xehp[subslice] = eu_mask;
+	} else {
+		sseu->eu_mask.hsw[slice][subslice] = eu_mask;
+	}
+}
+
+static u16 compute_eu_total(const struct sseu_dev_info *sseu)
+{
+	int s, ss, total = 0;
+
+	for (s = 0; s < sseu->max_slices; s++)
+		for (ss = 0; ss < sseu->max_subslices; ss++)
+			if (sseu->has_xehp_dss)
+				total += hweight16(sseu->eu_mask.xehp[ss]);
+			else
+				total +=hweight16(sseu->eu_mask.hsw[s][ss]);
+
+	return total;
+}
+
+static void gen11_compute_sseu_info(struct sseu_dev_info *sseu,
+					u32 ss_en, u16 eu_en)
+{
+	u32 valid_ss_mask = GENMASK(sseu->max_subslices - 1, 0);
+	int ss;
+
+	sseu->slice_mask |= BIT(0);
+	sseu->subslice_mask.hsw[0] = ss_en & valid_ss_mask;
+
+	for (ss = 0; ss < sseu->max_subslices; ss++)
+		if (intel_sseu_has_subslice(sseu, 0, ss))
+			sseu_set_eus(sseu, 0, ss, eu_en);
+
+	sseu->eu_per_subslice = hweight16(eu_en);
+	sseu->eu_total = compute_eu_total(sseu);
+}
+
+static void gen12_sseu_info_init(struct intel_gt *gt)
+{
+	struct sseu_dev_info *sseu = &gt->info.sseu;
+	u32 g_dss_en;
+	u16 eu_en = 0;
+	u8 eu_en_fuse;
+	u8 s_en;
+	int eu;
+
+	intel_sseu_set_info(sseu, 1, 6, 16);
+
+
+	s_en = REG_FIELD_GET(GEN11_GT_S_ENA_MASK,
+						 NBlue::callback->readReg32 (GEN11_GT_SLICE_ENABLE));
+	//drm_WARN_ON(&gt->i915->drm, s_en != 0x1);
+
+	g_dss_en = NBlue::callback->readReg32 (GEN12_GT_GEOMETRY_DSS_ENABLE);
+
+	eu_en_fuse = ~REG_FIELD_GET(GEN11_EU_DIS_MASK,
+								NBlue::callback->readReg32 (GEN11_EU_DISABLE));
+
+	for (eu = 0; eu < sseu->max_eus_per_subslice / 2; eu++)
+		if (eu_en_fuse & BIT(eu))
+			eu_en |= BIT(eu * 2) | BIT(eu * 2 + 1);
+
+	gen11_compute_sseu_info(sseu, g_dss_en, eu_en);
+
+	sseu->has_slice_pg = 1;
+}
+
+static const struct intel_mmio_range icl_l3bank_steering_table[] = {
+	{ 0x00B100, 0x00B3FF },
+	{},
+};
+
+static void gen11_sseu_device_status(struct intel_gt *gt,
+					 struct sseu_dev_info *sseu)
+{
+#define SS_MAX 8
+
+	const struct intel_gt_info *info = &gt->info;
+	u32 s_reg[SS_MAX], eu_reg[2 * SS_MAX], eu_mask[2];
+	int s, ss;
+	
+	for (s = 0; s < info->sseu.max_slices; s++) {
+
+		s_reg[s] = NBlue::callback->readReg32( GEN10_SLICE_PGCTL_ACK(s)) &
+			GEN10_PGCTL_VALID_SS_MASK(s);
+		eu_reg[2 * s] = NBlue::callback->readReg32(
+						  GEN10_SS01_EU_PGCTL_ACK(s));
+		eu_reg[2 * s + 1] = NBlue::callback->readReg32(
+							  GEN10_SS23_EU_PGCTL_ACK(s));
+	}
+
+	eu_mask[0] = GEN9_PGCTL_SSA_EU08_ACK |
+			 GEN9_PGCTL_SSA_EU19_ACK |
+			 GEN9_PGCTL_SSA_EU210_ACK |
+			 GEN9_PGCTL_SSA_EU311_ACK;
+	eu_mask[1] = GEN9_PGCTL_SSB_EU08_ACK |
+			 GEN9_PGCTL_SSB_EU19_ACK |
+			 GEN9_PGCTL_SSB_EU210_ACK |
+			 GEN9_PGCTL_SSB_EU311_ACK;
+
+	for (s = 0; s < info->sseu.max_slices; s++) {
+		if ((s_reg[s] & GEN9_PGCTL_SLICE_ACK) == 0)
+			/* skip disabled slice */
+			continue;
+
+		sseu->slice_mask |= BIT(s);
+		sseu->subslice_mask.hsw[s] = info->sseu.subslice_mask.hsw[s];
+
+		for (ss = 0; ss < info->sseu.max_subslices; ss++) {
+			unsigned int eu_cnt;
+
+			if (info->sseu.has_subslice_pg &&
+				!(s_reg[s] & (GEN9_PGCTL_SS_ACK(ss))))
+				/* skip disabled subslice */
+				continue;
+
+			eu_cnt = 2 * hweight32(eu_reg[2 * s + ss / 2] &
+						   eu_mask[ss % 2]);
+			sseu->eu_total += eu_cnt;
+			sseu->eu_per_subslice = max_t(unsigned int,
+							  sseu->eu_per_subslice,
+							  eu_cnt);
+		}
+	}
+#undef SS_MAX
+}
+
+
 void Gen11::engines()
 {
-
-	struct intel_gt *gt=NBlue::callback->i915b->gt[0];
+	struct drm_i915_private *i915 = NBlue::callback->i915b;
+	struct intel_gt *gt=to_gt(i915);
+	
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 
 	gt->submission_method = INTEL_SUBMISSION_GUC;
 	
+	gen12_sseu_info_init(gt);
+	gen11_sseu_device_status(gt, &gt->info.sseu);
+	
+	if (GRAPHICS_VER(i915) >= 11 &&
+		GRAPHICS_VER_FULL(i915) < IP_VER(12, 55)) {
+		gt->steering_table[L3BANK] = icl_l3bank_steering_table;
+		gt->info.l3bank_mask =
+		~NBlue::callback->readReg32 ( GEN10_MIRROR_FUSE3) &
+		GEN10_L3BANK_MASK;
+	}
 	intel_engines_init_mmio(gt);
 	
 	for_each_engine(engine, gt, id) {
@@ -3283,7 +3630,12 @@ void Gen11::engines()
 unsigned long  Gen11::startGraphicsEngine(void *that)
 {
 	seng=true;
-	return FunctionCast(startGraphicsEngine, callback->ostartGraphicsEngine)( that);
+	auto ret= FunctionCast(startGraphicsEngine, callback->ostartGraphicsEngine)( that);
+	
+	//intel_gt_resume
+	//intel_uc_init_late(&gt->uc);
+	
+	return ret;
 }
 
 void  Gen11::initHardwareStatusPageRegisters(void *that)
@@ -4484,7 +4836,6 @@ static int icl_pcode_read_mem_global_info(struct intel_display *display,
 					  struct dram_info *dram_info)
 {
 	u32 val = 0;
-	int ret;
 	
 	//ret = intel_parent_pcode_read(display, ICL_PCODE_MEM_SUBSYSYSTEM_INFO |
 	//				  ICL_PCODE_MEM_SS_READ_GLOBAL_INFO, &val, NULL);
@@ -4769,36 +5120,9 @@ void intel_dmc_load_program(struct intel_display *display)
 void Gen11::hwInitializeCState(void *that)
 {
 	struct intel_display *display=NBlue::callback->i915b->display;
-	if (display->initok) return;
+	if (NBlue::callback->i915b->initok) return;
 	
 	if (getMember<int>(that, kexticl ? 0xb38 : 0xb48) != 1) return;
-	
-	/*icl_set_pipe_chicken();
-	
-	gen9_set_dc_state(display,DC_STATE_DISABLE);
-	
-	if (intel_display_wa(display, INTEL_DISPLAY_WA_14011294188))
-		intel_de_rmw(display, SOUTH_DSPCLK_GATE_D, 0,
-				 PCH_DPMGUNIT_CLOCK_GATE_DISABLE);
-	
-	if (DISPLAY_VER(display)== 12){
-		intel_de_rmw(display, CLKREQ_POLICY, CLKREQ_POLICY_MEM_UP_OVRD, 0);
-	}
-	
-	intel_pch_reset_handshake(display, !HAS_PCH_NOP(display));
-
-	icl_combo_phys_init(display);
-	
-	if (DISPLAY_VER(display) == 12 || display->platform.dg2)
-		gen12_dbuf_slices_config(display);
-
-	gen9_dbuf_enable(display);
-	
-	icl_mbus_init(display);
-	
-	if (DISPLAY_VER(display) >= 12)
-		tgl_bw_buddy_init(display);
-	*/
 	
 	if (parse_dmc_fw(display)!=0) return;
 	
@@ -4809,8 +5133,6 @@ void Gen11::hwInitializeCState(void *that)
 	
 	intel_dmc_load_program(display);
 
-
-	
 	/* Wa_14011508470:tgl,dg1,rkl,adl-s,adl-p,dg2 */
 	if (intel_display_wa(display, INTEL_DISPLAY_WA_14011508470))
 		intel_de_rmw(display, GEN11_CHICKEN_DCPR_2, 0,
@@ -4818,8 +5140,8 @@ void Gen11::hwInitializeCState(void *that)
 				 DCPR_MASK_LPMODE | DCPR_MASK_MAXLATENCY_MEMUP_CLR);
 
 	/* Wa_14011503030:xelpd */
-	//if (intel_display_wa(display, INTEL_DISPLAY_WA_14011503030))
-	//	intel_de_write(display, XELPD_DISPLAY_ERR_FATAL_MASK, ~0);
+	if (intel_display_wa(display, INTEL_DISPLAY_WA_14011503030))
+		intel_de_write(display, XELPD_DISPLAY_ERR_FATAL_MASK, ~0);
 
 	/* Wa_15013987218 */
 	if (intel_display_wa(display, INTEL_DISPLAY_WA_15013987218)) {
@@ -7726,9 +8048,9 @@ void Gen11::SetupParams2 (void *param_2, CRTCParams *param_3)
 		int fScanoutHeight=getMember<int>(param_2, kexticl ? 0x2fc : 0xfc);
 		int fLinkScanoutWidth=getMember<int>(param_2, kexticl ? 0x2f8 : 0xf8);
 		param_3->PIPESRC =
-			 (fScanoutHeight - 1) & 0x1fff |
-			 param_3->PIPESRC & 0xe000e000 |
-			 (fLinkScanoutWidth * 0x10000 + 0x1fff0000) & 0x1fff0000;
+		((fScanoutHeight - 1) & 0x1fff) |
+		(param_3->PIPESRC & 0xe000e000) |
+		((fLinkScanoutWidth * 0x10000 + 0x1fff0000) & 0x1fff0000);
 		
 	}
 	
@@ -8065,6 +8387,7 @@ void intel_dbuf_mdclk_cdclk_ratio_update(struct intel_display *display,
 					 DBUF_MIN_TRACKER_STATE_SERVICE_MASK,
 					 DBUF_MIN_TRACKER_STATE_SERVICE(ratio - 1));
 }
+
 
 void  Gen11::enableDisplayEngine(void *that0)
 {
@@ -8607,7 +8930,7 @@ static int guc_mmio_regset_init(struct temp_regset *regset,
 		ret |= GUC_MMIO_REG_ADD(gt, regset, GEN12_RCU_MODE, true);
 
 
-	for (i = 0, wa = &wal->wa[i]; i < wal->count; i++, wa++)
+	for (i = 0, wa = wal->list; i < wal->count; i++, wa++)
 		if (wa->mcr_reg) ret |= GUC_MCR_REG_ADD(gt, regset, wa->mcr_reg, wa->masked_reg);
 
 	for (i = 0; i < RING_MAX_NONPRIV_SLOTS; i++)
@@ -8616,9 +8939,9 @@ static int guc_mmio_regset_init(struct temp_regset *regset,
 					false);
 
 	for (i = 0; i < LNCFCMOCS_REG_COUNT; i++)
-		/*if (GRAPHICS_VER_FULL(engine->i915) >= IP_VER(12, 55))
+		if (GRAPHICS_VER_FULL(engine->i915) >= IP_VER(12, 55))
 			ret |= GUC_MCR_REG_ADD(gt, regset, XEHP_LNCFCMOCS(i), false);
-		else*/
+		else
 			ret |= GUC_MMIO_REG_ADD(gt, regset, GEN9_LNCFCMOCS(i), false);
 
 
@@ -8715,36 +9038,7 @@ static u32 guc_ads_golden_ctxt_offset(struct intel_guc *guc)
 	return PAGE_ALIGN(offset);
 }
 
-static inline u64 __i915_vma_offset(void *vma)
-{
-	return 0;//vma->node.start + vma->guard;
-}
-static inline u64 i915_vma_offset(void *vma)
-{
-	//GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
-	return __i915_vma_offset(vma);
-}
 
-static inline u32 i915_ggtt_offset(void *vma)
-{
-	/*GEM_BUG_ON(!i915_vma_is_ggtt(vma));
-	GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
-	GEM_BUG_ON(upper_32_bits(i915_vma_offset(vma)));
-	GEM_BUG_ON(upper_32_bits(i915_vma_offset(vma) +
-				 i915_vma_size(vma) - 1));*/
-	return lower_32_bits(i915_vma_offset(vma));
-}
-
-static inline u32 intel_guc_ggtt_offset(struct intel_guc *guc,
-					void *vma)
-{
-	u32 offset = i915_ggtt_offset(vma);
-
-	//GEM_BUG_ON(offset < i915_ggtt_pin_bias(vma));
-	//GEM_BUG_ON(range_overflows_t(u64, offset, vma->size, GUC_GGTT_TOP));
-
-	return offset;
-}
 
 
 
@@ -8759,10 +9053,9 @@ static void fill_engine_enable_masks(struct intel_gt *gt,
 	info_map_write(info_map, engine_enabled_masks[GUC_VIDEO_CLASS], VDBOX_MASK(gt));
 	info_map_write(info_map, engine_enabled_masks[GUC_VIDEOENHANCE_CLASS], VEBOX_MASK(gt));
 
-	/* The GSC engine is an instance (6) of OTHER_CLASS */
-	/*if (gt->engine[GSC0])
+	if (gt->engine[GSC0])
 		info_map_write(info_map, engine_enabled_masks[GUC_GSC_OTHER_CLASS],
-				   BIT(gt->engine[GSC0]->instance));*/
+				   BIT(gt->engine[GSC0]->instance));
 }
 
 static int guc_prep_golden_context(struct intel_guc *guc)
@@ -8859,22 +9152,22 @@ int
 intel_guc_capture_getnullheader(struct intel_guc *guc,
 				void **outptr, size_t *size)
 {
-	//struct intel_guc_state_capture *gc = guc->capture;
+	struct intel_guc_state_capture *gc = guc->capture;
 	int tmp = sizeof(u32) * 4;
 	void *null_header;
 
-	/*if (gc->ads_null_cache) {
+	if (gc->ads_null_cache) {
 		*outptr = gc->ads_null_cache;
 		*size = tmp;
 		return 0;
-	}*/
+	}
 
 	null_header = IOMalloc(tmp);//kzalloc(tmp, GFP_KERNEL);
 	if (!null_header) {
 		return -ENOMEM;
 	}
 
-	//gc->ads_null_cache = null_header;
+	gc->ads_null_cache = null_header;
 	*outptr = null_header;
 	*size = tmp;
 
@@ -8923,6 +9216,306 @@ static u32 guc_get_capture_engine_mask(struct iosys_map *info_map, u32 capture_c
 	return mask;
 }
 
+static const struct __guc_mmio_reg_descr_group *
+guc_capture_get_one_list(const struct __guc_mmio_reg_descr_group *reglists,
+			 u32 owner, u32 type, u32 id)
+{
+	int i;
+
+	if (!reglists)
+		return NULL;
+
+	for (i = 0; reglists[i].list; ++i) {
+		if (reglists[i].owner == owner && reglists[i].type == type &&
+			(reglists[i].engine == id || reglists[i].type == GUC_CAPTURE_LIST_TYPE_GLOBAL))
+			return &reglists[i];
+	}
+
+	return NULL;
+}
+
+static struct __guc_mmio_reg_descr_group *
+guc_capture_get_one_ext_list(struct __guc_mmio_reg_descr_group *reglists,
+				 u32 owner, u32 type, u32 id)
+{
+	int i;
+
+	if (!reglists)
+		return NULL;
+
+	for (i = 0; reglists[i].extlist; ++i) {
+		if (reglists[i].owner == owner && reglists[i].type == type &&
+			(reglists[i].engine == id || reglists[i].type == GUC_CAPTURE_LIST_TYPE_GLOBAL))
+			return &reglists[i];
+	}
+
+	return NULL;
+}
+
+static int
+guc_cap_list_num_regs(struct intel_guc_state_capture *gc, u32 owner, u32 type, u32 classid)
+{
+	const struct __guc_mmio_reg_descr_group *match;
+	struct __guc_mmio_reg_descr_group *matchext;
+	int num_regs;
+
+	match = guc_capture_get_one_list(gc->reglists, owner, type, classid);
+	if (!match)
+		return 0;
+
+	num_regs = match->num_regs;
+
+	matchext = guc_capture_get_one_ext_list(gc->extlists, owner, type, classid);
+	if (matchext)
+		num_regs += matchext->num_regs;
+
+	return num_regs;
+}
+
+static int
+guc_capture_getlistsize(struct intel_guc *guc, u32 owner, u32 type, u32 classid,
+			size_t *size, bool is_purpose_est)
+{
+	struct intel_guc_state_capture *gc = guc->capture;
+	struct __guc_capture_ads_cache *cache = &gc->ads_cache[owner][type][classid];
+	int num_regs;
+
+	if (!gc->reglists) {
+		return -ENODEV;
+	}
+
+	if (cache->is_valid) {
+		*size = cache->size;
+		return cache->status;
+	}
+
+	if (!is_purpose_est && owner == GUC_CAPTURE_LIST_INDEX_PF &&
+		!guc_capture_get_one_list(gc->reglists, owner, type, classid)) {
+
+		return -ENODATA;
+	}
+
+	num_regs = guc_cap_list_num_regs(gc, owner, type, classid);
+
+	if (!num_regs)
+		return -ENODATA;
+
+	if (size)
+		*size = PAGE_ALIGN((sizeof(struct guc_debug_capture_list)) +
+				   (num_regs * sizeof(struct guc_mmio_reg)));
+
+	return 0;
+}
+
+int
+intel_guc_capture_getlistsize(struct intel_guc *guc, u32 owner, u32 type, u32 classid,
+				  size_t *size)
+{
+	return guc_capture_getlistsize(guc, owner, type, classid, size, false);
+}
+
+static int
+guc_capture_list_init(struct intel_guc *guc, u32 owner, u32 type, u32 classid,
+			  struct guc_mmio_reg *ptr, u16 num_entries)
+{
+	u32 i = 0, j = 0;
+	const struct __guc_mmio_reg_descr_group *reglists = guc->capture->reglists;
+	struct __guc_mmio_reg_descr_group *extlists = guc->capture->extlists;
+	const struct __guc_mmio_reg_descr_group *match;
+	struct __guc_mmio_reg_descr_group *matchext;
+
+	if (!reglists)
+		return -ENODEV;
+
+	match = guc_capture_get_one_list(reglists, owner, type, classid);
+	if (!match)
+		return -ENODATA;
+
+	for (i = 0; i < num_entries && i < match->num_regs; ++i) {
+		ptr[i].offset = match->list[i].reg;
+		ptr[i].value = 0xDEADF00D;
+		ptr[i].flags = match->list[i].flags;
+		ptr[i].mask = match->list[i].mask;
+	}
+
+	matchext = guc_capture_get_one_ext_list(extlists, owner, type, classid);
+	if (matchext) {
+		for (i = match->num_regs, j = 0; i < num_entries &&
+			 i < (match->num_regs + matchext->num_regs) &&
+			j < matchext->num_regs; ++i, ++j) {
+			ptr[i].offset = matchext->extlist[j].reg;
+			ptr[i].value = 0xDEADF00D;
+			ptr[i].flags = matchext->extlist[j].flags;
+			ptr[i].mask = matchext->extlist[j].mask;
+		}
+	}
+
+
+	return 0;
+}
+
+static void
+guc_capture_init_node(struct intel_guc *guc, struct __guc_capture_parsed_output *node)
+{
+	struct guc_mmio_reg *tmp[GUC_CAPTURE_LIST_TYPE_MAX];
+	int i;
+
+	for (i = 0; i < GUC_CAPTURE_LIST_TYPE_MAX; ++i) {
+		tmp[i] = node->reginfo[i].regs;
+		memset(tmp[i], 0, sizeof(struct guc_mmio_reg) *
+			   guc->capture->max_mmio_per_node);
+	}
+	memset(node, 0, sizeof(*node));
+	for (i = 0; i < GUC_CAPTURE_LIST_TYPE_MAX; ++i)
+		node->reginfo[i].regs = tmp[i];
+
+	INIT_LIST_HEAD(&node->link);
+}
+
+static struct __guc_capture_parsed_output *
+guc_capture_alloc_one_node(struct intel_guc *guc)
+{
+	struct __guc_capture_parsed_output *new2;
+	int i;
+
+	new2 = (struct __guc_capture_parsed_output *)IOMalloc(sizeof(*new2));
+	if (!new2)
+		return NULL;
+
+	for (i = 0; i < GUC_CAPTURE_LIST_TYPE_MAX; ++i) {
+		new2->reginfo[i].regs = (struct guc_mmio_reg *)IOMalloc(sizeof(struct guc_mmio_reg));//,
+						//	guc->capture->max_mmio_per_node);
+		if (!new2->reginfo[i].regs) {
+			while (i)
+				IOFree( new2->reginfo[--i].regs, sizeof(struct guc_mmio_reg));
+			IOFree(new2,sizeof(*new2));
+			return NULL;
+		}
+	}
+	guc_capture_init_node(guc, new2);
+
+	return new2;
+}
+
+static void
+guc_capture_add_node_to_list(struct __guc_capture_parsed_output *node,
+				 struct list_head *list)
+{
+	list_add_tail(&node->link, list);
+}
+
+static void
+guc_capture_add_node_to_cachelist(struct intel_guc_state_capture *gc,
+				  struct __guc_capture_parsed_output *node)
+{
+	guc_capture_add_node_to_list(node, &gc->cachelist);
+}
+
+static void
+__guc_capture_create_prealloc_nodes(struct intel_guc *guc)
+{
+	struct __guc_capture_parsed_output *node = NULL;
+	int i;
+
+	for (i = 0; i < PREALLOC_NODES_MAX_COUNT; ++i) {
+		node = guc_capture_alloc_one_node(guc);
+		if (!node) {
+			/* dont free the priors, use what we got and cleanup at shutdown */
+			return;
+		}
+		guc_capture_add_node_to_cachelist(guc->capture, node);
+	}
+}
+
+static int
+guc_get_max_reglist_count(struct intel_guc *guc)
+{
+	int i, j, k, tmp, maxregcount = 0;
+
+	for (i = 0; i < GUC_CAPTURE_LIST_INDEX_MAX; ++i) {
+		for (j = 0; j < GUC_CAPTURE_LIST_TYPE_MAX; ++j) {
+			for (k = 0; k < GUC_MAX_ENGINE_CLASSES; ++k) {
+				if (j == GUC_CAPTURE_LIST_TYPE_GLOBAL && k > 0)
+					continue;
+
+				tmp = guc_cap_list_num_regs(guc->capture, i, j, k);
+				if (tmp > maxregcount)
+					maxregcount = tmp;
+			}
+		}
+	}
+	if (!maxregcount)
+		maxregcount = PREALLOC_NODES_DEFAULT_NUMREGS;
+
+	return maxregcount;
+}
+
+static void
+guc_capture_create_prealloc_nodes(struct intel_guc *guc)
+{
+	if (guc->capture->max_mmio_per_node)
+		return;
+
+	guc->capture->max_mmio_per_node = guc_get_max_reglist_count(guc);
+	__guc_capture_create_prealloc_nodes(guc);
+}
+
+int
+intel_guc_capture_getlist(struct intel_guc *guc, u32 owner, u32 type, u32 classid,
+			  void **outptr)
+{
+	struct intel_guc_state_capture *gc = guc->capture;
+	struct __guc_capture_ads_cache *cache = &gc->ads_cache[owner][type][classid];
+	struct guc_debug_capture_list *listnode;
+	int ret, num_regs;
+	u8 *caplist, *tmp;
+	size_t size = 0;
+
+	if (!gc->reglists)
+		return -ENODEV;
+
+	if (cache->is_valid) {
+		*outptr = cache->ptr;
+		return cache->status;
+	}
+
+	guc_capture_create_prealloc_nodes(guc);
+
+	ret = intel_guc_capture_getlistsize(guc, owner, type, classid, &size);
+	if (ret) {
+		cache->is_valid = true;
+		cache->ptr = NULL;
+		cache->size = 0;
+		cache->status = ret;
+		return ret;
+	}
+
+	caplist = (u8*)IOMalloc(size);
+	if (!caplist) {
+		return -ENOMEM;
+	}
+
+	/* populate capture list header */
+	tmp = caplist;
+	num_regs = guc_cap_list_num_regs(guc->capture, owner, type, classid);
+	listnode = (struct guc_debug_capture_list *)tmp;
+	listnode->header.info = FIELD_PREP(GUC_CAPTURELISTHDR_NUMDESCR, (u32)num_regs);
+
+	/* populate list of register descriptor */
+	tmp += sizeof(struct guc_debug_capture_list);
+	guc_capture_list_init(guc, owner, type, classid, (struct guc_mmio_reg *)tmp, num_regs);
+
+	/* cache this list */
+	cache->is_valid = true;
+	cache->ptr = caplist;
+	cache->size = size;
+	cache->status = 0;
+
+	*outptr = caplist;
+
+	return 0;
+}
+
 static int
 guc_capture_prep_lists(struct intel_guc *guc)
 {
@@ -8948,7 +9541,7 @@ guc_capture_prep_lists(struct intel_guc *guc)
 	}
 
 	total_size = PAGE_SIZE;
-	/*if (ads_is_mapped) {
+	if (ads_is_mapped) {
 		if (!intel_guc_capture_getnullheader(guc, &ptr, &size))
 			iosys_map_memcpy_to(&guc->ads_map, capture_offset, ptr, size);
 		null_ggtt = ads_ggtt + capture_offset;
@@ -9027,7 +9620,7 @@ engine_instance_list:
 			iosys_map_memcpy_to(&guc->ads_map, capture_offset, ptr, size);
 			capture_offset += size;
 		}
-	}*/
+	}
 
 
 	return PAGE_ALIGN(total_size);
@@ -9187,19 +9780,50 @@ static void __guc_ads_init(struct intel_guc *guc)
 }
 
 
+
+
+
+static const struct __guc_mmio_reg_descr_group *
+guc_capture_get_device_reglist(struct intel_guc *guc)
+{
+	struct drm_i915_private *i915 = guc->gt->i915;
+	const struct __guc_mmio_reg_descr_group *lists;
+
+	//if (GRAPHICS_VER(i915) >= 12)
+	//	lists = xe_lp_lists;
+
+	//guc_capture_alloc_steered_lists(guc, lists);
+
+	return lists;
+}
+
+int intel_guc_capture_init(struct intel_guc *guc)
+{
+	guc->capture = (struct intel_guc_state_capture*)IOMalloc(sizeof(*guc->capture));
+	if (!guc->capture)
+		return -ENOMEM;
+
+	guc->capture->reglists = guc_capture_get_device_reglist(guc);
+
+	INIT_LIST_HEAD(&guc->capture->outlist);
+	INIT_LIST_HEAD(&guc->capture->cachelist);
+
+	//check_guc_capture_size(guc);
+
+	return 0;
+}
+
 uint64_t Gen11::setupAdditionalDataStructs(void *that0) {
 	
 	struct drm_i915_private *i915= NBlue::callback->i915b;
 	struct intel_display *display = i915->display;
-	struct intel_gt *gt=i915->gt[0];
-	struct intel_guc *guc = &(gt->uc.guc);
+	struct intel_gt *gt=to_gt(i915);
+	struct intel_guc *guc = gt_to_guc(gt);
 	int ret;
 	u32 size;
 	
-	guc->gt=gt;
-	guc->fw.private_data_size=display->private_data_size;
+	intel_guc_capture_init(guc);
 	
-
 	ret = guc_mmio_reg_state_create(guc);
 	if (ret < 0)
 		return ret;
@@ -9229,23 +9853,20 @@ uint64_t Gen11::setupAdditionalDataStructs(void *that0) {
 	guc->ads_vma = IGSharedMappedBufferwithOptions(field_0x150, size, 2, 0);
 	if (!guc->ads_vma) return 1;
 	getMember<void *>(that0, 0x9e8)= guc->ads_vma;
+	guc->ads_vma= (void *)fgetVirtualAddress(guc->ads_vma);
 	
-
-	void *ads_blob = (void *)fgetVirtualAddress(guc->ads_vma);
-	guc->ads_map.vaddr = (void *)fgetGPUVirtualAddress(ads_blob);
+	guc->ads_map.vaddr = guc->ads_vma;
 	guc->ads_map.is_iomem = false;
-	
 	
 	__guc_ads_init(guc);
 
-
-	u32 ads_param_val = ((u32)((u64)guc->ads_map.vaddr >> PAGE_SHIFT) << GUC_ADS_ADDR_SHIFT);
+	
+	
+	u32 ads_param_val = ((u32)(intel_guc_ggtt_offset(guc, guc->ads_vma) >> PAGE_SHIFT) << GUC_ADS_ADDR_SHIFT);
 	u32 a0=getMember<u32>(that0, 0xa0);
 	getMember<u32>(that0, 0xa0) = (a0 & 0xFFC00001) | ads_param_val;
 	
-	//intel_uc_init_late(&gt->uc);
-	
-	IGSharedMappedBufferfree(guc->ads_vma);
+	//IGSharedMappedBufferfree(guc->ads_vma);
 	
 	//if ((that->acel->capabilities & 0x20) != 0) {
 	//	IntelAccelerator::transferOwnership(that->acel, (int)that->field_0x9e8);
