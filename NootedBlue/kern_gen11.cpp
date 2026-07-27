@@ -521,7 +521,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			 //{"__ZN16IntelAccelerator15configureDeviceEP11IOPCIDevice",fconfigureDevice, this->ofconfigureDevice},
 			 //{"__ZN15IGMemoryManager16initDeviceMemoryEv",finitDeviceMemory, this->ofinitDeviceMemory},
 			 {"__ZN13IGHardwareGuC13loadGuCBinaryEv",loadGuCBinary, this->oloadGuCBinary},
-			 
+			 {"__ZN13IGHardwareGuC26setupAdditionalDataStructsEv",setupAdditionalDataStructs, this->osetupAdditionalDataStructs},
 			 
 		 };
 		PANIC_COND(!RouteRequestPlus::routeAll(patcher, index, requests, address, size), "nblue","Failed to route symbols");
@@ -663,12 +663,12 @@ uint64_t  Gen11::getOSInformation2(void *that)
 	
 	
 	for (int i = 0; i < 6; i++) {
-		pinfo[p].connectors[i].index=NBlue::callback->display_base.bconnectors[i].index;
-		pinfo[p].connectors[i].busId=NBlue::callback->display_base.bconnectors[i].busId;
-		pinfo[p].connectors[i].pipe=NBlue::callback->display_base.bconnectors[i].pipe;
-		pinfo[p].connectors[i].pad=NBlue::callback->display_base.bconnectors[i].pad;
-		pinfo[p].connectors[i].type=NBlue::callback->display_base.bconnectors[i].type;
-		pinfo[p].connectors[i].flags=NBlue::callback->display_base.bconnectors[i].flags;
+		pinfo[p].connectors[i].index=NBlue::callback->i915b->display->bconnectors[i].index;
+		pinfo[p].connectors[i].busId=NBlue::callback->i915b->display->bconnectors[i].busId;
+		pinfo[p].connectors[i].pipe=NBlue::callback->i915b->display->bconnectors[i].pipe;
+		pinfo[p].connectors[i].pad=NBlue::callback->i915b->display->bconnectors[i].pad;
+		pinfo[p].connectors[i].type=NBlue::callback->i915b->display->bconnectors[i].type;
+		pinfo[p].connectors[i].flags=NBlue::callback->i915b->display->bconnectors[i].flags;
 	}
 	
 	pinfo[p].connectors[1].type=ConnectorDummy;
@@ -728,12 +728,12 @@ uint64_t  Gen11::getOSInformation(void *that)
 	
 	
 	for (int i = 0; i < 6; i++) {
-		pinfo[p].connectors[i].index=NBlue::callback->display_base.bconnectors[i].index;
-		pinfo[p].connectors[i].busId=NBlue::callback->display_base.bconnectors[i].busId;
-		pinfo[p].connectors[i].pipe=NBlue::callback->display_base.bconnectors[i].pipe;
-		pinfo[p].connectors[i].pad=NBlue::callback->display_base.bconnectors[i].pad;
-		pinfo[p].connectors[i].type=NBlue::callback->display_base.bconnectors[i].type;
-		pinfo[p].connectors[i].flags=NBlue::callback->display_base.bconnectors[i].flags;
+		pinfo[p].connectors[i].index=NBlue::callback->i915b->display->bconnectors[i].index;
+		pinfo[p].connectors[i].busId=NBlue::callback->i915b->display->bconnectors[i].busId;
+		pinfo[p].connectors[i].pipe=NBlue::callback->i915b->display->bconnectors[i].pipe;
+		pinfo[p].connectors[i].pad=NBlue::callback->i915b->display->bconnectors[i].pad;
+		pinfo[p].connectors[i].type=NBlue::callback->i915b->display->bconnectors[i].type;
+		pinfo[p].connectors[i].flags=NBlue::callback->i915b->display->bconnectors[i].flags;
 	}
 	
 	pinfo[p].connectors[1].type=ConnectorDummy;
@@ -843,41 +843,41 @@ void Gen11::hwGetCRTC(void *that,void *param_1,void *param_2)
 	if (bk==1){
 		
 		//bklfrequency
-		getMember<uint32_t>(that, kexticl ? 0xe54 : kexttgld ? 0xe6c : 0x60)=NBlue::callback->display_base.panel.backlight.pwm_level_max;
+		getMember<uint32_t>(that, kexticl ? 0xe54 : kexttgld ? 0xe6c : 0x60)=NBlue::callback->i915b->display->panel.backlight.pwm_level_max;
 		
 		//bkllvl
-		if (getMember<uint32_t>(that, kexticl ? 0xe4c : kexttgld ? 0xe64 : 0xe58)<NBlue::callback->display_base.panel.backlight.level)
-		getMember<uint32_t>(that, kexticl ? 0xe4c : kexttgld ? 0xe64 : 0xe58)=NBlue::callback->display_base.panel.backlight.level;
+		if (getMember<uint32_t>(that, kexticl ? 0xe4c : kexttgld ? 0xe64 : 0xe58)<NBlue::callback->i915b->display->panel.backlight.level)
+		getMember<uint32_t>(that, kexticl ? 0xe4c : kexttgld ? 0xe64 : 0xe58)=NBlue::callback->i915b->display->panel.backlight.level;
 		
-		if (getMember<uint32_t>(that, kexticl ? 0xe50 : kexttgld ? 0xe68 : 0xe5c)>NBlue::callback->display_base.panel.backlight.level)
+		if (getMember<uint32_t>(that, kexticl ? 0xe50 : kexttgld ? 0xe68 : 0xe5c)>NBlue::callback->i915b->display->panel.backlight.level)
 			getMember<uint32_t>(that, kexticl ? 0xe4c : kexttgld ? 0xe64 : 0xe58)=getMember<uint32_t>(that, kexticl ? 0xe50 : kexttgld ? 0xe68 : 0xe5c);
 		
 		//bkllvl_saved
-		if (getMember<uint32_t>(that, kexticl ? 0xe50 : kexttgld ? 0xe68 : 0xe5c)<NBlue::callback->display_base.panel.backlight.level)
-		getMember<uint32_t>(that, kexticl ? 0xe50 : kexttgld ? 0xe68 : 0xe5c)=NBlue::callback->display_base.panel.backlight.level;
+		if (getMember<uint32_t>(that, kexticl ? 0xe50 : kexttgld ? 0xe68 : 0xe5c)<NBlue::callback->i915b->display->panel.backlight.level)
+		getMember<uint32_t>(that, kexticl ? 0xe50 : kexttgld ? 0xe68 : 0xe5c)=NBlue::callback->i915b->display->panel.backlight.level;
 		
 		
 		u32 pwm_ctl;
 
-		pwm_ctl = NBlue::callback->readReg32( BXT_BLC_PWM_CTL(NBlue::callback->display_base.panel.backlight.controller));
+		pwm_ctl = NBlue::callback->readReg32( BXT_BLC_PWM_CTL(NBlue::callback->i915b->display->panel.backlight.controller));
 		if (pwm_ctl & BXT_BLC_PWM_ENABLE) {
 			pwm_ctl &= ~BXT_BLC_PWM_ENABLE;
-			NBlue::callback->writeReg32( BXT_BLC_PWM_CTL(NBlue::callback->display_base.panel.backlight.controller),
+			NBlue::callback->writeReg32( BXT_BLC_PWM_CTL(NBlue::callback->i915b->display->panel.backlight.controller),
 					   pwm_ctl);
 		}
 
-		NBlue::callback->writeReg32( BXT_BLC_PWM_FREQ(NBlue::callback->display_base.panel.backlight.controller),
-									NBlue::callback->display_base.panel.backlight.pwm_level_max);
+		NBlue::callback->writeReg32( BXT_BLC_PWM_FREQ(NBlue::callback->i915b->display->panel.backlight.controller),
+									NBlue::callback->i915b->display->panel.backlight.pwm_level_max);
 
-		NBlue::callback->writeReg32( BXT_BLC_PWM_DUTY(NBlue::callback->display_base.panel.backlight.controller), NBlue::callback->display_base.panel.backlight.level);
+		NBlue::callback->writeReg32( BXT_BLC_PWM_DUTY(NBlue::callback->i915b->display->panel.backlight.controller), NBlue::callback->i915b->display->panel.backlight.level);
 
 		pwm_ctl = 0;
-		if (NBlue::callback->display_base.panel.backlight.active_low_pwm)
+		if (NBlue::callback->i915b->display->panel.backlight.active_low_pwm)
 			pwm_ctl |= BXT_BLC_PWM_POLARITY;
 
-		NBlue::callback->writeReg32( BXT_BLC_PWM_CTL(NBlue::callback->display_base.panel.backlight.controller), pwm_ctl);
-		NBlue::callback->readReg32( BXT_BLC_PWM_CTL(NBlue::callback->display_base.panel.backlight.controller));
-		NBlue::callback->writeReg32( BXT_BLC_PWM_CTL(NBlue::callback->display_base.panel.backlight.controller),
+		NBlue::callback->writeReg32( BXT_BLC_PWM_CTL(NBlue::callback->i915b->display->panel.backlight.controller), pwm_ctl);
+		NBlue::callback->readReg32( BXT_BLC_PWM_CTL(NBlue::callback->i915b->display->panel.backlight.controller));
+		NBlue::callback->writeReg32( BXT_BLC_PWM_CTL(NBlue::callback->i915b->display->panel.backlight.controller),
 				   pwm_ctl | BXT_BLC_PWM_ENABLE);
 
 	}
@@ -887,7 +887,7 @@ void Gen11::hwGetCRTC(void *that,void *param_1,void *param_2)
 
 void Gen11::hwSetPanelPowerConfig(void *that, uint param_1)
 {
-	struct intel_display *display=&NBlue::callback->display_base;
+	struct intel_display *display=NBlue::callback->i915b->display;
 	if (bk==2){
 		NBlue::callback->parse_backlight();
 		bk=1;
@@ -896,7 +896,7 @@ void Gen11::hwSetPanelPowerConfig(void *that, uint param_1)
 	if (kexticl) getMember<uint32_t>(that, 0xd00)= param_1;
 	else getMember<uint32_t>(that, 0xd48)= param_1;
 	
-	struct intel_pps_delays p = NBlue::callback->display_base.panel.pps.pps_delays;
+	struct intel_pps_delays p = NBlue::callback->i915b->display->panel.pps.pps_delays;
 
 
 	if (kexttgld)
@@ -916,7 +916,7 @@ void Gen11::hwSetPanelPowerConfig(void *that, uint param_1)
 		getMember<uint32_t>(that, 0x1558)= p.power_cycle;
 	}
 	
-	struct pps_registers regs=NBlue::callback->display_base.panel.regs;
+	struct pps_registers regs=NBlue::callback->i915b->display->panel.regs;
 	
 	
 	uint32_t PCH_PP_ON_DELAYS = REG_FIELD_PREP(PANEL_POWER_UP_DELAY_MASK, p.power_up) |
@@ -927,7 +927,7 @@ void Gen11::hwSetPanelPowerConfig(void *that, uint param_1)
 	NBlue::callback->writeReg32(regs.pp_on, PCH_PP_ON_DELAYS);
 	NBlue::callback->writeReg32(regs.pp_off, PCH_PP_OFF_DELAYS);
 
-	int div = NBlue::callback->display_base.panel.rawclk_freq / 1000;
+	int div = NBlue::callback->i915b->display->panel.rawclk_freq / 1000;
 	
 	if (NBlue::callback->readReg32(regs.pp_div)!=-1)
 		NBlue::callback->writeReg32( regs.pp_div,
@@ -1037,7 +1037,7 @@ IOReturn Gen11::getAttributeForConnection(void* framebuffer, int32_t connectInde
 		
 	if (attribute != 'bklt') { return ret; }
 	
-	u32 v=NBlue::callback->display_base.panel.backlight.level;
+	u32 v=NBlue::callback->i915b->display->panel.backlight.level;
 	if (getMember<uint32_t>(ccont2, kexticl ? 0xe4c: kexttgld ? 0xe64 : 0xe58)<v)  getMember<uint32_t>(ccont2, kexticl ? 0xe4c: kexttgld ? 0xe64 : 0xe58)=v;
 	
 	*value=getMember<uint32_t>(ccont2, kexticl ? 0xe4c: kexttgld ? 0xe64 : 0xe58);
@@ -1181,9 +1181,9 @@ IOReturn Gen11::wrapSetAttributeForConnection(void* framebuffer, int32_t connect
 	if (attribute != 'bklt') { return ret; }
 	
 	
-	if (value<NBlue::callback->display_base.panel.backlight.level)  value=NBlue::callback->display_base.panel.backlight.level;
+	if (value<NBlue::callback->i915b->display->panel.backlight.level)  value=NBlue::callback->i915b->display->panel.backlight.level;
 	
-	NBlue::callback->writeReg32( BXT_BLC_PWM_DUTY(NBlue::callback->display_base.panel.backlight.controller), value);
+	NBlue::callback->writeReg32( BXT_BLC_PWM_DUTY(NBlue::callback->i915b->display->panel.backlight.controller), value);
 	getMember<uint32_t>(ccont2, kexticl ? 0xe4c: kexttgld ? 0xe64 : 0xe58)=value;
 	return kIOReturnSuccess;
 };
@@ -1296,6 +1296,16 @@ uint64_t Gen11::finitDeviceMemory(void *that)
 	return ret;
 }
 
+
+static void wa_add(struct i915_wa_list *wal, u32 reg, u32 clr, u32 set, u32 read, bool verify)
+{
+	struct i915_wa *wa = &wal->wa[wal->count++];
+	wa->reg = reg;
+	wa->clr = clr;
+	wa->set = set;
+	wa->is_mcr = false;
+}
+
 static void wa_masked_en(struct i915_wa_list *wal, u32 reg, u32 mask)
 {
 	struct i915_wa *wa = &wal->wa[wal->count++];
@@ -1314,14 +1324,7 @@ static void wa_masked_field_set(struct i915_wa_list *wal, u32 reg, u32 mask, u32
 	wa->is_mcr = false;
 }
 
-static void wa_add(struct i915_wa_list *wal, u32 reg, u32 clr, u32 set, u32 read, bool verify)
-{
-	struct i915_wa *wa = &wal->wa[wal->count++];
-	wa->reg = reg;
-	wa->clr = clr;
-	wa->set = set;
-	wa->is_mcr = false;
-}
+
 
 static void wa_mcr_write_or(struct i915_wa_list *wal, u32 reg, u32 set)
 {
@@ -1332,11 +1335,12 @@ static void wa_mcr_write_or(struct i915_wa_list *wal, u32 reg, u32 set)
 	wa->is_mcr = true;
 }
 
-static void wa_init_start(struct i915_wa_list *wal, void *dev, const char *name, const char *engine_name)
+static void wa_init_start(struct i915_wa_list *wal, struct intel_gt *gt,
+			  const char *name, const char *engine_name)
 {
+	wal->gt = gt;
 	wal->name = name;
-	wal->dev = dev;
-	wal->count = 0;
+	wal->engine_name = engine_name;
 }
 
 static void wa_init_finish(struct i915_wa_list *wal)
@@ -1384,7 +1388,7 @@ wa_write_or(struct i915_wa_list *wal, u32 reg, u32 set)
 
 static void wa_list_apply(struct i915_wa_list *wal)
 {
-	void *dev = wal->dev;
+	struct intel_gt *gt = wal->gt;
 	struct i915_wa *wa;
 	unsigned int i;
 
@@ -1414,56 +1418,33 @@ static void wa_list_apply(struct i915_wa_list *wal)
 }
 
 
+static void
+wa_14011060649(struct intel_gt *gt, struct i915_wa_list *wal)
+{
+	struct intel_engine_cs *engine;
+	int id;
 
+	for_each_engine(engine, gt, id) {
+		if (engine->classb != VIDEO_DECODE_CLASS ||
+			(engine->instance % 2))
+			continue;
+
+		wa_write_or(wal, VDBOX_CGCTL3F10(engine->mmio_base),
+				IECPUNIT_CLKGATE_DIS);
+	}
+}
 
 static void
-gen12_gt_workarounds_init(struct i915_wa_list *wal)
+gen12_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
 {
-	struct intel_display *display = &NBlue::callback->display_base;
+	struct intel_display *display = NBlue::callback->i915b->display;
 	
 	//icl_wa_init_mcr(gt, wal);
 
 	/* Wa_14011060649:tgl,rkl,dg1,adl-s,adl-p */
-	//wa_14011060649(gt, wal);
+	wa_14011060649(gt, wal);
 	
-	struct intel_engine_cs linux_engine;
-	for (int i = 0; i < 6; i++) {
-		switch (i) {
-			case 0: // RCS
-				linux_engine.mmio_base = RENDER_RING_BASE;
-				linux_engine.engine_class = RENDER_CLASS;
-				break;
-			case 1: // CCS0
-				continue;
-			case 2: // BCS
-				linux_engine.mmio_base = BLT_RING_BASE;
-				linux_engine.engine_class = COPY_ENGINE_CLASS;
-				break;
-			case 3: // VCS0
-				linux_engine.mmio_base = GEN11_BSD_RING_BASE;
-				linux_engine.engine_class = VIDEO_DECODE_CLASS;
-				break;
-			case 4: // VCS2
-				linux_engine.mmio_base = GEN11_BSD3_RING_BASE;
-				linux_engine.engine_class = VIDEO_DECODE_CLASS;
-				break;
-			case 5: // VECS0
-				linux_engine.mmio_base = GEN11_VEBOX_RING_BASE;
-				linux_engine.engine_class = VIDEO_ENHANCE_CLASS;
-				break;
-				
-			default:
-				continue;
-		}
-		
-		if (linux_engine.engine_class != VIDEO_DECODE_CLASS /*||
-			(engine->instance % 2)*/)
-			continue;
 
-		wa_write_or(wal, VDBOX_CGCTL3F10(linux_engine.mmio_base),
-				IECPUNIT_CLKGATE_DIS);
-		
-	}
 
 	/* Wa_14011059788:tgl,rkl,adl-s,dg1,adl-p */
 	wa_mcr_write_or(wal, GEN10_DFR_RATIO_EN_AND_CHICKEN, DFR_DISABLE);
@@ -1511,9 +1492,70 @@ static u32 guc_ctl_feature_flags()
 	//	flags |= GUC_CTL_DISABLE_SCHEDULER;
 
 	//if (intel_guc_slpc_is_used(guc))
-		flags |= GUC_CTL_ENABLE_SLPC;
+	//	flags |= GUC_CTL_ENABLE_SLPC;
 
 	return flags;
+}
+
+static void _guc_log_init_sizes(struct intel_guc_log *log)
+{
+	static const struct guc_log_section sections[GUC_LOG_SECTIONS_LIMIT] = {
+		{
+			GUC_LOG_CRASH_MASK >> GUC_LOG_CRASH_SHIFT,
+			GUC_LOG_LOG_ALLOC_UNITS,
+			GUC_LOG_DEFAULT_CRASH_BUFFER_SIZE,
+			"crash dump"
+		},
+		{
+			GUC_LOG_DEBUG_MASK >> GUC_LOG_DEBUG_SHIFT,
+			GUC_LOG_LOG_ALLOC_UNITS,
+			GUC_LOG_DEFAULT_DEBUG_BUFFER_SIZE,
+			"debug",
+		},
+		{
+			GUC_LOG_CAPTURE_MASK >> GUC_LOG_CAPTURE_SHIFT,
+			GUC_LOG_CAPTURE_ALLOC_UNITS,
+			GUC_LOG_DEFAULT_CAPTURE_BUFFER_SIZE,
+			"capture",
+		}
+	};
+	int i;
+
+	for (i = 0; i < GUC_LOG_SECTIONS_LIMIT; i++)
+		log->sizes[i].bytes = sections[i].default_val;
+
+	if (log->sizes[GUC_LOG_SECTIONS_DEBUG].bytes >= SZ_1M &&
+		GUC_LOG_DEFAULT_CRASH_BUFFER_SIZE < SZ_1M)
+		log->sizes[GUC_LOG_SECTIONS_CRASH].bytes = SZ_1M;
+
+	for (i = 0; i < GUC_LOG_SECTIONS_LIMIT; i++) {
+		if ((log->sizes[i].bytes % SZ_1M) == 0) {
+			log->sizes[i].units = SZ_1M;
+			log->sizes[i].flag = sections[i].flag;
+		} else {
+			log->sizes[i].units = SZ_4K;
+			log->sizes[i].flag = 0;
+		}
+
+		if (!IS_ALIGNED(log->sizes[i].bytes, log->sizes[i].units))
+		log->sizes[i].count = log->sizes[i].bytes / log->sizes[i].units;
+
+		if (!log->sizes[i].count) {
+		} else {
+			log->sizes[i].count--;
+		}
+
+		if (log->sizes[i].count > sections[i].max) {
+			log->sizes[i].count = sections[i].max;
+		}
+	}
+
+	if (log->sizes[GUC_LOG_SECTIONS_CRASH].units != log->sizes[GUC_LOG_SECTIONS_DEBUG].units) {
+		log->sizes[GUC_LOG_SECTIONS_CRASH].units = log->sizes[GUC_LOG_SECTIONS_DEBUG].units;
+		log->sizes[GUC_LOG_SECTIONS_CRASH].count = 0;
+	}
+
+	log->sizes_initialised = true;
 }
 
 static u32 guc_ctl_log_params_flags()
@@ -1595,7 +1637,7 @@ static u32 guc_ctl_wa_flags()
 	 * don't bother testing for all X/Y/Z platforms explicitly.
 	 */
 	//if (GUC_FIRMWARE_VER(guc) >= MAKE_GUC_VER(70, 7, 0))
-		flags |= GUC_WA_ENABLE_TSC_CHECK_ON_RC6;
+	//	flags |= GUC_WA_ENABLE_TSC_CHECK_ON_RC6;
 
 	return flags;
 }
@@ -1626,7 +1668,7 @@ static void guc_init_params(u32 params[GUC_CTL_MAX_DWORDS])
 void intel_guc_write_params(u32 params[GUC_CTL_MAX_DWORDS])
 {
 	int i;
-	struct intel_display *display = &NBlue::callback->display_base;
+	struct intel_display *display = NBlue::callback->i915b->display;
 
 	
 	//intel_uncore_forcewake_get(uncore, FORCEWAKE_GT);
@@ -1642,7 +1684,7 @@ void intel_guc_write_params(u32 params[GUC_CTL_MAX_DWORDS])
 
 static inline bool guc_load_done(u32 *status, bool *success)
 {
-	struct intel_display *display = &NBlue::callback->display_base;
+	struct intel_display *display = NBlue::callback->i915b->display;
 	u32 val = intel_de_read(display, GUC_STATUS);
 	u32 uk_val = REG_FIELD_GET(GS_UKERNEL_MASK, val);
 	u32 br_val = REG_FIELD_GET(GS_BOOTROM_MASK, val);
@@ -1684,10 +1726,22 @@ static inline bool guc_load_done(u32 *status, bool *success)
 
 	return false;
 }
+
+void intel_gt_init_workarounds(struct intel_gt *gt)
+{
+	struct i915_wa_list *wal = &gt->wa_list;
+
+	wa_init_start(wal, gt, "GT", "global");
+	gen12_gt_workarounds_init(gt, wal);
+	wa_init_finish(wal);
+}
+
+
 unsigned long Gen11::loadGuCBinary(void *that)
 {
-	
-	struct intel_display *display = &NBlue::callback->display_base;
+	struct drm_i915_private *i915=NBlue::callback->i915b;
+	struct intel_gt *gt=i915->gt[0];
+	struct intel_display *display = i915->display;
 	void *m_accelerator = getMember<void *>(that, 0x38);
 	
 	if (!display || !m_accelerator) return 0;
@@ -1739,8 +1793,6 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	uint64_t log_gpu_addr;
 	
 	
-	if (!initSchedControl(that)) return 0;//guc_init_params
-	
 	fw = getFWByName("tgl_guc_70.1.1.bin");
 	if (!fw.data || fw.size == 0) return 0;
 	if (fw.size < sizeof(uc_css_header)) return 0;
@@ -1753,6 +1805,8 @@ unsigned long Gen11::loadGuCBinary(void *that)
 		return 0;
 	}
 	if (ucode_size == 0) return 0;
+	
+	display->private_data_size=header->private_data_size;
 	
 	rsa_size = header->key_size_dw * 4;
 	if (rsa_size > 256) rsa_size = 256;
@@ -1781,27 +1835,33 @@ unsigned long Gen11::loadGuCBinary(void *that)
 		return 0;
 	}
 	
+	if (!initSchedControl(that)) return 0;
+	
 	SafeForceWake(m_accelerator, true, 7);
 	
-	wa_init_start(&wal, nullptr, "GT", "global");
-	gen12_gt_workarounds_init(&wal);
-	wa_init_finish(&wal);
-	wa_list_apply(&wal);
-	
+	intel_gt_init_workarounds(gt);
+	wa_list_apply(&gt->wa_list);
 	
 	guc_init_params(params);
 	
 	log_buffer_obj = getMember<void*>(that, 0x60);
 	log_gpu_addr = fgetGPUVirtualAddress(log_buffer_obj);
 	
-		offset = log_gpu_addr >> PAGE_SHIFT;
-		flags = GUC_LOG_VALID |
-			GUC_LOG_NOTIFY_ON_HALF_FULL |
-			GUC_LOG_CAPTURE_ALLOC_UNITS |
-			(0 << GUC_LOG_CRASH_SHIFT) |
-			(0 << GUC_LOG_DEBUG_SHIFT) |
-			(7 << GUC_LOG_CAPTURE_SHIFT) |
-			(offset << GUC_LOG_BUF_ADDR_SHIFT);
+	struct intel_guc_log log0;
+	struct intel_guc_log *log=&log0;
+	_guc_log_init_sizes(log);
+	
+	offset = log_gpu_addr >> PAGE_SHIFT;
+
+	flags = GUC_LOG_VALID |
+		GUC_LOG_NOTIFY_ON_HALF_FULL |
+		log->sizes[GUC_LOG_SECTIONS_DEBUG].flag |
+		log->sizes[GUC_LOG_SECTIONS_CAPTURE].flag |
+		(log->sizes[GUC_LOG_SECTIONS_CRASH].count << GUC_LOG_CRASH_SHIFT) |
+		(log->sizes[GUC_LOG_SECTIONS_DEBUG].count << GUC_LOG_DEBUG_SHIFT) |
+		(log->sizes[GUC_LOG_SECTIONS_CAPTURE].count << GUC_LOG_CAPTURE_SHIFT) |
+		(offset << GUC_LOG_BUF_ADDR_SHIFT);
+	
 	params[GUC_CTL_LOG_PARAMS]=flags;
 	
 	log_buffer_obj = getMember<void*>(that, 0x9e8);
@@ -1810,31 +1870,17 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	flags = offset << GUC_ADS_ADDR_SHIFT;
 	params[GUC_CTL_ADS]=flags;
 	
-	//setupContextPool
-	//log_buffer_obj = getMember<void*>(that, 0x68);
-	//log_gpu_addr = fgetGPUVirtualAddress(log_buffer_obj);
-	
+	getMember<void*>(that, 0x8c)=params;
 	intel_guc_write_params(params);
 	
-	/*
-	intel_de_write(display, SOFT_SCRATCH(0), 0);
-	
-	for (int i = 0; i < 0x18; i += 4) {
-		uint32_t val = getMember<uint32_t>(that, 0x8c + i);
-		intel_de_write(display, 0xC184 + i, val);
-	}
-*/
-	
-	
-	
-	
+
 	//guc_prepare_xfer
 	shim_flags = GUC_ENABLE_READ_CACHE_LOGIC |
 			 GUC_ENABLE_READ_CACHE_FOR_SRAM_DATA |
 			 GUC_ENABLE_READ_CACHE_FOR_WOPCM_DATA |
 			 GUC_ENABLE_MIA_CLOCK_GATING;
 
-	//if (GRAPHICS_VER_FULL(uncore->i915) < IP_VER(12, 55))
+	if (GRAPHICS_VER_FULL(i915) < IP_VER(12, 55))
 		shim_flags |= GUC_DISABLE_SRAM_INIT_TO_ZEROES |
 				  GUC_ENABLE_MIA_CACHING;
 	
@@ -1845,8 +1891,8 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	else*/
 	intel_de_write(display, GEN9_GT_PM_CONFIG, GT_DOORBELL_ENABLE);
 	
-	//if (GRAPHICS_VER_FULL(uncore->i915) >= IP_VER(12, 50))
-		//intel_uncore_rmw(uncore, GUC_SHIM_CONTROL2, 0, GUC_ENABLE_DEBUG_REG);
+	if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 50))
+		intel_de_rmw(display, GUC_SHIM_CONTROL2, 0, GUC_ENABLE_DEBUG_REG);
 	
 	intel_de_rmw(display, GEN6_PMINTRMSK, ARAT_EXPIRED_INTRMSK, 0);
 	
@@ -1933,7 +1979,7 @@ unsigned long Gen11::loadGuCBinary(void *that)
 		done = false;
 		
 		while (innerTimeout > 0) {
-			//status = intel_de_read(display, GUC_STATUS);
+
 			guc_load_done(&status,&success);
 			bootrom = REG_FIELD_GET(GS_BOOTROM_MASK, status);
 			ukernel = REG_FIELD_GET(GS_UKERNEL_MASK, status);
@@ -2035,7 +2081,7 @@ void Gen11::IGSharedMappedBufferfree(void *param_1)
 
 unsigned short Gen11::acquireDoorbell(void *that, void *param_1, bool param_2)
 {
-	struct intel_display *display = &NBlue::callback->display_base;
+	struct intel_display *display = NBlue::callback->i915b->display;
 	
 	uint64_t array_base_addr = getMember<uint64_t>(that, 0x50);
 	uintptr_t array_base = static_cast<uintptr_t>(array_base_addr);
@@ -2232,7 +2278,7 @@ static void allow_read_ctx_timestamp(struct intel_engine_cs *engine)
 {
 	struct i915_wa_list *w = &engine->whitelist;
 
-	if (engine->engine_class != RENDER_CLASS)
+	if (engine->classb != RENDER_CLASS)
 		whitelist_reg_ext(w,
 						  RING_CTX_TIMESTAMP(engine->mmio_base),
 						  RING_FORCE_TO_NONPRIV_ACCESS_RD);
@@ -2244,7 +2290,7 @@ static void tgl_whitelist_build(struct intel_engine_cs *engine)
 
 	allow_read_ctx_timestamp(engine);
 
-	switch (engine->engine_class) {
+	switch (engine->classb) {
 	case RENDER_CLASS:
 
 		whitelist_reg_ext(w, PS_INVOCATION_COUNT,
@@ -2391,8 +2437,8 @@ general_render_compute_wa_init(struct intel_engine_cs *engine, struct i915_wa_li
 static void
 rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 {
-	//struct drm_i915_private *i915 = engine->i915;
-	//struct intel_gt *gt = engine->gt;
+	struct drm_i915_private *i915 = engine->i915;
+	struct intel_gt *gt = engine->gt;
 
 	/*if (IS_GFX_GT_IP_STEP(gt, IP_VER(12, 70), STEP_A0, STEP_B0) ||
 		IS_GFX_GT_IP_STEP(gt, IP_VER(12, 71), STEP_A0, STEP_B0)) {
@@ -2501,34 +2547,60 @@ static void ccs_engine_wa_mode(struct intel_engine_cs *engine, struct i915_wa_li
 	//wa_masked_en(wal, XEHP_CCS_MODE, mode);
 }
 
+
+static void
+engine_fake_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
+{
+	u8 mocs_w, mocs_r;
+
+
+	if (GRAPHICS_VER(engine->i915) >= 12) {
+		mocs_r = engine->gt->mocs.uc_index;
+		mocs_w = engine->gt->mocs.uc_index;
+
+		if (HAS_L3_CCS_READ(engine->i915) &&
+			engine->classb == COMPUTE_CLASS) {
+			mocs_r = engine->gt->mocs.wb_index;
+
+		}
+
+		
+		wa_masked_field_set(wal,
+					RING_CMD_CCTL(engine->mmio_base),
+					CMD_CCTL_MOCS_MASK,
+					CMD_CCTL_MOCS_OVERRIDE(mocs_w, mocs_r));
+	}
+}
+
 static void
 engine_init_workarounds(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 {
 
+	if (GRAPHICS_VER(engine->i915) < 4)
+		return;
 
-	//engine_fake_wa_init(engine, wal);
+	engine_fake_wa_init(engine, wal);
 
-	//if (engine->flags & I915_ENGINE_FIRST_RENDER_COMPUTE) {
-	if (engine->engine_class == RENDER_CLASS){
+
+	if (engine->flags & I915_ENGINE_FIRST_RENDER_COMPUTE) {
 		general_render_compute_wa_init(engine, wal);
 		ccs_engine_wa_mode(engine, wal);
 	}
-	//}
 
-	/*if (engine->class == COMPUTE_CLASS)
+	/*if (engine->classb == COMPUTE_CLASS)
 		ccs_engine_wa_init(engine, wal);
-	else*/ if (engine->engine_class == RENDER_CLASS)
+	else*/ if (engine->classb == RENDER_CLASS)
 		rcs_engine_wa_init(engine, wal);
 	//else
-	//	xcs_engine_wa_init(engine, wal);
+		//xcs_engine_wa_init(engine, wal);
+	
 }
 
 void intel_engine_init_ctx_wa(struct intel_engine_cs *engine)
 {
 	struct i915_wa_list *wal = &engine->ctx_wa_list;
 
-	wa_init_start(wal, engine->dev, "context", "");
-	//engine_init_workarounds(engine, wal);
+	wa_init_start(wal, engine->gt, "context", engine->name);
 	gen12_ctx_workarounds_init(engine, wal);
 	wa_init_finish(wal);
 }
@@ -2542,16 +2614,18 @@ void intel_engine_init_workarounds(struct intel_engine_cs *engine)
 {
 	struct i915_wa_list *wal = &engine->wa_list;
 
-	wa_init_start(wal, engine->dev, "engine", "");
+	wa_init_start(wal, engine->gt, "engine", engine->name);
 	engine_init_workarounds(engine, wal);
 	wa_init_finish(wal);
 }
+
+
 
 void intel_engine_init_whitelist(struct intel_engine_cs *engine)
 {
 	struct i915_wa_list *wal = &engine->whitelist;
 
-	wa_init_start(wal, engine->dev, "whitelist", "");
+	wa_init_start(wal, engine->gt, "whitelist", engine->name);
 	engine_init_whitelist(engine, wal);
 	wa_init_finish(wal);
 }
@@ -2568,57 +2642,640 @@ void intel_engine_apply_whitelist(struct intel_engine_cs *engine)
 
 
 
+static
+bool gen11_vdbox_has_sfc(struct intel_gt *gt,
+			 unsigned int physical_vdbox,
+			 unsigned int logical_vdbox, u16 vdbox_mask)
+{
+	struct drm_i915_private *i915 = gt->i915;
+
+	if ((gt->info.sfc_mask & BIT(physical_vdbox / 2)) == 0)
+		return false;
+	else if (MEDIA_VER(i915) >= 12)
+		return (physical_vdbox % 2 == 0) ||
+			!(BIT(physical_vdbox - 1) & vdbox_mask);
+	else if (MEDIA_VER(i915) == 11)
+		return logical_vdbox % 2 == 0;
+
+	return false;
+}
+
+static void engine_mask_apply_media_fuses(struct intel_gt *gt)
+{
+	struct drm_i915_private *i915 = gt->i915;
+	struct intel_display *display=i915->display;
+	unsigned int logical_vdbox = 0;
+	unsigned int i;
+	u32 media_fuse, fuse1;
+	u16 vdbox_mask;
+	u16 vebox_mask;
+
+	if (MEDIA_VER(gt->i915) < 11)
+		return;
+
+
+	media_fuse = intel_de_read(display, GEN11_GT_VEBOX_VDBOX_DISABLE);
+	if (MEDIA_VER_FULL(i915) < IP_VER(12, 55))
+		media_fuse = ~media_fuse;
+
+	vdbox_mask = REG_FIELD_GET(GEN11_GT_VDBOX_DISABLE_MASK, media_fuse);
+	vebox_mask = REG_FIELD_GET(GEN11_GT_VEBOX_DISABLE_MASK, media_fuse);
+
+	if (MEDIA_VER_FULL(i915) >= IP_VER(12, 55)) {
+		fuse1 =intel_de_read(display, HSW_PAVP_FUSE1);
+		gt->info.sfc_mask = REG_FIELD_GET(XEHP_SFC_ENABLE_MASK, fuse1);
+	} else {
+		gt->info.sfc_mask = ~0;
+	}
+
+	for (i = 0; i < I915_MAX_VCS; i++) {
+		if (!HAS_ENGINE(gt, _VCS(i))) {
+			vdbox_mask &= ~BIT(i);
+			continue;
+		}
+
+		if (!(BIT(i) & vdbox_mask)) {
+			gt->info.engine_mask &= ~BIT(_VCS(i));
+			continue;
+		}
+
+		if (gen11_vdbox_has_sfc(gt, i, logical_vdbox, vdbox_mask))
+			gt->info.vdbox_sfc_access |= BIT(i);
+		logical_vdbox++;
+	}
+
+	//GEM_BUG_ON(vdbox_mask != VDBOX_MASK(gt));
+
+	for (i = 0; i < I915_MAX_VECS; i++) {
+		if (!HAS_ENGINE(gt, _VECS(i))) {
+			vebox_mask &= ~BIT(i);
+			continue;
+		}
+
+		if (!(BIT(i) & vebox_mask)) {
+			gt->info.engine_mask &= ~BIT(_VECS(i));
+		}
+	}
+
+	//GEM_BUG_ON(vebox_mask != VEBOX_MASK(gt));
+}
+
+
+
+uint16_t intel_slicemask_from_xehp_dssmask(intel_sseu_ss_mask_t dss_mask, int dss_per_slice)
+{
+	uint16_t slice_mask = 0;
+	int i = 0;
+	uint64_t bits = (uint64_t)dss_mask.xehp;
+	uint64_t per_slice_mask = (dss_per_slice >= 64) ? ~0ULL : ((1ULL << dss_per_slice) - 1);
+
+	while (bits != 0) {
+		if ((bits & per_slice_mask) != 0) {
+			slice_mask |= static_cast<uint16_t>(1 << i);
+		}
+		bits >>= dss_per_slice;
+		i++;
+	}
+
+	//assert(i <= 16 * 8);
+
+	return slice_mask;
+}
+static void engine_mask_apply_compute_fuses(struct intel_gt *gt)
+{
+	struct drm_i915_private *i915 = gt->i915;
+	struct intel_gt_info *info = &gt->info;
+	int ss_per_ccs = info->sseu.max_subslices / I915_MAX_CCS;
+	unsigned long ccs_mask0;
+	unsigned int i;
+
+	if (GRAPHICS_VER(i915) < 11)
+		return;
+
+	if (hweight32(CCS_MASK(gt)) <= 1)
+		return;
+
+	ccs_mask0 = intel_slicemask_from_xehp_dssmask(info->sseu.compute_subslice_mask,
+							 ss_per_ccs);
+
+	for_each_clear_bit(i, &ccs_mask0, I915_MAX_CCS) {
+		info->engine_mask &= ~BIT(_CCS(i));
+	}
+}
+
+static intel_engine_mask_t init_engine_mask(struct intel_gt *gt)
+{
+	struct intel_gt_info *info = &gt->info;
+
+	//GEM_BUG_ON(!info->engine_mask);
+
+	engine_mask_apply_media_fuses(gt);
+	engine_mask_apply_compute_fuses(gt);
+
+
+	/*if (__HAS_ENGINE(info->engine_mask, GSC0) && !intel_uc_wants_gsc_uc(&gt->uc)) {
+		info->engine_mask &= ~BIT(GSC0);
+	}*/
+
+	/*if (IS_DG2(gt->i915)) {
+		u8 first_ccs = __ffs(CCS_MASK(gt));
+
+		gt->ccs.cslices = CCS_MASK(gt);
+
+		info->engine_mask &= ~GENMASK(CCS3, CCS0);
+		info->engine_mask |= BIT(_CCS(first_ccs));
+	}*/
+
+	return info->engine_mask;
+}
+
+
+static void populate_logical_ids(struct intel_gt *gt, u8 *logical_ids,
+				 u8 classb, const u8 *map, u8 num_instances)
+{
+	int i, j;
+	u8 current_logical_id = 0;
+
+	for (j = 0; j < num_instances; ++j) {
+		for (i = 0; i < ARRAY_SIZE(intel_engines); ++i) {
+			if (!HAS_ENGINE(gt, i) ||
+				intel_engines[i].classb != classb)
+				continue;
+
+			if (intel_engines[i].instance == map[j]) {
+				logical_ids[intel_engines[i].instance] =
+					current_logical_id++;
+				break;
+			}
+		}
+	}
+}
+
+static void setup_logical_ids(struct intel_gt *gt, u8 *logical_ids, u8 classb)
+{
+
+	if (MEDIA_VER(gt->i915) >= 11 && classb == VIDEO_DECODE_CLASS) {
+		const u8 map[] = { 0, 2, 4, 6, 1, 3, 5, 7 };
+
+		populate_logical_ids(gt, logical_ids, classb,
+					 map, ARRAY_SIZE(map));
+	} else {
+		int i;
+		u8 map[MAX_ENGINE_INSTANCE + 1];
+
+		for (i = 0; i < MAX_ENGINE_INSTANCE + 1; ++i)
+			map[i] = i;
+		populate_logical_ids(gt, logical_ids, classb,
+					 map, ARRAY_SIZE(map));
+	}
+}
+
+static u8 guc_class_engine_class_map[] = {
+	[GUC_RENDER_CLASS]       = RENDER_CLASS,
+	[GUC_BLITTER_CLASS]      = COPY_ENGINE_CLASS,
+	[GUC_VIDEO_CLASS]        = VIDEO_DECODE_CLASS,
+	[GUC_VIDEOENHANCE_CLASS] = VIDEO_ENHANCEMENT_CLASS,
+	[GUC_COMPUTE_CLASS]      = COMPUTE_CLASS,
+	[GUC_GSC_OTHER_CLASS]    = OTHER_CLASS,
+};
+static u8 engine_class_guc_class_map[] = {
+	[RENDER_CLASS]            = GUC_RENDER_CLASS,
+	[COPY_ENGINE_CLASS]       = GUC_BLITTER_CLASS,
+	[VIDEO_DECODE_CLASS]      = GUC_VIDEO_CLASS,
+	[VIDEO_ENHANCEMENT_CLASS] = GUC_VIDEOENHANCE_CLASS,
+	[OTHER_CLASS]             = GUC_GSC_OTHER_CLASS,
+	[COMPUTE_CLASS]           = GUC_COMPUTE_CLASS,
+};
+
+static inline u8 engine_class_to_guc_class(u8 classb)
+{
+	//BUILD_BUG_ON(ARRAY_SIZE(engine_class_guc_class_map) != MAX_ENGINE_CLASS + 1);
+	//GEM_BUG_ON(class > MAX_ENGINE_CLASS);
+
+	return engine_class_guc_class_map[classb];
+}
+
+static u32 __engine_mmio_base(struct drm_i915_private *i915,
+				  const struct engine_mmio_base *bases)
+{
+	int i;
+
+	for (i = 0; i < MAX_MMIO_BASES; i++)
+		if (GRAPHICS_VER(i915) >= bases[i].graphics_ver)
+			break;
+
+	//GEM_BUG_ON(i == MAX_MMIO_BASES);
+	//GEM_BUG_ON(!bases[i].base);
+
+	return bases[i].base;
+}
+
+const char *intel_engine_class_repr(u8 classb)
+{
+	static const char * uabi_names[] = {
+		[RENDER_CLASS] = "rcs",
+		[COPY_ENGINE_CLASS] = "bcs",
+		[VIDEO_DECODE_CLASS] = "vcs",
+		[VIDEO_ENHANCEMENT_CLASS] = "vecs",
+		[OTHER_CLASS] = "other",
+		[COMPUTE_CLASS] = "ccs",
+	};
+
+	if (classb >= ARRAY_SIZE(uabi_names) || !uabi_names[classb])
+		return "xxx";
+
+	return uabi_names[classb];
+}
+
+static void __sprint_engine_name(struct intel_engine_cs *engine)
+{
+
+	snprintf(engine->name, sizeof(engine->name), "%s'%u", intel_engine_class_repr(engine->classb));
+}
+
+
+
+
+static u32 get_reset_domain(u8 ver, enum intel_engine_id id)
+{
+	u32 reset_domain;
+
+	if (ver >= 11) {
+		static const u32 engine_reset_domains[] = {
+			[RCS0]  = GEN11_GRDOM_RENDER,
+			[BCS0]  = GEN11_GRDOM_BLT,
+			[BCS1]  = XEHPC_GRDOM_BLT1,
+			[BCS2]  = XEHPC_GRDOM_BLT2,
+			[BCS3]  = XEHPC_GRDOM_BLT3,
+			[BCS4]  = XEHPC_GRDOM_BLT4,
+			[BCS5]  = XEHPC_GRDOM_BLT5,
+			[BCS6]  = XEHPC_GRDOM_BLT6,
+			[BCS7]  = XEHPC_GRDOM_BLT7,
+			[BCS8]  = XEHPC_GRDOM_BLT8,
+			[VCS0]  = GEN11_GRDOM_MEDIA,
+			[VCS1]  = GEN11_GRDOM_MEDIA2,
+			[VCS2]  = GEN11_GRDOM_MEDIA3,
+			[VCS3]  = GEN11_GRDOM_MEDIA4,
+			[VCS4]  = GEN11_GRDOM_MEDIA5,
+			[VCS5]  = GEN11_GRDOM_MEDIA6,
+			[VCS6]  = GEN11_GRDOM_MEDIA7,
+			[VCS7]  = GEN11_GRDOM_MEDIA8,
+			[VECS0] = GEN11_GRDOM_VECS,
+			[VECS1] = GEN11_GRDOM_VECS2,
+			[VECS2] = GEN11_GRDOM_VECS3,
+			[VECS3] = GEN11_GRDOM_VECS4,
+			[CCS0]  = GEN11_GRDOM_RENDER,
+			[CCS1]  = GEN11_GRDOM_RENDER,
+			[CCS2]  = GEN11_GRDOM_RENDER,
+			[CCS3]  = GEN11_GRDOM_RENDER,
+			[GSC0]  = GEN12_GRDOM_GSC,
+		};
+		//GEM_BUG_ON(id >= ARRAY_SIZE(engine_reset_domains) ||
+			 //  !engine_reset_domains[id]);
+		reset_domain = engine_reset_domains[id];
+	} else {
+		static const u32 engine_reset_domains[] = {
+			[RCS0]  = GEN6_GRDOM_RENDER,
+			[BCS0]  = GEN6_GRDOM_BLT,
+			[VCS0]  = GEN6_GRDOM_MEDIA,
+			[VCS1]  = GEN8_GRDOM_MEDIA2,
+			[VECS0] = GEN6_GRDOM_VECS,
+		};
+		//GEM_BUG_ON(id >= ARRAY_SIZE(engine_reset_domains) ||
+			//   !engine_reset_domains[id]);
+		reset_domain = engine_reset_domains[id];
+	}
+
+	return reset_domain;
+}
+
+static u32 intel_engine_context_size(struct intel_gt *gt, u8 classb)
+{
+	u32 cxt_size;
+	struct drm_i915_private *i915 = gt->i915;
+	struct intel_display *display =i915->display;
+	
+	//BUILD_BUG_ON(I915_GTT_PAGE_SIZE != PAGE_SIZE);
+	
+	switch (classb) {
+		case COMPUTE_CLASS:
+		case RENDER_CLASS:
+			switch (GRAPHICS_VER(gt->i915)) {
+				default:
+					return DEFAULT_LR_CONTEXT_RENDER_SIZE;
+				case 12:
+				case 11:
+					return GEN11_LR_CONTEXT_RENDER_SIZE;
+				case 9:
+					return GEN9_LR_CONTEXT_RENDER_SIZE;
+				case 8:
+					return GEN8_LR_CONTEXT_RENDER_SIZE;
+				case 7:
+					if (IS_HASWELL(gt->i915))
+						return HSW_CXT_TOTAL_SIZE;
+					
+					cxt_size = intel_de_read(display, GEN7_CXT_SIZE);
+					return round_up(GEN7_CXT_TOTAL_SIZE(cxt_size) * 64,
+									PAGE_SIZE);
+				case 6:
+					cxt_size = intel_de_read(display, CXT_SIZE);
+					return round_up(GEN6_CXT_TOTAL_SIZE(cxt_size) * 64,
+									PAGE_SIZE);
+				case 5:
+				case 4:
+					cxt_size = intel_de_read(display, CXT_SIZE) + 1;
+					return round_up(cxt_size * 64, PAGE_SIZE);
+				case 3:
+				case 2:
+
+				case 1:
+					return 0;
+			}
+			break;
+			
+		default:
+		case VIDEO_DECODE_CLASS:
+		case VIDEO_ENHANCEMENT_CLASS:
+		case COPY_ENGINE_CLASS:
+		case OTHER_CLASS:
+			if (GRAPHICS_VER(gt->i915) < 8)
+				return 0;
+			return GEN8_LR_CONTEXT_OTHER_SIZE;
+	}
+	
+}
+
+void intel_engine_set_hwsp_writemask(struct intel_engine_cs *engine, u32 mask)
+{
+
+	if (GRAPHICS_VER(engine->i915) < 6 && engine->classb != RENDER_CLASS)
+		return;
+
+	struct drm_i915_private *i915 = engine->gt->i915;
+	struct intel_display *display =i915->display;
+	
+	intel_de_write(display,RING_HWSTAM(engine->mmio_base), mask);
+	
+	//if (GRAPHICS_VER(engine->i915) >= 3)
+		//ENGINE_WRITE(engine, RING_HWSTAM, mask);
+	//else
+		//ENGINE_WRITE16(engine, RING_HWSTAM, mask);
+}
+static void intel_engine_sanitize_mmio(struct intel_engine_cs *engine)
+{
+	intel_engine_set_hwsp_writemask(engine, ~0u);
+}
+
+static int intel_engine_setup(struct intel_gt *gt, enum intel_engine_id id2,
+				  u8 logical_instance)
+{
+	const struct engine_info *info = &intel_engines[id2];
+	struct drm_i915_private *i915 = gt->i915;
+	struct intel_engine_cs *engine;
+	u8 guc_class;
+
+/*	BUILD_BUG_ON(MAX_ENGINE_CLASS >= BIT(GEN11_ENGINE_CLASS_WIDTH));
+	BUILD_BUG_ON(MAX_ENGINE_INSTANCE >= BIT(GEN11_ENGINE_INSTANCE_WIDTH));
+	BUILD_BUG_ON(I915_MAX_VCS > (MAX_ENGINE_INSTANCE + 1));
+	BUILD_BUG_ON(I915_MAX_VECS > (MAX_ENGINE_INSTANCE + 1));
+*/
+	if ((id2 >= ARRAY_SIZE(gt->engine)))
+		return -EINVAL;
+
+	if ((info->classb > MAX_ENGINE_CLASS))
+		return -EINVAL;
+
+	if ((info->instance > MAX_ENGINE_INSTANCE))
+		return -EINVAL;
+
+	if ((gt->engine_class[info->classb][info->instance]))
+		return -EINVAL;
+
+	engine =  (struct intel_engine_cs *)IOMalloc(sizeof(*engine));
+	if (!engine)
+		return -ENOMEM;
+
+	//BUILD_BUG_ON(BITS_PER_TYPE(engine->mask) < I915_NUM_ENGINES);
+
+	//INIT_LIST_HEAD(&engine->pinned_contexts_list);
+	engine->id2 = id2;
+	engine->legacy_idx = INVALID_ENGINE;
+	engine->mask = BIT(id2);
+	engine->reset_domain = get_reset_domain(GRAPHICS_VER(gt->i915), id2);
+	engine->i915 = i915;
+	engine->gt = gt;
+
+	guc_class = engine_class_to_guc_class(info->classb);
+	engine->guc_id = MAKE_GUC_ID(guc_class, info->instance);
+	engine->mmio_base = __engine_mmio_base(i915, info->mmio_bases);
+
+	//engine->irq_handler = nop_irq_handler;
+
+	engine->classb = info->classb;
+	engine->instance = info->instance;
+	engine->logical_mask = BIT(logical_instance);
+	__sprint_engine_name(engine);
+
+
+	if ((engine->classb == COMPUTE_CLASS || engine->classb == RENDER_CLASS) &&
+		__ffs(CCS_MASK(engine->gt) | RCS_MASK(engine->gt)) == engine->instance)
+		engine->flags |= I915_ENGINE_FIRST_RENDER_COMPUTE;
+
+	/* features common between engines sharing EUs */
+	if (engine->classb == RENDER_CLASS || engine->classb == COMPUTE_CLASS) {
+		engine->flags |= I915_ENGINE_HAS_RCS_REG_STATE;
+		engine->flags |= I915_ENGINE_HAS_EU_PRIORITY;
+	}
+
+	engine->props.heartbeat_interval_ms =
+		CONFIG_DRM_I915_HEARTBEAT_INTERVAL;
+	engine->props.max_busywait_duration_ns =
+		CONFIG_DRM_I915_MAX_REQUEST_BUSYWAIT;
+	engine->props.preempt_timeout_ms =
+		CONFIG_DRM_I915_PREEMPT_TIMEOUT;
+	engine->props.stop_timeout_ms =
+		CONFIG_DRM_I915_STOP_TIMEOUT;
+	engine->props.timeslice_duration_ms =
+		CONFIG_DRM_I915_TIMESLICE_DURATION;
+
+
+	if (GRAPHICS_VER(i915) == 12 && (engine->flags & I915_ENGINE_HAS_RCS_REG_STATE))
+		engine->props.preempt_timeout_ms = CONFIG_DRM_I915_PREEMPT_TIMEOUT_COMPUTE;
+
+/*
+#define CLAMP_PROP(field) \
+	do { \
+		u64 clamp = intel_clamp_##field(engine, engine->props.field); \
+		if (clamp != engine->props.field) { \
+			drm_notice(&engine->i915->drm, \
+				   "Warning, clamping %s to %lld to prevent overflow\n", \
+				   #field, clamp); \
+			engine->props.field = clamp; \
+		} \
+	} while (0)
+
+	CLAMP_PROP(heartbeat_interval_ms);
+	CLAMP_PROP(max_busywait_duration_ns);
+	CLAMP_PROP(preempt_timeout_ms);
+	CLAMP_PROP(stop_timeout_ms);
+	CLAMP_PROP(timeslice_duration_ms);
+
+#undef CLAMP_PROP
+*/
+	engine->defaults = engine->props;
+
+	engine->context_size = intel_engine_context_size(gt, engine->classb);
+	if ((engine->context_size > BIT(20)))
+		engine->context_size = 0;
+	if (engine->context_size)
+		DRIVER_CAPS(i915)->has_logical_contexts = true;
+
+	//ewma__engine_latency_init(&engine->latency);
+
+	//ATOMIC_INIT_NOTIFIER_HEAD(&engine->context_status_notifier);
+
+	intel_engine_sanitize_mmio(engine);
+
+	gt->engine_class[info->classb][info->instance] = engine;
+	gt->engine[id2] = engine;
+
+	return 0;
+}
+
+static void __setup_engine_capabilities(struct intel_engine_cs *engine)
+{
+	struct drm_i915_private *i915 = engine->i915;
+
+	
+	if (engine->classb == VIDEO_DECODE_CLASS) {
+
+		if (GRAPHICS_VER(i915) >= 11 ||
+			(GRAPHICS_VER(i915) >= 9 && engine->instance == 0))
+			engine->uabi_capabilities |=
+				I915_VIDEO_CLASS_CAPABILITY_HEVC;
+
+
+		if ((GRAPHICS_VER(i915) >= 11 &&
+			 (engine->gt->info.vdbox_sfc_access &
+			  BIT(engine->instance))) ||
+			(GRAPHICS_VER(i915) >= 9 && engine->instance == 0))
+			engine->uabi_capabilities |=
+				I915_VIDEO_AND_ENHANCE_CLASS_CAPABILITY_SFC;
+	} else if (engine->classb == VIDEO_ENHANCEMENT_CLASS) {
+		if (GRAPHICS_VER(i915) >= 9 &&
+			engine->gt->info.sfc_mask & BIT(engine->instance))
+			engine->uabi_capabilities |=
+				I915_VIDEO_AND_ENHANCE_CLASS_CAPABILITY_SFC;
+	}
+}
+
+static void intel_setup_engine_capabilities(struct intel_gt *gt)
+{
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+
+	for_each_engine(engine, gt, id)
+		__setup_engine_capabilities(engine);
+}
+
+int intel_engines_init_mmio(struct intel_gt *gt)
+{
+	struct drm_i915_private *i915 = gt->i915;
+	const unsigned int engine_mask = init_engine_mask(gt);
+	unsigned int mask = 0;
+	unsigned int i, classb;
+	u8 logical_ids[MAX_ENGINE_INSTANCE + 1];
+	int err;
+
+	/*drm_WARN_ON(&i915->drm, engine_mask == 0);
+	drm_WARN_ON(&i915->drm, engine_mask &
+			GENMASK(BITS_PER_TYPE(mask) - 1, I915_NUM_ENGINES));
+*/
+	for (classb = 0; classb < MAX_ENGINE_CLASS + 1; ++classb) {
+		setup_logical_ids(gt, logical_ids, classb);
+
+		for (i = 0; i < ARRAY_SIZE(intel_engines); ++i) {
+			u8 instance = intel_engines[i].instance;
+
+			if (intel_engines[i].classb != classb ||
+				!HAS_ENGINE(gt, i))
+				continue;
+
+			err = intel_engine_setup(gt, static_cast<enum intel_engine_id >(i)  ,
+						 logical_ids[instance]);
+			if (err)
+				goto cleanup;
+
+			mask |= BIT(i);
+		}
+	}
+
+
+	if (( mask != engine_mask))
+		gt->info.engine_mask = mask;
+
+	gt->info.num_engines = hweight32(mask);
+
+	//intel_gt_check_and_clear_faults(gt);
+
+	intel_setup_engine_capabilities(gt);
+
+	//intel_uncore_prune_engine_fw_domains(gt->uncore, gt);
+
+	return 0;
+
+cleanup:
+	//intel_engines_free(gt);
+	return err;
+}
+
+static inline struct intel_sseu
+intel_sseu_from_device_info(const struct sseu_dev_info *sseu)
+{
+	struct intel_sseu value = {
+		.slice_mask = sseu->slice_mask,
+		.subslice_mask = sseu->subslice_mask.hsw[0],
+		.min_eus_per_subslice = sseu->max_eus_per_subslice,
+		.max_eus_per_subslice = sseu->max_eus_per_subslice,
+	};
+
+	return value;
+}
+
 void Gen11::engines()
 {
 
-	struct intel_engine_cs linux_engine;
-//static const struct engine_info intel_engines[]
-//	platform_engine_mask =
-	//	BIT(RCS0) | BIT(BCS0) | BIT(VECS0) | BIT(VCS0) | BIT(VCS2),
+	struct intel_gt *gt=NBlue::callback->i915b->gt[0];
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
 
-	for (int i = 0; i < 6; i++) {
-//apple code order !!
-		switch (i) {
-			case 0: // RCS
-				linux_engine.mmio_base = RENDER_RING_BASE;
-				linux_engine.engine_class = RENDER_CLASS;
-				break;
-			case 1: // CCS0
-				continue;
-			case 2: // BCS
-				linux_engine.mmio_base = BLT_RING_BASE;
-				linux_engine.engine_class = COPY_ENGINE_CLASS;
-				break;
-			case 3: // VCS0
-				linux_engine.mmio_base = GEN11_BSD_RING_BASE;
-				linux_engine.engine_class = VIDEO_DECODE_CLASS;
-				break;
-			case 4: // VCS2
-				linux_engine.mmio_base = GEN11_BSD3_RING_BASE;
-				linux_engine.engine_class = VIDEO_DECODE_CLASS;
-				break;
-			case 5: // VECS0
-				linux_engine.mmio_base = GEN11_VEBOX_RING_BASE;
-				linux_engine.engine_class = VIDEO_ENHANCE_CLASS;
-				break;
-
-			default:
-				continue;
-		}
-
-		linux_engine.wa_list.count = 0;
-		linux_engine.whitelist.count = 0;
-		linux_engine.ctx_wa_list.count = 0;
+	gt->submission_method = INTEL_SUBMISSION_GUC;
+	
+	intel_engines_init_mmio(gt);
+	
+	for_each_engine(engine, gt, id) {
 		
-		intel_engine_init_workarounds(&linux_engine);
-		intel_engine_init_whitelist(&linux_engine);
-		intel_engine_init_ctx_wa(&linux_engine);
+		engine->sseu =	intel_sseu_from_device_info(&engine->gt->info.sseu);
 		
-		intel_engine_apply_workarounds(&linux_engine);
-		intel_engine_apply_whitelist(&linux_engine);
+		engine->wa_list.count = 0;
+		engine->whitelist.count = 0;
+		engine->ctx_wa_list.count = 0;
+		
+		engine->flags |= I915_ENGINE_HAS_RELATIVE_MMIO;
+		
+		intel_engine_init_workarounds(engine);
+		intel_engine_init_whitelist(engine);
+		intel_engine_init_ctx_wa(engine);
+		
+	}
+	
+	for_each_engine(engine, gt, id) {
+		
+		intel_engine_apply_workarounds(engine);
+		intel_engine_apply_whitelist(engine);
 		
 		//intel_engine_emit_ctx_wa
-		wa_list_apply(&linux_engine.ctx_wa_list); //???
+		wa_list_apply(&engine->ctx_wa_list); //???
 	}
 }
 
@@ -3333,7 +3990,7 @@ static int snb_pcode_rw( u32 mbox,
 			  int fast_timeout_us, int slow_timeout_ms,
 			  bool is_read)
 {
-	struct intel_display *display=&NBlue::callback->display_base;
+	struct intel_display *display=NBlue::callback->i915b->display;
 
 	
 	if (intel_de_read(display, GEN6_PCODE_MAILBOX) & GEN6_PCODE_READY)
@@ -3818,7 +4475,7 @@ static void icl_mbus_init(struct intel_display *display)
 }
 bool intel_dp_is_edp()
 {
-	struct intel_display *display = &NBlue::callback->display_base;
+	struct intel_display *display = NBlue::callback->i915b->display;
 
 	return (display->child0->device_type & DEVICE_TYPE_INTERNAL_CONNECTOR);
 }
@@ -3933,7 +4590,7 @@ static void tgl_bw_buddy_init(struct intel_display *display)
 
 static void icl_set_pipe_chicken()
 {
-	struct intel_display *display =&NBlue::callback->display_base;
+	struct intel_display *display =NBlue::callback->i915b->display;
 	enum pipe pipe = display->pipe0;
 	u32 tmp;
 
@@ -4111,7 +4768,7 @@ void intel_dmc_load_program(struct intel_display *display)
 
 void Gen11::hwInitializeCState(void *that)
 {
-	struct intel_display *display=&NBlue::callback->display_base;
+	struct intel_display *display=NBlue::callback->i915b->display;
 	if (display->initok) return;
 	
 	if (getMember<int>(that, kexticl ? 0xb38 : 0xb48) != 1) return;
@@ -4217,7 +4874,7 @@ void Gen11::setupPipeWatermarks (void *that,void *param_1,void *param_2,CRTCPara
 
 static u32 intel_ddi_transcoder_func_reg_val_get()
 {
-	struct intel_display *display=&NBlue::callback->display_base;
+	struct intel_display *display=NBlue::callback->i915b->display;
 	enum pipe pipe = display->pipe0;
 	struct intel_crtc_state *crtc_state=&display->crtc_state0;
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
@@ -4287,7 +4944,7 @@ intel_crtc_has_dp_encoder(const struct intel_crtc_state *crtc_state)
 
 static u32 intel_ddi_set_dp_msa(bool wr)
 {
-	struct intel_display *display = &NBlue::callback->display_base;
+	struct intel_display *display = NBlue::callback->i915b->display;
 	struct intel_crtc_state *crtc_state=&display->crtc_state0;
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 	u32 temp;
@@ -4333,7 +4990,7 @@ static u32 intel_ddi_set_dp_msa(bool wr)
 
 static u32 bdw_set_pipe_misc()
 {
-	struct intel_display *display = &NBlue::callback->display_base;
+	struct intel_display *display = NBlue::callback->i915b->display;
 	struct intel_crtc_state *crtc_state=&display->crtc_state0;
 	
 	u32 val = 0;
@@ -4399,13 +5056,13 @@ intel_crtc_has_type(const struct intel_crtc_state *crtc_state,
 
 static bool use_edp_low_vswing()
 {
-	struct intel_display *display = &NBlue::callback->display_base;
+	struct intel_display *display = NBlue::callback->i915b->display;
 	return display->panel.vbt.edp.low_vswing;
 }
 
 static bool use_edp_hobl()
 {
-	struct intel_display *display = &NBlue::callback->display_base;
+	struct intel_display *display = NBlue::callback->i915b->display;
 	struct intel_dp *intel_dp = &display->intel_dp0;
 
 	return display->panel.vbt.edp.hobl && !intel_dp->hobl_failed;
@@ -4415,7 +5072,7 @@ static const struct intel_ddi_buf_trans *
 tgl_get_combo_buf_trans_dp(const struct intel_crtc_state *crtc_state,
 			   int *n_entries)
 {
-	struct intel_display *display = &NBlue::callback->display_base;
+	struct intel_display *display = NBlue::callback->i915b->display;
 
 	if (crtc_state->port_clock > 270000) {
 		if (display->platform.tigerlake_uy) {
@@ -4465,11 +5122,11 @@ tgl_get_combo_buf_trans(const struct intel_crtc_state *crtc_state,
 
 static u32 icl_combo_phy_loadgen_select(int lane)
 {
-	struct intel_display *display = &NBlue::callback->display_base;
+	struct intel_display *display = NBlue::callback->i915b->display;
 	if (display->port_clock > 600000)
 		return 0;
 
-	if (NBlue::callback->display_base.panel.vbt.edp.lanes == 4)
+	if (NBlue::callback->i915b->display->panel.vbt.edp.lanes == 4)
 		return lane >= 1 ? LOADGEN_SELECT : 0;
 	else
 		return lane == 1 || lane == 2 ? LOADGEN_SELECT : 0;
@@ -4656,13 +5313,13 @@ static inline u8 intel_dp_training_pattern_symbol(u8 pattern)
 
 u32 dp_tp_ctl_reg()
 {
-	struct intel_display *display = &NBlue::callback->display_base;
+	struct intel_display *display = NBlue::callback->i915b->display;
 	struct intel_crtc_state *crtc_state = &display->crtc_state0;
 	return TGL_DP_TP_CTL(display, crtc_state->cpu_transcoder);
 }
 static void intel_ddi_set_link_train(struct intel_dp *intel_dp,u8 dp_train_pat)
 {
-	struct intel_display *display = &NBlue::callback->display_base;
+	struct intel_display *display = NBlue::callback->i915b->display;
 	u32 temp;
 
 	temp = intel_de_read(display, dp_tp_ctl_reg());
@@ -4701,7 +5358,7 @@ static bool
 intel_dp_set_link_train(struct intel_dp *intel_dp,enum drm_dp_phy dp_phy,
 			u8 dp_train_pat)
 {
-	struct intel_display *display = &NBlue::callback->display_base;
+	struct intel_display *display = NBlue::callback->i915b->display;
 	int reg = intel_dp_training_pattern_set_reg(intel_dp, dp_phy);
 	u8 buf[sizeof(intel_dp->train_set) + 1];
 	int len;
@@ -4722,7 +5379,7 @@ intel_dp_reset_link_train(struct intel_dp *intel_dp,enum drm_dp_phy dp_phy,
 			  u8 dp_train_pat)
 {
 	memset(intel_dp->train_set, 0, sizeof(intel_dp->train_set));
-	icl_combo_phy_set_signal_levels(&NBlue::callback->display_base);
+	icl_combo_phy_set_signal_levels(NBlue::callback->i915b->display);
 	return intel_dp_set_link_train( intel_dp,dp_phy, dp_train_pat);
 }
 
@@ -4822,7 +5479,7 @@ static u8 intel_ddi_dp_voltage_max(struct intel_display *display)
 static u8 intel_dp_phy_voltage_max(struct intel_dp *intel_dp,
 				   enum drm_dp_phy dp_phy)
 {
-	struct intel_display *display = &NBlue::callback->display_base;
+	struct intel_display *display = NBlue::callback->i915b->display;
 	u8 voltage_max;
 
 
@@ -4845,7 +5502,7 @@ static u8 intel_dp_get_lane_adjust_vswing_preemph(struct intel_dp *intel_dp, enu
 	u8 preemph_max;
 
 	if (1/*has_per_lane_signal_levels(intel_dp, dp_phy)*/) {
-		lane = min(lane, NBlue::callback->display_base.panel.vbt.edp.lanes - 1);
+		lane = min(lane, NBlue::callback->i915b->display->panel.vbt.edp.lanes - 1);
 
 		v = drm_dp_get_adjust_request_voltage(link_status, lane);
 		p = drm_dp_get_adjust_request_pre_emphasis(link_status, lane);
@@ -4905,7 +5562,7 @@ static bool intel_dp_adjust_request_changed(struct intel_dp *intel_dp, const u8 
 {
 	int lane;
 
-	for (lane = 0; lane < NBlue::callback->display_base.panel.vbt.edp.lanes; lane++) {
+	for (lane = 0; lane < NBlue::callback->i915b->display->panel.vbt.edp.lanes; lane++) {
 		u8 old, new2;
 		u8 n1, n2;
 
@@ -4957,7 +5614,7 @@ static bool intel_dp_link_max_vswing_reached(struct intel_dp *intel_dp)
 {
 	int lane;
 
-	for (lane = 0; lane < NBlue::callback->display_base.panel.vbt.edp.lanes; lane++) {
+	for (lane = 0; lane < NBlue::callback->i915b->display->panel.vbt.edp.lanes; lane++) {
 		u8 train_set_lane = intel_dp->train_set[lane];
 
 		/*if (intel_dp_is_uhbr(crtc_state)) {
@@ -4983,9 +5640,9 @@ intel_dp_update_link_train(struct intel_dp *intel_dp,
 				DP_TRAINING_LANE0_SET_PHY_REPEATER(dp_phy);
 	int ret;
 
-	icl_combo_phy_set_signal_levels(&NBlue::callback->display_base);
+	icl_combo_phy_set_signal_levels(NBlue::callback->i915b->display);
 	
-	ret=Gen11::callback->writeAUX(linkp,reg,intel_dp->train_set, NBlue::callback->display_base.panel.vbt.edp.lanes);
+	ret=Gen11::callback->writeAUX(linkp,reg,intel_dp->train_set, NBlue::callback->i915b->display->panel.vbt.edp.lanes);
 	
 
 	return ret >= 0;
@@ -5068,7 +5725,7 @@ intel_dp_link_training_clock_recovery(struct intel_dp *intel_dp,enum drm_dp_phy 
 	u8 link_status[DP_LINK_STATUS_SIZE];
 	bool max_vswing_reached = false;
 	int delay_us;
-	struct intel_display *display = &NBlue::callback->display_base;
+	struct intel_display *display = NBlue::callback->i915b->display;
 	
 	delay_us = drm_dp_read_clock_recovery_delay(nullptr, intel_dp->dpcd, DP_PHY_DPRX,false);
 
@@ -5179,7 +5836,7 @@ static u32 intel_dp_training_pattern(struct intel_dp *intel_dp,
 					 const struct intel_crtc_state *crtc_state,
 					 enum drm_dp_phy dp_phy)
 {
-	struct intel_display *display = &NBlue::callback->display_base;
+	struct intel_display *display = NBlue::callback->i915b->display;
 	bool source_tps3, sink_tps3, source_tps4, sink_tps4;
 
 	if (intel_dp_is_uhbr(crtc_state))
@@ -5216,7 +5873,7 @@ intel_dp_link_training_channel_equalization(struct intel_dp *intel_dp,enum drm_d
 	u8 link_status[DP_LINK_STATUS_SIZE];
 	bool channel_eq = false;
 	int delay_us;
-	struct intel_display *display = &NBlue::callback->display_base;
+	struct intel_display *display = NBlue::callback->i915b->display;
 	const struct intel_crtc_state *crtc_state=&display->crtc_state0;
 	
 	delay_us = drm_dp_read_channel_eq_delay(nullptr, intel_dp->dpcd, DP_PHY_DPRX,false);;
@@ -5328,7 +5985,7 @@ u8 drm_dp_link_rate_to_bw_code(int link_rate)
 
 static void intel_ddi_init_dp_buf_reg(struct intel_dp *intel_dp)
 {
-	struct intel_display *display = &NBlue::callback->display_base;
+	struct intel_display *display = NBlue::callback->i915b->display;
 	
 
 	intel_dp->DP = DDI_PORT_WIDTH(display->panel.vbt.edp.lanes) |
@@ -5368,7 +6025,7 @@ static u32 intel_ddi_buf_status_reg(struct intel_display *display, enum port por
 }
 static void intel_wait_ddi_buf_active()
 {
-	struct intel_display *display = &NBlue::callback->display_base;
+	struct intel_display *display = NBlue::callback->i915b->display;
 	enum port port = display->port0;
 
 
@@ -5378,7 +6035,7 @@ static void intel_wait_ddi_buf_active()
 
 static void intel_ddi_buf_enable( u32 buf_ctl)
 {
-	struct intel_display *display = &NBlue::callback->display_base;
+	struct intel_display *display = NBlue::callback->i915b->display;
 	enum port port = display->port0;
 
 		intel_de_write(display, DDI_BUF_CTL(port), buf_ctl | DDI_BUF_CTL_ENABLE);
@@ -5391,7 +6048,7 @@ static void intel_ddi_buf_enable( u32 buf_ctl)
 
 static void intel_ddi_prepare_link_retrain(struct intel_dp *intel_dp)
 {
-	struct intel_display *display = &NBlue::callback->display_base;
+	struct intel_display *display = NBlue::callback->i915b->display;
 	struct intel_crtc_state *crtc_state = &display->crtc_state0;
 	u32 dp_tp_ctl;
 
@@ -5498,7 +6155,7 @@ int drm_dp_pcon_convert_rgb_to_ycbcr(u8 color_spc)
 
 void intel_dp_configure_protocol_converter(struct intel_dp *intel_dp)
 {
-	struct intel_display *display = &NBlue::callback->display_base;
+	struct intel_display *display = NBlue::callback->i915b->display;
 	struct intel_crtc_state *crtc_state=&display->crtc_state0;
 	
 	bool ycbcr444_to_420 = false;
@@ -5575,7 +6232,7 @@ write_dsc_decompression_flag( u8 flag, bool set)
 
 static u32 dp_tp_status_reg()
 {
-	struct intel_display *display = &NBlue::callback->display_base;
+	struct intel_display *display = NBlue::callback->i915b->display;
 	struct intel_crtc_state *crtc_state = &display->crtc_state0;
 	
 	if (DISPLAY_VER(display) >= 12)
@@ -5588,7 +6245,7 @@ static u32 dp_tp_status_reg()
 
 static void intel_ddi_set_idle_link_train(struct intel_dp *intel_dp)
 {
-	struct intel_display *display = &NBlue::callback->display_base;
+	struct intel_display *display = NBlue::callback->i915b->display;
 	enum port port = display->port0;
 
 	intel_de_rmw(display, dp_tp_ctl_reg(),
@@ -5627,7 +6284,7 @@ int intel_dp_rate_index(int *rates, int len, int rate)
 }
 int intel_dp_rate_select(struct intel_dp *intel_dp, int rate)
 {
-	struct intel_display *display = &NBlue::callback->display_base;
+	struct intel_display *display = NBlue::callback->i915b->display;
 	int i = intel_dp_rate_index(intel_dp->sink_rates,
 					intel_dp->num_sink_rates, rate);
 
@@ -5639,7 +6296,7 @@ int intel_dp_rate_select(struct intel_dp *intel_dp, int rate)
 void intel_dp_compute_rate(struct intel_dp *intel_dp, int port_clock,
 			   u8 *link_bw, u8 *rate_select)
 {
-	struct intel_display *display = &NBlue::callback->display_base;
+	struct intel_display *display = NBlue::callback->i915b->display;
 
 	/* eDP 1.4 rate select method. */
 	if (intel_dp->use_rate_select) {
@@ -5665,7 +6322,7 @@ void intel_dp_link_training_set_mode(struct intel_dp *intel_dp, int link_rate, b
 
 static void intel_dp_update_downspread_ctrl(struct intel_dp *intel_dp)
 {
-	struct intel_display *display=&NBlue::callback->display_base;
+	struct intel_display *display=NBlue::callback->i915b->display;
 	struct intel_crtc_state *crtc_state=&display->crtc_state0;
 	intel_dp_link_training_set_mode(intel_dp,
 									display->port_clock, crtc_state->vrr.in_range);
@@ -5694,7 +6351,7 @@ void intel_dp_link_training_set_bw(struct intel_dp *intel_dp,
 static void intel_dp_update_link_bw_set(struct intel_dp *intel_dp,
 					u8 link_bw, u8 rate_select)
 {
-	struct intel_display *display=&NBlue::callback->display_base;
+	struct intel_display *display=NBlue::callback->i915b->display;
 	struct intel_crtc_state *crtc_state=&display->crtc_state0;
 	
 	intel_dp_link_training_set_bw(intel_dp, link_bw, rate_select, display->panel.vbt.edp.lanes,
@@ -5705,7 +6362,7 @@ static bool
 intel_dp_prepare_link_train(struct intel_dp *intel_dp)
 {
 	u8 link_bw, rate_select;
-	struct intel_display *display=&NBlue::callback->display_base;
+	struct intel_display *display=NBlue::callback->i915b->display;
 	
 	intel_ddi_prepare_link_retrain(intel_dp);
 	intel_dp_compute_rate(intel_dp, display->port_clock,&link_bw, &rate_select);
@@ -5724,7 +6381,7 @@ intel_dp_prepare_link_train(struct intel_dp *intel_dp)
 
 void intel_dp_stop_link_train(struct intel_dp *intel_dp)
 {
-	struct intel_display *display = &NBlue::callback->display_base;;
+	struct intel_display *display = NBlue::callback->i915b->display;;
 	int ret;
 
 	intel_dp->link.active = true;
@@ -5808,7 +6465,7 @@ void intel_dp_set_power(struct intel_dp *intel_dp, u8 mode)
 void
 intel_ddi_config_transcoder_func(struct intel_crtc_state *crtc_state)
 {
-	struct intel_display *display = &NBlue::callback->display_base;
+	struct intel_display *display = NBlue::callback->i915b->display;
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 	u32 ctl;
 
@@ -5823,7 +6480,7 @@ intel_ddi_config_transcoder_func(struct intel_crtc_state *crtc_state)
 
 static void intel_ddi_mso_configure(struct intel_crtc_state *crtc_state)
 {
-	struct intel_display *display = &NBlue::callback->display_base;
+	struct intel_display *display = NBlue::callback->i915b->display;
 	enum pipe pipe = display->pipe0;
 	struct intel_dp *intel_dp=&display->intel_dp0;
 	
@@ -5850,7 +6507,7 @@ static void intel_ddi_mso_configure(struct intel_crtc_state *crtc_state)
 
 void intel_dp_sink_enable_decompression()
 {
-	struct intel_display *display = &NBlue::callback->display_base;
+	struct intel_display *display = NBlue::callback->i915b->display;
 
 	//if (!new_crtc_state->dsc.compression_enable)
 		return;
@@ -5958,7 +6615,7 @@ static enum drm_dp_mst_mode
 intel_dp_mst_mode_choose(struct intel_dp *intel_dp,
 			 enum drm_dp_mst_mode sink_mst_mode)
 {
-	struct intel_display *display = &NBlue::callback->display_base;
+	struct intel_display *display = NBlue::callback->i915b->display;
 
 	//if (!display->params.enable_dp_mst)
 	//	return DRM_DP_SST;
@@ -5976,7 +6633,7 @@ intel_dp_mst_mode_choose(struct intel_dp *intel_dp,
 static enum drm_dp_mst_mode
 intel_dp_mst_detect(struct intel_dp *intel_dp)
 {
-	struct intel_display *display = &NBlue::callback->display_base;
+	struct intel_display *display = NBlue::callback->i915b->display;
 	enum drm_dp_mst_mode sink_mst_mode;
 	enum drm_dp_mst_mode mst_detect;
 
@@ -6018,7 +6675,7 @@ int drm_dp_read_downstream_info(struct intel_dp *intel_dp,
 
 bool intel_dp_start_link_train(struct intel_dp *intel_dp)
 {
-	struct intel_display *display = &NBlue::callback->display_base;
+	struct intel_display *display = NBlue::callback->i915b->display;
 	//struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	//struct intel_encoder *encoder = &dig_port->base;
 	bool passed;
@@ -6077,7 +6734,7 @@ void intel_dp_set_link_params(struct intel_dp *intel_dp,
 
 void intel_ddi_enable_transcoder_clock(struct intel_crtc_state *crtc_state)
 {
-	struct intel_display *display =&NBlue::callback->display_base;
+	struct intel_display *display =NBlue::callback->i915b->display;
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 	enum phy phy = display->phy0;
 	u32 val;
@@ -6098,7 +6755,7 @@ void intel_ddi_enable_transcoder_clock(struct intel_crtc_state *crtc_state)
 static void intel_dp_enable_port(struct intel_dp *intel_dp,
 				 const struct intel_crtc_state *crtc_state)
 {
-	struct intel_display *display =&NBlue::callback->display_base;
+	struct intel_display *display =NBlue::callback->i915b->display;
 
 	intel_dp_program_link_training_pattern(intel_dp,
 						   DP_PHY_DPRX, DP_TRAINING_PATTERN_1);
@@ -6111,7 +6768,7 @@ static void intel_dp_enable_port(struct intel_dp *intel_dp,
 
 bool tgl_ddi_pre_enable_dp(struct intel_crtc_state *crtc_state)
 {
-	struct intel_display *display =&NBlue::callback->display_base;
+	struct intel_display *display =NBlue::callback->i915b->display;
 	struct intel_dp *intel_dp = &display->intel_dp0;
 	bool is_mst = intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP_MST);
 	int ret;
@@ -6199,7 +6856,7 @@ drm_dp_enhanced_frame_cap(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
 
 bool intel_dsc_source_support(const struct intel_crtc_state *crtc_state)
 {
-	struct intel_display *display =&NBlue::callback->display_base;
+	struct intel_display *display =NBlue::callback->i915b->display;
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 
 	if (!HAS_DSC(display))
@@ -6225,7 +6882,7 @@ int intel_dp_output_format_link_bpp_x16(enum intel_output_format output_format, 
 int
 intel_dp_compute_config(struct intel_crtc_state *pipe_config)
 {
-	struct intel_display *display=&NBlue::callback->display_base;
+	struct intel_display *display=NBlue::callback->i915b->display;
 	struct intel_dp *intel_dp=&display->intel_dp0;
 	int ret = 0, link_bpp_x16;
 	struct drm_display_mode *adjusted_mode = &pipe_config->hw.adjusted_mode;
@@ -6351,7 +7008,7 @@ static u8 intel_ddi_splitter_pipe_mask(struct intel_display *display)
 
 static void intel_ddi_mso_get_config( struct intel_crtc_state *pipe_config)
 {
-	struct intel_display *display =&NBlue::callback->display_base;
+	struct intel_display *display =NBlue::callback->i915b->display;
 	enum pipe pipe = display->pipe0;
 	u32 dss1;
 
@@ -6398,7 +7055,7 @@ intel_bios_encoder_supports_edp(struct intel_display *display)
 static void intel_ddi_read_func_ctl_dp_sst(struct intel_crtc_state *crtc_state,
 					   u32 ddi_func_ctl)
 {
-	struct intel_display *display = &NBlue::callback->display_base;
+	struct intel_display *display = NBlue::callback->i915b->display;
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 
 	//if (encoder->type == INTEL_OUTPUT_EDP)
@@ -6436,7 +7093,7 @@ static void intel_ddi_read_func_ctl_dp_sst(struct intel_crtc_state *crtc_state,
 
 static void intel_ddi_read_func_ctl(struct intel_crtc_state *pipe_config)
 {
-	struct intel_display *display= &NBlue::callback->display_base;
+	struct intel_display *display= NBlue::callback->i915b->display;
 	enum transcoder cpu_transcoder = pipe_config->cpu_transcoder;
 	u32 ddi_func_ctl, ddi_mode, flags = 0;
 
@@ -6526,7 +7183,7 @@ static enum transcoder bdw_transcoder_master_readout(struct intel_display *displ
 
 static void bdw_get_trans_port_sync_config(struct intel_crtc_state *crtc_state)
 {
-	struct intel_display *display = &NBlue::callback->display_base;
+	struct intel_display *display = NBlue::callback->i915b->display;
 	u32 transcoders = BIT(TRANSCODER_A) | BIT(TRANSCODER_B) |
 		BIT(TRANSCODER_C) | BIT(TRANSCODER_D);
 	enum transcoder cpu_transcoder;
@@ -6558,7 +7215,7 @@ static void bdw_get_trans_port_sync_config(struct intel_crtc_state *crtc_state)
 
 static void intel_ddi_get_config(struct intel_crtc_state *pipe_config)
 {
-	struct intel_display *display = &NBlue::callback->display_base;
+	struct intel_display *display = NBlue::callback->i915b->display;
 	enum transcoder cpu_transcoder = pipe_config->cpu_transcoder;
 
 
@@ -6615,7 +7272,7 @@ static u32 bdw_trans_port_sync_master_select(enum transcoder master_transcoder)
 }
 void intel_ddi_enable_transcoder_func(struct intel_crtc_state *crtc_state)
 {
-	struct intel_display *display  =&NBlue::callback->display_base;
+	struct intel_display *display  =NBlue::callback->i915b->display;
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 
 	if (DISPLAY_VER(display) >= 11) {
@@ -6654,7 +7311,7 @@ static bool pipe_scanline_is_moving(struct intel_display *display, enum pipe pip
 
 int wait_for_pipe_scanline_moving()
 {
-			struct intel_display *display = &NBlue::callback->display_base;
+			struct intel_display *display = NBlue::callback->i915b->display;
 
 			AbsoluteTime deadline, now;
 			uint32_t wait_us = 2;
@@ -6691,7 +7348,7 @@ int wait_for_pipe_scanline_moving()
 
 void intel_enable_transcoder(struct intel_crtc_state *new_crtc_state)
 {
-	struct intel_display *display =&NBlue::callback->display_base;
+	struct intel_display *display =NBlue::callback->i915b->display;
 	enum transcoder cpu_transcoder = new_crtc_state->cpu_transcoder;
 	enum pipe pipe = display->pipe0;
 	u32 val;
@@ -6757,7 +7414,7 @@ void intel_enable_transcoder(struct intel_crtc_state *new_crtc_state)
 
 static void intel_ddi_enable(struct intel_crtc_state *crtc_state)
 {
-	struct intel_display *display =&NBlue::callback->display_base;
+	struct intel_display *display =NBlue::callback->i915b->display;
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 	bool is_hdmi = false;
 	int i;
@@ -6797,7 +7454,7 @@ static void icl_ddi_combo_get_config(struct intel_crtc_state *crtc_state)
 
 static bool intel_pipe_is_interlaced(const struct intel_crtc_state *crtc_state)
 {
-	struct intel_display *display = &NBlue::callback->display_base;
+	struct intel_display *display = NBlue::callback->i915b->display;
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 
 	if (DISPLAY_VER(display) == 2 || DISPLAY_VER(display) >= 35)
@@ -6828,7 +7485,7 @@ static u8 hsw_panel_transcoders(struct intel_display *display)
 
 static void intel_get_transcoder_timings(struct intel_crtc_state *pipe_config)
 {
-	struct intel_display *display = &NBlue::callback->display_base;
+	struct intel_display *display = NBlue::callback->i915b->display;
 	enum transcoder cpu_transcoder = pipe_config->cpu_transcoder;
 	struct drm_display_mode *adjusted_mode = &pipe_config->hw.adjusted_mode;
 	u32 tmp;
@@ -6888,7 +7545,7 @@ static void intel_get_transcoder_timings(struct intel_crtc_state *pipe_config)
 
 static int intel_ddi_compute_config_late(struct intel_crtc_state *crtc_state)
 {
-	struct intel_display *display = &NBlue::callback->display_base;
+	struct intel_display *display = NBlue::callback->i915b->display;
 	u8 port_sync_transcoders = 0;
 	int ret = 0;
 
@@ -6923,7 +7580,7 @@ uint64_t  Gen11::linkTraining(void *that,void *param_1)
 {
 	//return FunctionCast(linkTraining, callback->olinkTraining)(that,param_1);
 	
-	struct intel_display *display = &NBlue::callback->display_base;
+	struct intel_display *display = NBlue::callback->i915b->display;
 	struct intel_dp *intel_dp=&display->intel_dp0;
 	struct intel_crtc_state *crtc_state=&display->crtc_state0;
 	int lane_count=display->panel.vbt.edp.lanes;
@@ -6971,7 +7628,7 @@ uint64_t  Gen11::linkTraining(void *that,void *param_1)
 
 uint64_t Gen11::getLinkConfig(void *that,IOFBDPLinkConfig *param_1)
 {
-	struct intel_display *display = &NBlue::callback->display_base;
+	struct intel_display *display = NBlue::callback->i915b->display;
 	struct intel_dp *intel_dp=&display->intel_dp0;
 	
 	auto ret=FunctionCast(getLinkConfig, callback->ogetLinkConfig)(that,param_1 );
@@ -7002,7 +7659,7 @@ uint64_t Gen11::getLinkConfig(void *that,IOFBDPLinkConfig *param_1)
 
 void Gen11::SetupParams2 (void *param_2, CRTCParams *param_3)
 {
-	struct intel_display *display = &NBlue::callback->display_base;
+	struct intel_display *display = NBlue::callback->i915b->display;
 	if (setpc){
 		setpc=0;
 		
@@ -7085,14 +7742,14 @@ int Gen11::writeAUX(void *that,uint param_1,void *param_2,uint param_3)
 
 uint64_t Gen11::hwSetPanelPower(void *that,uint param_1)
 {
-	struct intel_display *display=&NBlue::callback->display_base;
-	if (IS_DISPLAY_VER(&NBlue::callback->display_base, 13, 14))
+	struct intel_display *display=NBlue::callback->i915b->display;
+	if (IS_DISPLAY_VER(NBlue::callback->i915b->display, 13, 14))
 		intel_de_rmw(display, SOUTH_DSPCLK_GATE_D,
 				 0, PCH_DPLSUNIT_CLOCK_GATE_DISABLE);
 	
 	auto ret= FunctionCast(hwSetPanelPower, callback->ohwSetPanelPower)(that,param_1);
 	
-	if (IS_DISPLAY_VER(&NBlue::callback->display_base, 13, 14))
+	if (IS_DISPLAY_VER(NBlue::callback->i915b->display, 13, 14))
 		intel_de_rmw(display, SOUTH_DSPCLK_GATE_D,
 				 PCH_DPLSUNIT_CLOCK_GATE_DISABLE, 0);
 	
@@ -7411,7 +8068,7 @@ void intel_dbuf_mdclk_cdclk_ratio_update(struct intel_display *display,
 
 void  Gen11::enableDisplayEngine(void *that0)
 {
-	struct intel_display *display = &NBlue::callback->display_base;
+	struct intel_display *display = NBlue::callback->i915b->display;
 	u32 pg_state, pll_state, dbuf_state0, ddi_state;
 	int iVar6;
 	AppleIntelPowerWell0 *that=(AppleIntelPowerWell0*)that0;
@@ -7558,7 +8215,7 @@ int Gen11::probePortMode(struct intel_display *display, int port)
 
 void  Gen11::AppleIntelPowerWellinit(void *that0, void *param_1)
 {
-	struct intel_display *display = &NBlue::callback->display_base;
+	struct intel_display *display = NBlue::callback->i915b->display;
 	u32 pg_state, ddi_state, aux_state, tbt_state;
 	int bootPipe;
 	u32 active_ddi = 9;
@@ -7704,4 +8361,894 @@ void  Gen11::AppleIntelPowerWellinit(void *that0, void *param_1)
 	if (that->powerwellalwaysON != '\0') {
 		overridePowerWellsState(that0, true);
 	}
+}
+
+
+
+
+
+
+
+static int guc_mmio_reg_cmp(const void *a, const void *b)
+{
+	struct guc_mmio_reg *ra = (struct guc_mmio_reg*)a;
+	struct guc_mmio_reg *rb = (struct guc_mmio_reg*)b;
+
+	return (int)ra->offset - (int)rb->offset;
+}
+
+static struct guc_mmio_reg *
+__mmio_reg_add(struct temp_regset *regset, struct guc_mmio_reg *reg)
+{
+	u32 pos = regset->storage_used;
+	struct guc_mmio_reg *slot;
+
+	if (pos >= regset->storage_max) {
+		size_t size = ALIGN((pos + 1) * sizeof(*slot), PAGE_SIZE);
+		struct guc_mmio_reg *r = (struct guc_mmio_reg *)((u8*)regset->storage+size);
+		//struct guc_mmio_reg *r = krealloc(regset->storage, size, GFP_KERNEL);
+		if (!r) {
+			return nullptr;
+		}
+
+		regset->registers = r + (regset->registers - regset->storage);
+		regset->storage = r;
+		regset->storage_max = size / sizeof(*slot);
+	}
+
+	slot = &regset->storage[pos];
+	regset->storage_used++;
+	*slot = *reg;
+
+	return slot;
+}
+
+static
+void *bsearch(const void *key, const void *base, size_t num, size_t size)
+{
+	char *pivot;
+	int result;
+
+	while (num > 0) {
+		pivot = (char *)((u8*)base + (num >> 1) * size);
+		result = guc_mmio_reg_cmp(key, pivot);
+
+		if (result == 0)
+			return (void *)pivot;
+
+		if (result > 0) {
+			base = pivot + size;
+			num--;
+		}
+		num >>= 1;
+	}
+
+	return NULL;
+}
+
+static long guc_mmio_reg_add(struct intel_gt *gt,
+					  struct temp_regset *regset,
+					  u32 offset, u32 flags)
+{
+	u32 count = regset->storage_used - (regset->registers - regset->storage);
+	struct guc_mmio_reg entry = {
+		.offset = offset,
+		.flags = flags,
+	};
+	struct guc_mmio_reg *slot;
+
+
+	if (bsearch(&entry, regset->registers, count, sizeof(entry)))
+		return 0;
+
+	slot = __mmio_reg_add(regset, &entry);
+	if (slot==nullptr)
+		return 0;
+
+	while (slot-- > regset->registers) {
+		//GEM_BUG_ON(slot[0].offset == slot[1].offset);
+		if (slot[1].offset > slot[0].offset)
+			break;
+
+		swap(slot[1], slot[0]);
+	}
+
+	return 0;
+}
+
+#define GUC_MMIO_REG_ADD(gt, regset, reg, masked) \
+	guc_mmio_reg_add(gt, \
+			 regset, \
+			 i915_mmio_reg_offset(reg), \
+			 (masked) ? GUC_REGSET_MASKED : 0)
+
+#define GUC_REGSET_STEERING(group, instance) ( \
+	FIELD_PREP(GUC_REGSET_STEERING_GROUP, (group)) | \
+	FIELD_PREP(GUC_REGSET_STEERING_INSTANCE, (instance)) | \
+	GUC_REGSET_NEEDS_STEERING \
+)
+
+static bool reg_needs_read_steering(struct intel_gt *gt,
+									u32 reg,
+					enum intel_steering_type type)
+{
+	u32 offset = i915_mmio_reg_offset(reg);
+	const struct intel_mmio_range *entry;
+
+	if ((!gt->steering_table[type]))
+		return false;
+
+	//if (IS_GSI_REG(offset))
+	//	offset += gt->uncore->gsi_offset;
+
+	for (entry = gt->steering_table[type]; entry->end; entry++) {
+		if (offset >= entry->start && offset <= entry->end)
+			return true;
+	}
+
+	return false;
+}
+
+static inline unsigned int
+intel_sseu_find_first_xehp_dss(const struct sseu_dev_info *sseu, int groupsize,
+				   int groupnum)
+{
+	return find_next_bit(sseu->subslice_mask.xehp,
+				 XEHP_BITMAP_BITS(sseu->subslice_mask),
+				 groupnum * groupsize);
+}
+
+static void get_nonterminated_steering(struct intel_gt *gt,
+					   enum intel_steering_type type,
+					   u8 *group, u8 *instance)
+{
+	u32 dss;
+
+	switch (type) {
+	case L3BANK:
+		*group = 0;		/* unused */
+		*instance = __ffs(gt->info.l3bank_mask);
+		break;
+	case MSLICE:
+		//GEM_WARN_ON(!HAS_MSLICE_STEERING(gt->i915));
+		*group = __ffs(gt->info.mslice_mask);
+		*instance = 0;	/* unused */
+		break;
+	case LNCF:
+
+		//GEM_WARN_ON(!HAS_MSLICE_STEERING(gt->i915));
+		*group = __ffs(gt->info.mslice_mask) << 1;
+		*instance = 0;	/* unused */
+		break;
+	case GAM:
+		*group = IS_DG2(gt->i915) ? 1 : 0;
+		*instance = 0;
+		break;
+	case DSS:
+		dss = intel_sseu_find_first_xehp_dss(&gt->info.sseu, 0, 0);
+		*group = dss / GEN_DSS_PER_GSLICE;
+		*instance = dss % GEN_DSS_PER_GSLICE;
+		break;
+	case INSTANCE0:
+		/*
+		 * There are a lot of MCR types for which instance (0, 0)
+		 * will always provide a non-terminated value.
+		 */
+		*group = 0;
+		*instance = 0;
+		break;
+	case OADDRM:
+		if ((VDBOX_MASK(gt) | VEBOX_MASK(gt) | gt->info.sfc_mask) & BIT(0))
+			*group = 0;
+		else
+			*group = 1;
+		*instance = 0;
+		break;
+	default:
+		*group = 0;
+		*instance = 0;
+	}
+}
+
+void intel_gt_mcr_get_nonterminated_steering(struct intel_gt *gt,
+						 u32 reg,
+						 u8 *group, u8 *instance)
+{
+	int type;
+
+	
+	for (type = 0; type < static_cast<int>(NUM_STEERING_TYPES); type++) {
+		if (reg_needs_read_steering(gt, reg, static_cast<enum intel_steering_type>(type))) {
+			get_nonterminated_steering(gt, static_cast<enum intel_steering_type>(type), group, instance);
+			return;
+		}
+	}
+
+	*group = gt->default_steering.groupid;
+	*instance = gt->default_steering.instanceid;
+}
+
+static long guc_mcr_reg_add(struct intel_gt *gt,
+				struct temp_regset *regset,
+							u32 reg, u32 flags)
+{
+	u8 group, inst;
+
+	intel_gt_mcr_get_nonterminated_steering(gt, reg, &group, &inst);
+	flags |= GUC_REGSET_STEERING(group, inst);
+
+	return guc_mmio_reg_add(gt, regset, i915_mmio_reg_offset(reg), flags);
+}
+
+#define GUC_MCR_REG_ADD(gt, regset, reg, masked) \
+	guc_mcr_reg_add(gt, \
+			 regset, \
+			 (reg), \
+			 static_cast<u32>((masked) ? GUC_REGSET_MASKED : 0))
+
+static int guc_mmio_regset_init(struct temp_regset *regset,
+				struct intel_engine_cs *engine)
+{
+	struct intel_gt *gt = engine->gt;
+	const u32 base = engine->mmio_base;
+	struct i915_wa_list *wal = &engine->wa_list;
+	struct i915_wa *wa;
+	unsigned int i;
+	int ret = 0;
+
+	regset->registers = regset->storage + regset->storage_used;
+
+	ret |= GUC_MMIO_REG_ADD(gt, regset, RING_MODE_GEN7(base), true);
+	ret |= GUC_MMIO_REG_ADD(gt, regset, RING_HWS_PGA(base), false);
+	ret |= GUC_MMIO_REG_ADD(gt, regset, RING_IMR(base), false);
+
+	if ((engine->flags & I915_ENGINE_FIRST_RENDER_COMPUTE) &&
+		CCS_MASK(engine->gt))
+		ret |= GUC_MMIO_REG_ADD(gt, regset, GEN12_RCU_MODE, true);
+
+
+	for (i = 0, wa = &wal->wa[i]; i < wal->count; i++, wa++)
+		if (wa->mcr_reg) ret |= GUC_MCR_REG_ADD(gt, regset, wa->mcr_reg, wa->masked_reg);
+
+	for (i = 0; i < RING_MAX_NONPRIV_SLOTS; i++)
+		ret |= GUC_MMIO_REG_ADD(gt, regset,
+					RING_FORCE_TO_NONPRIV(base, i),
+					false);
+
+	for (i = 0; i < LNCFCMOCS_REG_COUNT; i++)
+		/*if (GRAPHICS_VER_FULL(engine->i915) >= IP_VER(12, 55))
+			ret |= GUC_MCR_REG_ADD(gt, regset, XEHP_LNCFCMOCS(i), false);
+		else*/
+			ret |= GUC_MMIO_REG_ADD(gt, regset, GEN9_LNCFCMOCS(i), false);
+
+
+	
+	if (GRAPHICS_VER(engine->i915) >= 12) {
+		ret |= GUC_MCR_REG_ADD(gt, regset, MCR_REG(i915_mmio_reg_offset(EU_PERF_CNTL0)), false);
+		ret |= GUC_MCR_REG_ADD(gt, regset, MCR_REG(i915_mmio_reg_offset(EU_PERF_CNTL1)), false);
+		ret |= GUC_MCR_REG_ADD(gt, regset, MCR_REG(i915_mmio_reg_offset(EU_PERF_CNTL2)), false);
+		ret |= GUC_MCR_REG_ADD(gt, regset, MCR_REG(i915_mmio_reg_offset(EU_PERF_CNTL3)), false);
+		ret |= GUC_MCR_REG_ADD(gt, regset, MCR_REG(i915_mmio_reg_offset(EU_PERF_CNTL4)), false);
+		ret |= GUC_MCR_REG_ADD(gt, regset, MCR_REG(i915_mmio_reg_offset(EU_PERF_CNTL5)), false);
+		ret |= GUC_MCR_REG_ADD(gt, regset, MCR_REG(i915_mmio_reg_offset(EU_PERF_CNTL6)), false);
+	}
+
+	return ret ? -1 : 0;
+}
+
+static long guc_mmio_reg_state_create(struct intel_guc *guc)
+{
+	struct intel_gt *gt = guc->gt;
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+	struct temp_regset temp_set = {};
+	long total = 0;
+	long ret;
+
+	for_each_engine(engine, gt, id) {
+		u32 used = temp_set.storage_used;
+
+		ret = guc_mmio_regset_init(&temp_set, engine);
+		if (ret < 0)
+			goto fail_regset_init;
+
+		guc->ads_regset_count[id] = temp_set.storage_used - used;
+		total += guc->ads_regset_count[id];
+	}
+
+	guc->ads_regset = temp_set.storage;
+
+	return total * sizeof(struct guc_mmio_reg);
+
+fail_regset_init:
+	//kfree(temp_set.storage);
+	return ret;
+}
+
+
+
+
+static inline void iosys_map_incr(struct iosys_map *map, size_t incr)
+{
+	if (map->is_iomem)
+		map->vaddr_iomem = static_cast<decltype(map->vaddr_iomem)>(static_cast<uint8_t*>(map->vaddr_iomem) + incr);
+	else
+		map->vaddr = static_cast<decltype(map->vaddr)>(static_cast<uint8_t*>(map->vaddr) + incr);
+}
+
+#define IOSYS_MAP_INIT_OFFSET(map_, offset_) ({				\
+	struct iosys_map copy_ = *map_;					\
+	iosys_map_incr(&copy_, offset_);				\
+	copy_;								\
+})
+
+static inline bool iosys_map_is_null(const struct iosys_map *map)
+{
+	if (map->is_iomem)
+		return !map->vaddr_iomem;
+	return !map->vaddr;
+}
+static inline void iosys_map_set_vaddr(struct iosys_map *map, void *vaddr)
+{
+	map->vaddr = vaddr;
+	map->is_iomem = false;
+}
+
+static u32 guc_ads_regset_size(struct intel_guc *guc)
+{
+	//GEM_BUG_ON(!guc->ads_regset_size);
+	return guc->ads_regset_size;
+}
+
+static u32 guc_ads_regset_offset(struct intel_guc *guc)
+{
+	return offsetof(struct __guc_ads_blob, regset);
+}
+
+static u32 guc_ads_golden_ctxt_offset(struct intel_guc *guc)
+{
+	u32 offset;
+
+	offset = guc_ads_regset_offset(guc) +
+		 guc_ads_regset_size(guc);
+
+	return PAGE_ALIGN(offset);
+}
+
+static inline u64 __i915_vma_offset(void *vma)
+{
+	return 0;//vma->node.start + vma->guard;
+}
+static inline u64 i915_vma_offset(void *vma)
+{
+	//GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
+	return __i915_vma_offset(vma);
+}
+
+static inline u32 i915_ggtt_offset(void *vma)
+{
+	/*GEM_BUG_ON(!i915_vma_is_ggtt(vma));
+	GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
+	GEM_BUG_ON(upper_32_bits(i915_vma_offset(vma)));
+	GEM_BUG_ON(upper_32_bits(i915_vma_offset(vma) +
+				 i915_vma_size(vma) - 1));*/
+	return lower_32_bits(i915_vma_offset(vma));
+}
+
+static inline u32 intel_guc_ggtt_offset(struct intel_guc *guc,
+					void *vma)
+{
+	u32 offset = i915_ggtt_offset(vma);
+
+	//GEM_BUG_ON(offset < i915_ggtt_pin_bias(vma));
+	//GEM_BUG_ON(range_overflows_t(u64, offset, vma->size, GUC_GGTT_TOP));
+
+	return offset;
+}
+
+
+
+
+
+static void fill_engine_enable_masks(struct intel_gt *gt,
+					 struct iosys_map *info_map)
+{
+	info_map_write(info_map, engine_enabled_masks[GUC_RENDER_CLASS], RCS_MASK(gt));
+	info_map_write(info_map, engine_enabled_masks[GUC_COMPUTE_CLASS], CCS_MASK(gt));
+	info_map_write(info_map, engine_enabled_masks[GUC_BLITTER_CLASS], BCS_MASK(gt));
+	info_map_write(info_map, engine_enabled_masks[GUC_VIDEO_CLASS], VDBOX_MASK(gt));
+	info_map_write(info_map, engine_enabled_masks[GUC_VIDEOENHANCE_CLASS], VEBOX_MASK(gt));
+
+	/* The GSC engine is an instance (6) of OTHER_CLASS */
+	/*if (gt->engine[GSC0])
+		info_map_write(info_map, engine_enabled_masks[GUC_GSC_OTHER_CLASS],
+				   BIT(gt->engine[GSC0]->instance));*/
+}
+
+static int guc_prep_golden_context(struct intel_guc *guc)
+{
+	struct intel_gt *gt = guc->gt;
+	u32 addr_ggtt, offset;
+	u32 total_size = 0, alloc_size, real_size;
+	u8 engine_class, guc_class;
+	struct guc_gt_system_info local_info;
+	struct iosys_map info_map;
+
+
+	if (!iosys_map_is_null(&guc->ads_map)) {
+		offset = guc_ads_golden_ctxt_offset(guc);
+		addr_ggtt = intel_guc_ggtt_offset(guc, guc->ads_vma) + offset;
+		info_map = IOSYS_MAP_INIT_OFFSET(&guc->ads_map,
+						 offsetof(struct __guc_ads_blob, system_info));
+	} else {
+		memset(&local_info, 0, sizeof(local_info));
+		iosys_map_set_vaddr(&info_map, &local_info);
+		fill_engine_enable_masks(gt, &info_map);
+	}
+
+	for (engine_class = 0; engine_class <= MAX_ENGINE_CLASS; ++engine_class) {
+		guc_class = engine_class_to_guc_class(engine_class);
+
+		if (!info_map_read(&info_map, engine_enabled_masks[guc_class]))
+			continue;
+
+		real_size = intel_engine_context_size(gt, engine_class);
+		alloc_size = PAGE_ALIGN(real_size);
+		total_size += alloc_size;
+
+		if (iosys_map_is_null(&guc->ads_map))
+			continue;
+
+
+		ads_blob_write(guc, ads.eng_state_size[guc_class],
+				   real_size - LRC_SKIP_SIZE(gt->i915));
+		ads_blob_write(guc, ads.golden_context_lrca[guc_class],
+				   addr_ggtt);
+
+		addr_ggtt += alloc_size;
+	}
+
+//	if (guc->ads_golden_ctxt_size)
+	//	GEM_BUG_ON(guc->ads_golden_ctxt_size != total_size);
+
+	return total_size;
+}
+
+static u32 guc_ads_golden_ctxt_size(struct intel_guc *guc)
+{
+	return PAGE_ALIGN(guc->ads_golden_ctxt_size);
+}
+
+static u32 guc_ads_waklv_size(struct intel_guc *guc)
+{
+	return PAGE_ALIGN(guc->ads_waklv_size);
+}
+
+static u32 guc_ads_capture_size(struct intel_guc *guc)
+{
+	return PAGE_ALIGN(guc->ads_capture_size);
+}
+
+static u32 guc_ads_private_data_size(struct intel_guc *guc)
+{
+	return PAGE_ALIGN(guc->fw.private_data_size);
+}
+
+
+static u32 guc_ads_waklv_offset(struct intel_guc *guc)
+{
+	u32 offset;
+
+	offset = guc_ads_golden_ctxt_offset(guc) +
+		 guc_ads_golden_ctxt_size(guc);
+
+	return PAGE_ALIGN(offset);
+}
+static u32 guc_ads_capture_offset(struct intel_guc *guc)
+{
+	u32 offset;
+
+	offset = guc_ads_waklv_offset(guc) +
+		 guc_ads_waklv_size(guc);
+
+	return PAGE_ALIGN(offset);
+}
+
+
+int
+intel_guc_capture_getnullheader(struct intel_guc *guc,
+				void **outptr, size_t *size)
+{
+	//struct intel_guc_state_capture *gc = guc->capture;
+	int tmp = sizeof(u32) * 4;
+	void *null_header;
+
+	/*if (gc->ads_null_cache) {
+		*outptr = gc->ads_null_cache;
+		*size = tmp;
+		return 0;
+	}*/
+
+	null_header = IOMalloc(tmp);//kzalloc(tmp, GFP_KERNEL);
+	if (!null_header) {
+		return -ENOMEM;
+	}
+
+	//gc->ads_null_cache = null_header;
+	*outptr = null_header;
+	*size = tmp;
+
+	return 0;
+}
+
+static inline void iosys_map_memcpy_to(struct iosys_map *dst, size_t dst_offset,
+					   const void *src, size_t len)
+{
+	//if (dst->is_iomem)
+	//	memcpy_toio(dst->vaddr_iomem + dst_offset, src, len);
+	//else
+		memcpy((u8*)dst->vaddr + dst_offset, src, len);
+}
+
+static u32 guc_get_capture_engine_mask(struct iosys_map *info_map, u32 capture_class)
+{
+	u32 mask;
+
+	switch (capture_class) {
+	case GUC_CAPTURE_LIST_CLASS_RENDER_COMPUTE:
+		mask = info_map_read(info_map, engine_enabled_masks[GUC_RENDER_CLASS]);
+		mask |= info_map_read(info_map, engine_enabled_masks[GUC_COMPUTE_CLASS]);
+		break;
+
+	case GUC_CAPTURE_LIST_CLASS_VIDEO:
+		mask = info_map_read(info_map, engine_enabled_masks[GUC_VIDEO_CLASS]);
+		break;
+
+	case GUC_CAPTURE_LIST_CLASS_VIDEOENHANCE:
+		mask = info_map_read(info_map, engine_enabled_masks[GUC_VIDEOENHANCE_CLASS]);
+		break;
+
+	case GUC_CAPTURE_LIST_CLASS_BLITTER:
+		mask = info_map_read(info_map, engine_enabled_masks[GUC_BLITTER_CLASS]);
+		break;
+
+	case GUC_CAPTURE_LIST_CLASS_GSC_OTHER:
+		mask = info_map_read(info_map, engine_enabled_masks[GUC_GSC_OTHER_CLASS]);
+		break;
+
+	default:
+		mask = 0;
+	}
+
+	return mask;
+}
+
+static int
+guc_capture_prep_lists(struct intel_guc *guc)
+{
+	struct intel_gt *gt = guc->gt;
+	u32 ads_ggtt, capture_offset, null_ggtt, total_size = 0;
+	struct guc_gt_system_info local_info;
+	struct iosys_map info_map;
+	bool ads_is_mapped;
+	size_t size = 0;
+	void *ptr;
+	int i, j;
+
+	ads_is_mapped = !iosys_map_is_null(&guc->ads_map);
+	if (ads_is_mapped) {
+		capture_offset = guc_ads_capture_offset(guc);
+		ads_ggtt = intel_guc_ggtt_offset(guc, guc->ads_vma);
+		info_map = IOSYS_MAP_INIT_OFFSET(&guc->ads_map,
+						 offsetof(struct __guc_ads_blob, system_info));
+	} else {
+		memset(&local_info, 0, sizeof(local_info));
+		iosys_map_set_vaddr(&info_map, &local_info);
+		fill_engine_enable_masks(gt, &info_map);
+	}
+
+	total_size = PAGE_SIZE;
+	/*if (ads_is_mapped) {
+		if (!intel_guc_capture_getnullheader(guc, &ptr, &size))
+			iosys_map_memcpy_to(&guc->ads_map, capture_offset, ptr, size);
+		null_ggtt = ads_ggtt + capture_offset;
+		capture_offset += PAGE_SIZE;
+	}
+
+	for (i = 0; i < GUC_CAPTURE_LIST_INDEX_MAX; i++) {
+		for (j = 0; j < GUC_MAX_ENGINE_CLASSES; j++) {
+			u32 engine_mask = guc_get_capture_engine_mask(&info_map, j);
+
+			if (!engine_mask) {
+				if (ads_is_mapped) {
+					ads_blob_write(guc, ads.capture_class[i][j], null_ggtt);
+					ads_blob_write(guc, ads.capture_instance[i][j], null_ggtt);
+				}
+				continue;
+			}
+			if (intel_guc_capture_getlistsize(guc, i,
+							  GUC_CAPTURE_LIST_TYPE_ENGINE_CLASS,
+							  j, &size)) {
+				if (ads_is_mapped)
+					ads_blob_write(guc, ads.capture_class[i][j], null_ggtt);
+				goto engine_instance_list;
+			}
+			total_size += size;
+			if (ads_is_mapped) {
+				if (total_size > guc->ads_capture_size ||
+					intel_guc_capture_getlist(guc, i,
+								  GUC_CAPTURE_LIST_TYPE_ENGINE_CLASS,
+								  j, &ptr)) {
+					ads_blob_write(guc, ads.capture_class[i][j], null_ggtt);
+					continue;
+				}
+				ads_blob_write(guc, ads.capture_class[i][j], ads_ggtt +
+						   capture_offset);
+				iosys_map_memcpy_to(&guc->ads_map, capture_offset, ptr, size);
+				capture_offset += size;
+			}
+engine_instance_list:
+			if (intel_guc_capture_getlistsize(guc, i,
+							  GUC_CAPTURE_LIST_TYPE_ENGINE_INSTANCE,
+							  j, &size)) {
+				if (ads_is_mapped)
+					ads_blob_write(guc, ads.capture_instance[i][j], null_ggtt);
+				continue;
+			}
+			total_size += size;
+			if (ads_is_mapped) {
+				if (total_size > guc->ads_capture_size ||
+					intel_guc_capture_getlist(guc, i,
+								  GUC_CAPTURE_LIST_TYPE_ENGINE_INSTANCE,
+								  j, &ptr)) {
+					ads_blob_write(guc, ads.capture_instance[i][j], null_ggtt);
+					continue;
+				}
+				ads_blob_write(guc, ads.capture_instance[i][j], ads_ggtt +
+						   capture_offset);
+				iosys_map_memcpy_to(&guc->ads_map, capture_offset, ptr, size);
+				capture_offset += size;
+			}
+		}
+		if (intel_guc_capture_getlistsize(guc, i, GUC_CAPTURE_LIST_TYPE_GLOBAL, 0, &size)) {
+			if (ads_is_mapped)
+				ads_blob_write(guc, ads.capture_global[i], null_ggtt);
+			continue;
+		}
+		total_size += size;
+		if (ads_is_mapped) {
+			if (total_size > guc->ads_capture_size ||
+				intel_guc_capture_getlist(guc, i, GUC_CAPTURE_LIST_TYPE_GLOBAL, 0,
+							  &ptr)) {
+				ads_blob_write(guc, ads.capture_global[i], null_ggtt);
+				continue;
+			}
+			ads_blob_write(guc, ads.capture_global[i], ads_ggtt + capture_offset);
+			iosys_map_memcpy_to(&guc->ads_map, capture_offset, ptr, size);
+			capture_offset += size;
+		}
+	}*/
+
+
+	return PAGE_ALIGN(total_size);
+}
+
+static int guc_prep_waklv(struct intel_guc *guc)
+{
+	return PAGE_SIZE;
+}
+
+static u32 guc_ads_private_data_offset(struct intel_guc *guc)
+{
+	u32 offset;
+
+	offset = guc_ads_capture_offset(guc) +
+		 guc_ads_capture_size(guc);
+
+	return PAGE_ALIGN(offset);
+}
+
+static u32 guc_ads_blob_size(struct intel_guc *guc)
+{
+	return guc_ads_private_data_offset(guc) +
+		   guc_ads_private_data_size(guc);
+}
+
+static void guc_policies_init(struct intel_guc *guc)
+{
+	struct intel_gt *gt = guc->gt;
+	struct drm_i915_private *i915 = gt->i915;
+	u32 global_flags = 0;
+
+	ads_blob_write(guc, policies.dpc_promote_time,
+			   GLOBAL_POLICY_DEFAULT_DPC_PROMOTE_TIME_US);
+	ads_blob_write(guc, policies.max_num_work_items,
+			   GLOBAL_POLICY_MAX_NUM_WI);
+
+	//if (i915->params.reset < 2)
+	//	global_flags |= GLOBAL_POLICY_DISABLE_ENGINE_RESET;
+
+	ads_blob_write(guc, policies.global_flags, global_flags);
+	ads_blob_write(guc, policies.is_valid, 1);
+}
+
+
+static void guc_mapping_table_init(struct intel_gt *gt,
+				   struct iosys_map *info_map)
+{
+	unsigned int i, j;
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+
+	/* Table must be set to invalid values for entries not used */
+	for (i = 0; i < GUC_MAX_ENGINE_CLASSES; ++i)
+		for (j = 0; j < GUC_MAX_INSTANCES_PER_CLASS; ++j)
+			info_map_write(info_map, mapping_table[i][j],
+					   GUC_MAX_INSTANCES_PER_CLASS);
+
+	for_each_engine(engine, gt, id) {
+		u8 guc_class = engine_class_to_guc_class(engine->classb);
+
+		info_map_write(info_map, mapping_table[guc_class][ilog2(engine->logical_mask)],
+				   engine->instance);
+	}
+}
+
+static void guc_mmio_reg_state_init(struct intel_guc *guc)
+{
+	struct intel_gt *gt = guc->gt;
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+	u32 addr_ggtt, offset;
+
+	offset = guc_ads_regset_offset(guc);
+	addr_ggtt = intel_guc_ggtt_offset(guc, guc->ads_vma) + offset;
+
+	iosys_map_memcpy_to(&guc->ads_map, offset, guc->ads_regset,
+				guc->ads_regset_size);
+
+	for_each_engine(engine, gt, id) {
+		u32 count = guc->ads_regset_count[id];
+		u8 guc_class;
+
+		//GEM_BUG_ON(engine->instance >= GUC_MAX_INSTANCES_PER_CLASS);
+
+		guc_class = engine_class_to_guc_class(engine->classb);
+
+		if (!count) {
+			ads_blob_write(guc,
+					   ads.reg_state_list[guc_class][engine->instance].address,
+					   0);
+			ads_blob_write(guc,
+					   ads.reg_state_list[guc_class][engine->instance].count,
+					   0);
+			continue;
+		}
+
+		ads_blob_write(guc,
+				   ads.reg_state_list[guc_class][engine->instance].address,
+				   addr_ggtt);
+		ads_blob_write(guc,
+				   ads.reg_state_list[guc_class][engine->instance].count,
+				   count);
+
+		addr_ggtt += count * sizeof(struct guc_mmio_reg);
+	}
+}
+
+static void __guc_ads_init(struct intel_guc *guc)
+{
+	struct intel_gt *gt = guc->gt;
+	struct drm_i915_private *i915 = gt->i915;
+	struct intel_display *display=i915->display;
+	struct iosys_map info_map = IOSYS_MAP_INIT_OFFSET(&guc->ads_map,
+			offsetof(struct __guc_ads_blob, system_info));
+	u32 base;
+
+	guc_policies_init(guc);
+
+	fill_engine_enable_masks(gt, &info_map);
+
+	ads_blob_write(guc, system_info.generic_gt_sysinfo[GUC_GENERIC_GT_SYSINFO_SLICE_ENABLED],
+			   hweight8(gt->info.sseu.slice_mask));
+	ads_blob_write(guc, system_info.generic_gt_sysinfo[GUC_GENERIC_GT_SYSINFO_VDBOX_SFC_SUPPORT_MASK],
+			   gt->info.vdbox_sfc_access);
+
+	if (GRAPHICS_VER(i915) >= 12 && !IS_DGFX(i915)) {
+		u32 distdbreg = intel_de_read(display,
+						  GEN12_DIST_DBS_POPULATED);
+		ads_blob_write(guc,
+				   system_info.generic_gt_sysinfo[GUC_GENERIC_GT_SYSINFO_DOORBELL_COUNT_PER_SQIDI],
+				   ((distdbreg >> GEN12_DOORBELLS_PER_SQIDI_SHIFT)
+				& GEN12_DOORBELLS_PER_SQIDI) + 1);
+	}
+
+	guc_prep_golden_context(guc);
+
+	guc_mapping_table_init(guc->gt, &info_map);
+
+	base = intel_guc_ggtt_offset(guc, guc->ads_vma);
+
+	guc_capture_prep_lists(guc);
+
+	ads_blob_write(guc, ads.scheduler_policies, base +
+			   offsetof(struct __guc_ads_blob, policies));
+	ads_blob_write(guc, ads.gt_system_info, base +
+			   offsetof(struct __guc_ads_blob, system_info));
+
+	guc_mmio_reg_state_init(guc);
+
+	//guc_waklv_init(guc);
+
+	ads_blob_write(guc, ads.private_data, base +
+			   guc_ads_private_data_offset(guc));
+
+	//i915_gem_object_flush_map(guc->ads_vma->obj);
+}
+
+
+uint64_t Gen11::setupAdditionalDataStructs(void *that0) {
+	
+	struct drm_i915_private *i915= NBlue::callback->i915b;
+	struct intel_display *display = i915->display;
+	struct intel_gt *gt=i915->gt[0];
+	struct intel_guc *guc = &(gt->uc.guc);
+	int ret;
+	u32 size;
+	
+	guc->gt=gt;
+	guc->fw.private_data_size=display->private_data_size;
+	
+
+	ret = guc_mmio_reg_state_create(guc);
+	if (ret < 0)
+		return ret;
+	guc->ads_regset_size = ret;
+
+	ret = guc_prep_golden_context(guc);
+	if (ret < 0)
+		return ret;
+	guc->ads_golden_ctxt_size = ret;
+
+	ret = guc_capture_prep_lists(guc);
+	if (ret < 0)
+		return ret;
+	guc->ads_capture_size = ret;
+
+	ret = guc_prep_waklv(guc);
+	if (ret < 0)
+		return ret;
+	guc->ads_waklv_size = ret;
+
+	size = guc_ads_blob_size(guc);
+
+	//ret = intel_guc_allocate_and_map_vma(guc, size, &guc->ads_vma, &ads_blob);
+	//iosys_map_set_vaddr(&guc->ads_map, ads_blob);
+	
+	void *field_0x150=getMember<void *>(that0, 0x150);
+	guc->ads_vma = IGSharedMappedBufferwithOptions(field_0x150, size, 2, 0);
+	if (!guc->ads_vma) return 1;
+	getMember<void *>(that0, 0x9e8)= guc->ads_vma;
+	
+
+	void *ads_blob = (void *)fgetVirtualAddress(guc->ads_vma);
+	guc->ads_map.vaddr = (void *)fgetGPUVirtualAddress(ads_blob);
+	guc->ads_map.is_iomem = false;
+	
+	
+	__guc_ads_init(guc);
+
+
+	u32 ads_param_val = ((u32)((u64)guc->ads_map.vaddr >> PAGE_SHIFT) << GUC_ADS_ADDR_SHIFT);
+	u32 a0=getMember<u32>(that0, 0xa0);
+	getMember<u32>(that0, 0xa0) = (a0 & 0xFFC00001) | ads_param_val;
+	
+	//intel_uc_init_late(&gt->uc);
+	
+	IGSharedMappedBufferfree(guc->ads_vma);
+	
+	//if ((that->acel->capabilities & 0x20) != 0) {
+	//	IntelAccelerator::transferOwnership(that->acel, (int)that->field_0x9e8);
+	//}
+	return 0;
 }

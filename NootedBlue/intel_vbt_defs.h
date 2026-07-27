@@ -4286,13 +4286,7 @@ const struct intel_device_info *desc;
 	INTEL_RPLP_IDS(INTEL_DISPLAY_DEVICE, &adl_p_info),
 };
 
-struct drm_i915_private {
-	
-	struct intel_display *display;
-	const struct intel_device_info *__info; /* Use INTEL_INFO() to access. */
-	struct intel_runtime_info __runtime; /* Use RUNTIME_INFO() to access. */
-	struct intel_driver_caps caps;
-};
+
 
 #define GEN11_CHICKEN_DCPR_2			_MMIO(0x46434)
 #define   DCPR_MASK_MAXLATENCY_MEMUP_CLR	REG_BIT(27)
@@ -5738,6 +5732,7 @@ struct intel_display {
 	struct intel_hotplug hotplug;
 	
 	int port_clock;
+	u32 private_data_size;
 	
 	struct {
 		const struct intel_display_device_info *__device_info;
@@ -7144,20 +7139,21 @@ enum intel_output_type {
 
 
 
-#define RENDER_CLASS               0
-#define VIDEO_DECODE_CLASS         1
-#define VIDEO_ENHANCE_CLASS        2
-#define COPY_ENGINE_CLASS          3
-#define COMPUTE_CLASS              4
+#define RENDER_CLASS		0
+#define VIDEO_DECODE_CLASS	1
+#define VIDEO_ENHANCEMENT_CLASS	2
+#define COPY_ENGINE_CLASS	3
+#define OTHER_CLASS		4
+#define COMPUTE_CLASS		5
+#define MAX_ENGINE_CLASS	5
+#define MAX_ENGINE_INSTANCE	8
 
-#define RENDER_RING_BASE           0x2000
-#define GEN6_BSD_RING_BASE         0x12000
-#define BLT_RING_BASE              0x22000
-#define VEBOX_RING_BASE            0x1A000
+#define   OTHER_GSC_INSTANCE			6
 
+#define RING_HWSTAM(base)			_MMIO((base) + 0x98)
 
-
-
+#define I915_VIDEO_CLASS_CAPABILITY_HEVC		(1 << 0)
+#define I915_VIDEO_AND_ENHANCE_CLASS_CAPABILITY_SFC	(1 << 1)
 
 #define GEN11_COMMON_SLICE_CHICKEN3         _MMIO(0x7304)
 #define GEN12_DISABLE_CPS_AWARE_COLOR_PIPE  REG_BIT(6)
@@ -7190,9 +7186,45 @@ enum intel_output_type {
 #define   RING_FORCE_TO_NONPRIV_ACCESS_RW   (0 << 28)
 #define   RING_FORCE_TO_NONPRIV_RANGE_1     (0 << 0)
 #define   RING_FORCE_TO_NONPRIV_RANGE_4     (1 << 0)
+#define I915_ENGINE_HAS_RELATIVE_MMIO BIT(6)
+
+#define RENDER_RING_BASE	0x02000
+#define BSD_RING_BASE		0x04000
+#define GEN6_BSD_RING_BASE	0x12000
+#define GEN8_BSD2_RING_BASE	0x1c000
 #define GEN11_BSD_RING_BASE	0x1c0000
+#define GEN11_BSD2_RING_BASE	0x1c4000
 #define GEN11_BSD3_RING_BASE	0x1d0000
+#define GEN11_BSD4_RING_BASE	0x1d4000
+#define XEHP_BSD5_RING_BASE	0x1e0000
+#define XEHP_BSD6_RING_BASE	0x1e4000
+#define XEHP_BSD7_RING_BASE	0x1f0000
+#define XEHP_BSD8_RING_BASE	0x1f4000
+#define VEBOX_RING_BASE		0x1a000
 #define GEN11_VEBOX_RING_BASE		0x1c8000
+#define GEN11_VEBOX2_RING_BASE		0x1d8000
+#define XEHP_VEBOX3_RING_BASE		0x1e8000
+#define XEHP_VEBOX4_RING_BASE		0x1f8000
+#define MTL_GSC_RING_BASE		0x11a000
+#define GEN12_COMPUTE0_RING_BASE	0x1a000
+#define GEN12_COMPUTE1_RING_BASE	0x1c000
+#define GEN12_COMPUTE2_RING_BASE	0x1e000
+#define GEN12_COMPUTE3_RING_BASE	0x26000
+#define BLT_RING_BASE		0x22000
+#define XEHPC_BCS1_RING_BASE	0x3e0000
+#define XEHPC_BCS2_RING_BASE	0x3e2000
+#define XEHPC_BCS3_RING_BASE	0x3e4000
+#define XEHPC_BCS4_RING_BASE	0x3e6000
+#define XEHPC_BCS5_RING_BASE	0x3e8000
+#define XEHPC_BCS6_RING_BASE	0x3ea000
+#define XEHPC_BCS7_RING_BASE	0x3ec000
+#define XEHPC_BCS8_RING_BASE	0x3ee000
+#define DG1_GSC_HECI1_BASE	0x00258000
+#define DG1_GSC_HECI2_BASE	0x00259000
+#define DG2_GSC_HECI1_BASE	0x00373000
+#define DG2_GSC_HECI2_BASE	0x00374000
+#define MTL_GSC_HECI1_BASE	0x00116000
+#define MTL_GSC_HECI2_BASE	0x00117000
 
 #define MCR_REG(offset) offset
 #define GEN10_SAMPLER_MODE			MCR_REG(0xe18c)
@@ -7229,23 +7261,19 @@ struct i915_wa {
 	u32		read;
 };
 
+struct intel_gt	*gt;
 
 struct i915_wa_list {
-	const char          *name;
+	struct intel_gt	*gt;
+	const char	*name;
+	const char	*engine_name;
+	//struct i915_wa	*list;
+	unsigned int	count;
+	unsigned int	wa_count;
 	struct i915_wa       wa[64];
-	u32                  count;
-	void    *dev;
 };
 
-struct intel_engine_cs {
-	void    *dev;
-	u32                  mmio_base;
-	u32                  engine_class;
-	bool                 is_dg1;
-	struct i915_wa_list ctx_wa_list;
-	struct i915_wa_list  wa_list;
-	struct i915_wa_list  whitelist;
-};
+
 
 
 #define HSW_PWR_WELL_CTL1			_MMIO(0x45400)
@@ -7570,6 +7598,50 @@ enum intel_bootrom_load_status {
 	INTEL_BOOTROM_STATUS_EXCEPTION                    = 0x7E,
 };
 
+#define SZ_1				0x00000001
+#define SZ_2				0x00000002
+#define SZ_4				0x00000004
+#define SZ_8				0x00000008
+#define SZ_16				0x00000010
+#define SZ_32				0x00000020
+#define SZ_64				0x00000040
+#define SZ_128				0x00000080
+#define SZ_256				0x00000100
+#define SZ_512				0x00000200
+
+#define SZ_1K				0x00000400
+#define SZ_2K				0x00000800
+#define SZ_4K				0x00001000
+#define SZ_8K				0x00002000
+#define SZ_16K				0x00004000
+#define SZ_24K				0x00006000
+#define SZ_32K				0x00008000
+#define SZ_64K				0x00010000
+#define SZ_128K				0x00020000
+#define SZ_192K				0x00030000
+#define SZ_256K				0x00040000
+#define SZ_384K				0x00060000
+#define SZ_512K				0x00080000
+
+#define SZ_1M				0x00100000
+#define SZ_2M				0x00200000
+#define SZ_3M				0x00300000
+#define SZ_4M				0x00400000
+#define SZ_6M				0x00600000
+#define SZ_8M				0x00800000
+#define SZ_12M				0x00c00000
+#define SZ_16M				0x01000000
+#define SZ_18M				0x01200000
+#define SZ_24M				0x01800000
+#define SZ_32M				0x02000000
+#define SZ_64M				0x04000000
+#define SZ_128M				0x08000000
+#define SZ_256M				0x10000000
+#define SZ_512M				0x20000000
+
+#define SZ_1G				0x40000000
+#define SZ_2G				0x80000000
+
 #define GEN10_DFR_RATIO_EN_AND_CHICKEN		MCR_REG(0x9550)
 #define   DFR_DISABLE				(1 << 9)
 #define VLV_G3DCTL				_MMIO(0x9024)
@@ -7638,12 +7710,8 @@ enum intel_bootrom_load_status {
 
 #define VDBOX_CGCTL3F10(base)			_MMIO((base) + 0x3f10)
 #define   IECPUNIT_CLKGATE_DIS			REG_BIT(22)
-#define SZ_8M				0x00800000
-#define SZ_16K				0x00004000
-#define SZ_32K				0x00008000
-#define SZ_4K				0x00001000
-#define SZ_2M				0x00200000
 
+#define IS_ALIGNED(x, a)		(((x) & ((__typeof(x))(a) - 1)) == 0)
 #define GEN11_WOPCM_SIZE		SZ_2M
 #define MAX_WOPCM_SIZE			SZ_8M
 #define WOPCM_RESERVED_SIZE		SZ_16K
@@ -7653,6 +7721,1667 @@ enum intel_bootrom_load_status {
 #define ALIGN(x, a)		__ALIGN_KERNEL((x), (a))
 #define ICL_WOPCM_HW_CTX_RESERVED	(SZ_32K + SZ_4K)
 
+#define GUC_LOG_DEFAULT_CRASH_BUFFER_SIZE	SZ_8K
+#define GUC_LOG_DEFAULT_DEBUG_BUFFER_SIZE	SZ_64K
+#define GUC_LOG_DEFAULT_CAPTURE_BUFFER_SIZE	SZ_1M
+
+enum {
+	GUC_LOG_SECTIONS_CRASH,
+	GUC_LOG_SECTIONS_DEBUG,
+	GUC_LOG_SECTIONS_CAPTURE,
+	GUC_LOG_SECTIONS_LIMIT
+};
+struct guc_log_section {
+	u32 max;
+	u32 flag;
+	u32 default_val;
+	const char *name;
+};
+
+enum guc_log_buffer_type {
+	GUC_DEBUG_LOG_BUFFER,
+	GUC_CRASH_DUMP_LOG_BUFFER,
+	GUC_CAPTURE_LOG_BUFFER,
+	GUC_MAX_LOG_BUFFER
+};
+struct guc_log_buffer_state {
+	u32 marker[2];
+	u32 read_ptr;
+	u32 write_ptr;
+	u32 size;
+	u32 sampled_write_ptr;
+	u32 wrap_offset;
+	union {
+		struct {
+			u32 flush_to_file:1;
+			u32 buffer_full_cnt:4;
+			u32 reserved:27;
+		};
+		u32 flags;
+	};
+	u32 version;
+} __packed;
+
+/* This action will be programmed in C1BC - SOFT_SCRATCH_15_REG */
+enum intel_guc_recv_message {
+	INTEL_GUC_RECV_MSG_CRASH_DUMP_POSTED = BIT(1),
+	INTEL_GUC_RECV_MSG_EXCEPTION = BIT(30),
+};
+struct intel_guc_log {
+	u32 level;
+
+	/*
+	 * Protects concurrent access and modification of intel_guc_log->level.
+	 *
+	 * This lock replaces the legacy struct_mutex usage in
+	 * intel_guc_log system.
+	 */
+	//struct mutex guc_lock;
+
+	/* Allocation settings */
+	struct {
+		s32 bytes;	/* Size in bytes */
+		s32 units;	/* GuC API units - 1MB or 4KB */
+		s32 count;	/* Number of API units */
+		u32 flag;	/* GuC API units flag */
+	} sizes[GUC_LOG_SECTIONS_LIMIT];
+	bool sizes_initialised;
+
+	/* Combined buffer allocation */
+	//struct i915_vma *vma;
+	void *buf_addr;
+
+	/* RelayFS support */
+	struct {
+		bool buf_in_use;
+		bool started;
+		//struct work_struct flush_work;
+		//struct rchan *channel;
+		//struct mutex lock;
+		u32 full_count;
+	} relay;
+
+	/* logging related stats */
+	struct {
+		u32 sampled_overflow;
+		u32 overflow;
+		u32 flush;
+	} stats[GUC_MAX_LOG_BUFFER];
+};
+
+struct engine_mmio_base {
+	u32 graphics_ver : 8;
+	u32 base : 24;
+};
+
+#define MAX_MMIO_BASES 3
+struct engine_info {
+	u8 classb;
+	u8 instance;
+	/* mmio bases table *must* be sorted in reverse graphics_ver order */
+	struct engine_mmio_base mmio_bases[MAX_MMIO_BASES];
+};
+
+static const struct engine_info intel_engines[] = {
+	[RCS0] = {
+		.classb = RENDER_CLASS,
+		.instance = 0,
+		.mmio_bases = {
+			{ .graphics_ver = 1, .base = RENDER_RING_BASE }
+		},
+	},
+	[BCS0] = {
+		.classb = COPY_ENGINE_CLASS,
+		.instance = 0,
+		.mmio_bases = {
+			{ .graphics_ver = 6, .base = BLT_RING_BASE }
+		},
+	},
+	[BCS1] = {
+		.classb = COPY_ENGINE_CLASS,
+		.instance = 1,
+		.mmio_bases = {
+			{ .graphics_ver = 12, .base = XEHPC_BCS1_RING_BASE }
+		},
+	},
+	[BCS2] = {
+		.classb = COPY_ENGINE_CLASS,
+		.instance = 2,
+		.mmio_bases = {
+			{ .graphics_ver = 12, .base = XEHPC_BCS2_RING_BASE }
+		},
+	},
+	[BCS3] = {
+		.classb = COPY_ENGINE_CLASS,
+		.instance = 3,
+		.mmio_bases = {
+			{ .graphics_ver = 12, .base = XEHPC_BCS3_RING_BASE }
+		},
+	},
+	[BCS4] = {
+		.classb = COPY_ENGINE_CLASS,
+		.instance = 4,
+		.mmio_bases = {
+			{ .graphics_ver = 12, .base = XEHPC_BCS4_RING_BASE }
+		},
+	},
+	[BCS5] = {
+		.classb = COPY_ENGINE_CLASS,
+		.instance = 5,
+		.mmio_bases = {
+			{ .graphics_ver = 12, .base = XEHPC_BCS5_RING_BASE }
+		},
+	},
+	[BCS6] = {
+		.classb = COPY_ENGINE_CLASS,
+		.instance = 6,
+		.mmio_bases = {
+			{ .graphics_ver = 12, .base = XEHPC_BCS6_RING_BASE }
+		},
+	},
+	[BCS7] = {
+		.classb = COPY_ENGINE_CLASS,
+		.instance = 7,
+		.mmio_bases = {
+			{ .graphics_ver = 12, .base = XEHPC_BCS7_RING_BASE }
+		},
+	},
+	[BCS8] = {
+		.classb = COPY_ENGINE_CLASS,
+		.instance = 8,
+		.mmio_bases = {
+			{ .graphics_ver = 12, .base = XEHPC_BCS8_RING_BASE }
+		},
+	},
+	[VCS0] = {
+		.classb = VIDEO_DECODE_CLASS,
+		.instance = 0,
+		.mmio_bases = {
+			{ .graphics_ver = 11, .base = GEN11_BSD_RING_BASE },
+			{ .graphics_ver = 6, .base = GEN6_BSD_RING_BASE },
+			{ .graphics_ver = 4, .base = BSD_RING_BASE }
+		},
+	},
+	[VCS1] = {
+		.classb = VIDEO_DECODE_CLASS,
+		.instance = 1,
+		.mmio_bases = {
+			{ .graphics_ver = 11, .base = GEN11_BSD2_RING_BASE },
+			{ .graphics_ver = 8, .base = GEN8_BSD2_RING_BASE }
+		},
+	},
+	[VCS2] = {
+		.classb = VIDEO_DECODE_CLASS,
+		.instance = 2,
+		.mmio_bases = {
+			{ .graphics_ver = 11, .base = GEN11_BSD3_RING_BASE }
+		},
+	},
+	[VCS3] = {
+		.classb = VIDEO_DECODE_CLASS,
+		.instance = 3,
+		.mmio_bases = {
+			{ .graphics_ver = 11, .base = GEN11_BSD4_RING_BASE }
+		},
+	},
+	[VCS4] = {
+		.classb = VIDEO_DECODE_CLASS,
+		.instance = 4,
+		.mmio_bases = {
+			{ .graphics_ver = 12, .base = XEHP_BSD5_RING_BASE }
+		},
+	},
+	[VCS5] = {
+		.classb = VIDEO_DECODE_CLASS,
+		.instance = 5,
+		.mmio_bases = {
+			{ .graphics_ver = 12, .base = XEHP_BSD6_RING_BASE }
+		},
+	},
+	[VCS6] = {
+		.classb = VIDEO_DECODE_CLASS,
+		.instance = 6,
+		.mmio_bases = {
+			{ .graphics_ver = 12, .base = XEHP_BSD7_RING_BASE }
+		},
+	},
+	[VCS7] = {
+		.classb = VIDEO_DECODE_CLASS,
+		.instance = 7,
+		.mmio_bases = {
+			{ .graphics_ver = 12, .base = XEHP_BSD8_RING_BASE }
+		},
+	},
+	[VECS0] = {
+		.classb = VIDEO_ENHANCEMENT_CLASS,
+		.instance = 0,
+		.mmio_bases = {
+			{ .graphics_ver = 11, .base = GEN11_VEBOX_RING_BASE },
+			{ .graphics_ver = 7, .base = VEBOX_RING_BASE }
+		},
+	},
+	[VECS1] = {
+		.classb = VIDEO_ENHANCEMENT_CLASS,
+		.instance = 1,
+		.mmio_bases = {
+			{ .graphics_ver = 11, .base = GEN11_VEBOX2_RING_BASE }
+		},
+	},
+	[VECS2] = {
+		.classb = VIDEO_ENHANCEMENT_CLASS,
+		.instance = 2,
+		.mmio_bases = {
+			{ .graphics_ver = 12, .base = XEHP_VEBOX3_RING_BASE }
+		},
+	},
+	[VECS3] = {
+		.classb = VIDEO_ENHANCEMENT_CLASS,
+		.instance = 3,
+		.mmio_bases = {
+			{ .graphics_ver = 12, .base = XEHP_VEBOX4_RING_BASE }
+		},
+	},
+	[CCS0] = {
+		.classb = COMPUTE_CLASS,
+		.instance = 0,
+		.mmio_bases = {
+			{ .graphics_ver = 12, .base = GEN12_COMPUTE0_RING_BASE }
+		}
+	},
+	[CCS1] = {
+		.classb = COMPUTE_CLASS,
+		.instance = 1,
+		.mmio_bases = {
+			{ .graphics_ver = 12, .base = GEN12_COMPUTE1_RING_BASE }
+		}
+	},
+	[CCS2] = {
+		.classb = COMPUTE_CLASS,
+		.instance = 2,
+		.mmio_bases = {
+			{ .graphics_ver = 12, .base = GEN12_COMPUTE2_RING_BASE }
+		}
+	},
+	[CCS3] = {
+		.classb = COMPUTE_CLASS,
+		.instance = 3,
+		.mmio_bases = {
+			{ .graphics_ver = 12, .base = GEN12_COMPUTE3_RING_BASE }
+		}
+	},
+	[GSC0] = {
+		.classb = OTHER_CLASS,
+		.instance = OTHER_GSC_INSTANCE,
+		.mmio_bases = {
+			{ .graphics_ver = 12, .base = MTL_GSC_RING_BASE }
+		}
+	},
+};
+
+#define INTEL_ENGINE_CS_MAX_NAME 8
+struct intel_sseu {
+	u8 slice_mask;
+	u8 subslice_mask;
+	u8 min_eus_per_subslice;
+	u8 max_eus_per_subslice;
+};
+
+#define GEN_MAX_HSW_SLICES		3
+#define GEN_MAX_SS_PER_HSW_SLICE	8
+#define I915_MAX_SS_FUSE_REGS	2
+#define I915_MAX_SS_FUSE_BITS	(I915_MAX_SS_FUSE_REGS * 32)
+
+typedef union {
+	u8 hsw[GEN_MAX_HSW_SLICES];
+
+	unsigned long xehp[BITS_TO_LONGS(I915_MAX_SS_FUSE_BITS)];
+} intel_sseu_ss_mask_t;
+
+struct sseu_dev_info {
+	u8 slice_mask;
+	intel_sseu_ss_mask_t subslice_mask;
+	intel_sseu_ss_mask_t geometry_subslice_mask;
+	intel_sseu_ss_mask_t compute_subslice_mask;
+	union {
+		u16 hsw[GEN_MAX_HSW_SLICES][GEN_MAX_SS_PER_HSW_SLICE];
+		u16 xehp[I915_MAX_SS_FUSE_BITS];
+	} eu_mask;
+
+	u16 eu_total;
+	u8 eu_per_subslice;
+	u8 min_eu_in_pool;
+	/* For each slice, which subslice(s) has(have) 7 EUs (bitfield)? */
+	u8 subslice_7eu[3];
+	u8 has_slice_pg:1;
+	u8 has_subslice_pg:1;
+	u8 has_eu_pg:1;
+	/*
+	 * For Xe_HP and beyond, the hardware no longer has traditional slices
+	 * so we just report the entire DSS pool under a fake "slice 0."
+	 */
+	u8 has_xehp_dss:1;
+
+	/* Topology fields */
+	u8 max_slices;
+	u8 max_subslices;
+	u8 max_eus_per_subslice;
+};
+
+struct drm_i915_private;
+
+struct intel_engine_cs {
+	void    *dev;
+	struct drm_i915_private *i915;
+	bool                 is_dg1;
+	struct i915_wa_list ctx_wa_list;
+	struct i915_wa_list  wa_list;
+	struct i915_wa_list  whitelist;
+	struct intel_gt *gt;
+	char name[INTEL_ENGINE_CS_MAX_NAME];
+
+	enum intel_engine_id id2;
+	enum intel_engine_id legacy_idx;
+
+	struct {
+		unsigned long heartbeat_interval_ms;
+		unsigned long max_busywait_duration_ns;
+		unsigned long preempt_timeout_ms;
+		unsigned long stop_timeout_ms;
+		unsigned long timeslice_duration_ms;
+	} props, defaults;
+	
+	unsigned int guc_id;
+
+	intel_engine_mask_t mask;
+	u32 reset_domain;
+	
+	intel_engine_mask_t logical_mask;
+
+	u8 classb;
+	u8 instance;
+
+	u16 uabi_class;
+	u16 uabi_instance;
+
+	u32 uabi_capabilities;
+	u32 context_size;
+	u32 mmio_base;
+	
+	struct intel_sseu sseu;
+	unsigned int flags;
+	
+};
+
+enum intel_submission_method {
+	INTEL_SUBMISSION_RING,
+	INTEL_SUBMISSION_ELSP,
+	INTEL_SUBMISSION_GUC,
+};
+
+#define MAX_ENGINE_CLASS	5
+#define MAX_ENGINE_INSTANCE	8
+
+struct intel_gt_info {
+	unsigned int id;
+
+	intel_engine_mask_t engine_mask;
+
+	u32 l3bank_mask;
+
+	u8 num_engines;
+
+	/* General presence of SFC units */
+	u8 sfc_mask;
+
+	/* Media engine access to SFC per instance */
+	u8 vdbox_sfc_access;
+
+	/* Slice/subslice/EU info */
+	struct sseu_dev_info sseu;
+
+	unsigned long mslice_mask;
+
+	/** @hwconfig: hardware configuration data */
+	//struct intel_hwconfig hwconfig;
+};
+
+#define I915_MAX_GT 2
+enum intel_steering_type {
+	L3BANK,
+	MSLICE,
+	LNCF,
+	GAM,
+	DSS,
+	OADDRM,
+
+	/*
+	 * On some platforms there are multiple types of MCR registers that
+	 * will always return a non-terminated value at instance (0, 0).  We'll
+	 * lump those all into a single category to keep things simple.
+	 */
+	INSTANCE0,
+
+	NUM_STEERING_TYPES
+};
+
+
+struct intel_mmio_range {
+	u32 start;
+	u32 end;
+};
+
+
+
+struct drm_i915_private {
+	
+	struct intel_display *display;
+	const struct intel_device_info *__info; /* Use INTEL_INFO() to access. */
+	struct intel_runtime_info __runtime; /* Use RUNTIME_INFO() to access. */
+	struct intel_driver_caps caps;
+	struct intel_gt *gt[I915_MAX_GT];
+	struct intel_gt *media_gt;
+	
+};
+
+#define INTEL_INFO(i915)	((i915)->__info)
+#define DRIVER_CAPS(i915)	(&(i915)->caps)
+
+#define IP_VER(ver, rel)		((ver) << 8 | (rel))
+#define INTEL_DEVID(i915)	(RUNTIME_INFO(i915)->device_id)
+#define MEDIA_VER(i915)			(RUNTIME_INFO(i915)->media.ip.ver)
+#define MEDIA_VER_FULL(i915)		IP_VER(RUNTIME_INFO(i915)->media.ip.ver, \
+						   RUNTIME_INFO(i915)->media.ip.rel)
+
+#define INTEL_SUBPLATFORM_BITS (4)
+#define INTEL_SUBPLATFORM_MASK (BIT(INTEL_SUBPLATFORM_BITS) - 1)
+
+#define __HAS_ENGINE(engine_mask, id) ((engine_mask) & BIT(id))
+#define HAS_ENGINE(gt, id) __HAS_ENGINE((gt)->info.engine_mask, id)
+
+#define INTEL_SUBPLATFORM_ULT	(0)
+#define INTEL_SUBPLATFORM_ULX	(1)
+
+#define RUNTIME_INFO(i915)	(&(i915)->__runtime)
+
+
+static unsigned int
+__platform_mask_index(const struct intel_runtime_info *info,
+			  enum intel_platform p)
+{
+	const unsigned int pbits =
+		BITS_PER_TYPE(info->platform_mask[0]) - INTEL_SUBPLATFORM_BITS;
+
+	//BUILD_BUG_ON(INTEL_MAX_PLATFORMS >
+	//		 pbits * ARRAY_SIZE(info->platform_mask));
+
+	return p / pbits;
+}
+
+static unsigned int
+__platform_mask_bit(const struct intel_runtime_info *info,
+			enum intel_platform p)
+{
+	const unsigned int pbits =
+		BITS_PER_TYPE(info->platform_mask[0]) - INTEL_SUBPLATFORM_BITS;
+
+	return p % pbits + INTEL_SUBPLATFORM_BITS;
+}
+
+static bool
+IS_PLATFORM(const struct drm_i915_private *i915, enum intel_platform p)
+{
+	const struct intel_runtime_info *info = RUNTIME_INFO(i915);
+	const unsigned int pi = __platform_mask_index(info, p);
+	const unsigned int pb = __platform_mask_bit(info, p);
+
+	//BUILD_BUG_ON(!__builtin_constant_p(p));
+
+	return info->platform_mask[pi] & BIT(pb);
+}
+
+
+#define GRAPHICS_VER(i915)		(RUNTIME_INFO(i915)->graphics.ip.ver)
+#define GRAPHICS_VER_FULL(i915)		IP_VER(RUNTIME_INFO(i915)->graphics.ip.ver, \
+						   RUNTIME_INFO(i915)->graphics.ip.rel)
+#define IS_GRAPHICS_VER(i915, from, until) \
+	(GRAPHICS_VER(i915) >= (from) && GRAPHICS_VER(i915) <= (until))
+#define IS_DG2(i915)	IS_PLATFORM(i915, INTEL_DG2)
+
+/* ICL */
+#define INTEL_SUBPLATFORM_PORTF	(0)
+
+/* TGL */
+#define INTEL_SUBPLATFORM_UY	(0)
+
+/* DG2 */
+#define INTEL_SUBPLATFORM_G10	0
+#define INTEL_SUBPLATFORM_G11	1
+#define INTEL_SUBPLATFORM_G12	2
+#define INTEL_SUBPLATFORM_D	3
+
+/* ADL */
+#define INTEL_SUBPLATFORM_RPL	0
+
+/* ADL-P */
+/*
+ * As #define INTEL_SUBPLATFORM_RPL 0 will apply
+ * here too, SUBPLATFORM_N will have different
+ * bit set
+ */
+#define INTEL_SUBPLATFORM_N    1
+#define INTEL_SUBPLATFORM_RPLU  2
+
+/* MTL */
+#define INTEL_SUBPLATFORM_ARL_H	0
+#define INTEL_SUBPLATFORM_ARL_U	1
+#define INTEL_SUBPLATFORM_ARL_S	2
+
+#define GEN8_EU_DISABLE0			_MMIO(0x9134)
+#define GEN9_EU_DISABLE(slice)			_MMIO(0x9134 + (slice) * 0x4)
+#define GEN11_EU_DISABLE			_MMIO(0x9134)
+#define   GEN8_EU_DIS0_S1_MASK			REG_GENMASK(31, 24)
+#define   GEN8_EU_DIS0_S0_MASK			REG_GENMASK(23, 0)
+#define   GEN11_EU_DIS_MASK			REG_GENMASK(7, 0)
+#define XEHP_EU_ENABLE				_MMIO(0x9134)
+#define   XEHP_EU_ENA_MASK			REG_GENMASK(7, 0)
+
+#define GEN8_EU_DISABLE1			_MMIO(0x9138)
+#define   GEN8_EU_DIS1_S2_MASK			REG_GENMASK(31, 16)
+#define   GEN8_EU_DIS1_S1_MASK			REG_GENMASK(15, 0)
+
+#define GEN11_GT_SLICE_ENABLE			_MMIO(0x9138)
+#define   GEN11_GT_S_ENA_MASK			REG_GENMASK(7, 0)
+
+#define GEN8_EU_DISABLE2			_MMIO(0x913c)
+#define   GEN8_EU_DIS2_S2_MASK			REG_GENMASK(7, 0)
+
+#define GEN11_GT_SUBSLICE_DISABLE		_MMIO(0x913c)
+#define GEN12_GT_GEOMETRY_DSS_ENABLE		_MMIO(0x913c)
+
+#define _test_bit(nr, addr) \
+	(((addr)[(nr) / (sizeof(unsigned long) * 8)] >> ((nr) % (sizeof(unsigned long) * 8))) & 1)
+
+#define test_bit(nr, addr) _test_bit(nr, addr)
+
+
+#define __const_hweight8(w)		\
+	((unsigned int)			\
+	 ((!!((w) & (1ULL << 0))) +	\
+	  (!!((w) & (1ULL << 1))) +	\
+	  (!!((w) & (1ULL << 2))) +	\
+	  (!!((w) & (1ULL << 3))) +	\
+	  (!!((w) & (1ULL << 4))) +	\
+	  (!!((w) & (1ULL << 5))) +	\
+	  (!!((w) & (1ULL << 6))) +	\
+	  (!!((w) & (1ULL << 7)))))
+
+#define __const_hweight16(w) (__const_hweight8(w)  + __const_hweight8((w)  >> 8 ))
+#define __const_hweight32(w) (__const_hweight16(w) + __const_hweight16((w) >> 16))
+#define __const_hweight64(w) (__const_hweight32(w) + __const_hweight32((w) >> 32))
+
+#define hweight8(w)   __const_hweight8(w)
+#define hweight16(w) __const_hweight16(w)
+#define hweight32(w) __const_hweight32(w)
+#define hweight64(w) __const_hweight64(w)
+
+#define for_each_engine(engine__, gt__, id__) \
+	for ((id__) = static_cast<decltype(id__)>(0); \
+		 static_cast<int>(id__) < I915_NUM_ENGINES; \
+		 (id__) = static_cast<decltype(id__)>(static_cast<int>(id__) + 1)) \
+		for_each_if ((engine__) = (gt__)->engine[(id__)])
+
+#define IS_HASWELL(i915)	IS_PLATFORM(i915, INTEL_HASWELL)
+
+#define GEN8_EU_DISABLE0			_MMIO(0x9134)
+#define GEN9_EU_DISABLE(slice)			_MMIO(0x9134 + (slice) * 0x4)
+#define GEN11_EU_DISABLE			_MMIO(0x9134)
+#define   GEN8_EU_DIS0_S1_MASK			REG_GENMASK(31, 24)
+#define   GEN8_EU_DIS0_S0_MASK			REG_GENMASK(23, 0)
+#define   GEN11_EU_DIS_MASK			REG_GENMASK(7, 0)
+#define XEHP_EU_ENABLE				_MMIO(0x9134)
+#define   XEHP_EU_ENA_MASK			REG_GENMASK(7, 0)
+
+#define GEN8_EU_DISABLE1			_MMIO(0x9138)
+#define   GEN8_EU_DIS1_S2_MASK			REG_GENMASK(31, 16)
+#define   GEN8_EU_DIS1_S1_MASK			REG_GENMASK(15, 0)
+
+#define GEN11_GT_SLICE_ENABLE			_MMIO(0x9138)
+#define   GEN11_GT_S_ENA_MASK			REG_GENMASK(7, 0)
+
+#define GEN8_EU_DISABLE2			_MMIO(0x913c)
+#define   GEN8_EU_DIS2_S2_MASK			REG_GENMASK(7, 0)
+
+#define GEN11_GT_SUBSLICE_DISABLE		_MMIO(0x913c)
+#define GEN12_GT_GEOMETRY_DSS_ENABLE		_MMIO(0x913c)
+
+#define GEN10_EU_DISABLE3			_MMIO(0x9140)
+#define   GEN10_EU_DIS_SS_MASK			0xff
+#define GEN11_GT_VEBOX_VDBOX_DISABLE		_MMIO(0x9140)
+#define   GEN11_GT_VEBOX_DISABLE_MASK		REG_GENMASK(19, 16)
+#define   GEN11_GT_VDBOX_DISABLE_MASK		REG_GENMASK(7, 0)
+
+#define GEN12_GT_COMPUTE_DSS_ENABLE		_MMIO(0x9144)
+#define XEHPC_GT_COMPUTE_DSS_ENABLE_EXT		_MMIO(0x9148)
+#define HSW_PAVP_FUSE1				_MMIO(0x911c)
+#define   XEHP_SFC_ENABLE_MASK			REG_GENMASK(27, 24)
+#define I915_MAX_VCS	8
+#define I915_MAX_VECS	4
+#define I915_MAX_SFC	(I915_MAX_VCS / 2)
+#define I915_MAX_CCS	4
+#define I915_MAX_RCS	1
+#define I915_MAX_BCS	9
+
+
+
+static inline unsigned long find_next_zero_bit(const unsigned long *addr,
+											   unsigned long size,
+											   unsigned long offset)
+{
+	const unsigned long bits_per_long = sizeof(unsigned long) * 8;
+
+	if (offset >= size)
+		return size;
+
+	unsigned long word_offset = offset / bits_per_long;
+	unsigned long bit_offset  = offset % bits_per_long;
+
+	unsigned long val = addr[word_offset] >> bit_offset;
+	val = ~val;
+
+	if (val != 0) {
+		unsigned long bit = 0;
+		while ((val & 1UL) == 0) {
+			val >>= 1UL;
+			bit++;
+		}
+		unsigned long found_bit = word_offset * bits_per_long + bit;
+		return (found_bit < size) ? found_bit : size;
+	}
+
+	unsigned long max_words = (size + bits_per_long - 1) / bits_per_long;
+	for (unsigned long i = word_offset + 1; i < max_words; i++) {
+		val = ~addr[i];
+		if (val != 0) {
+			unsigned long bit = 0;
+			while ((val & 1UL) == 0) {
+				val >>= 1UL;
+				bit++;
+			}
+			unsigned long found_bit = i * bits_per_long + bit;
+			return (found_bit < size) ? found_bit : size;
+		}
+	}
+
+	return size;
+}
+
+#define for_each_clear_bit(bit, addr, size) \
+	for ((bit) = find_next_zero_bit((addr), (size), 0); \
+		 (bit) < (size); \
+		 (bit) = find_next_zero_bit((addr), (size), (bit) + 1)) 
+
+#define GUC_MAX_ENGINE_CLASSES		16
+#define GUC_MAX_INSTANCES_PER_CLASS	32
+#define GUC_GENERIC_GT_SYSINFO_MAX			16
+
+
+
+#define PAGE_ALIGN(addr) ALIGN(addr, PAGE_SIZE)
+#define GLOBAL_POLICY_MAX_NUM_WI 15
+#define GLOBAL_POLICY_DISABLE_ENGINE_RESET				BIT(0)
+#define GLOBAL_POLICY_DEFAULT_DPC_PROMOTE_TIME_US 500000
+#define GUC_RENDER_CLASS		0
+#define GUC_VIDEO_CLASS			1
+#define GUC_VIDEOENHANCE_CLASS		2
+#define GUC_BLITTER_CLASS		3
+#define GUC_COMPUTE_CLASS		4
+#define GUC_GSC_OTHER_CLASS		5
+#define GUC_LAST_ENGINE_CLASS		GUC_GSC_OTHER_CLASS
+#define GUC_MAX_ENGINE_CLASSES		16
+#define GUC_MAX_INSTANCES_PER_CLASS	32
+#define __ENGINE_INSTANCES_MASK(mask, first, count) ({			\
+	unsigned int first__ = (first);					\
+	unsigned int count__ = (count);					\
+	((mask) & GENMASK(first__ + count__ - 1, first__)) >> first__;	\
+})
+
+#define I915_MAX_VCS	8
+#define I915_MAX_VECS	4
+#define I915_MAX_SFC	(I915_MAX_VCS / 2)
+#define I915_MAX_CCS	4
+#define I915_MAX_RCS	1
+#define I915_MAX_BCS	9
+
+#define ENGINE_INSTANCES_MASK(gt, first, count) \
+	__ENGINE_INSTANCES_MASK((gt)->info.engine_mask, first, count)
+
+#define RCS_MASK(gt) \
+	ENGINE_INSTANCES_MASK(gt, RCS0, I915_MAX_RCS)
+#define BCS_MASK(gt) \
+	ENGINE_INSTANCES_MASK(gt, BCS0, I915_MAX_BCS)
+#define VDBOX_MASK(gt) \
+	ENGINE_INSTANCES_MASK(gt, VCS0, I915_MAX_VCS)
+#define VEBOX_MASK(gt) \
+	ENGINE_INSTANCES_MASK(gt, VECS0, I915_MAX_VECS)
+#define CCS_MASK(gt) \
+	ENGINE_INSTANCES_MASK(gt, CCS0, I915_MAX_CCS)
+#define MAX_ENGINE_CLASS	5
+#define OTHER_CLASS		4
+#define LRC_PPHWSP_PN	(0)
+#define LRC_PPHWSP_SZ	(1)
+#define LR_HW_CONTEXT_SIZE (80 * 4)
+#define LR_HW_CONTEXT_SZ(i915) (LR_HW_CONTEXT_SIZE)
+#define LRC_SKIP_SIZE(i915) (LRC_PPHWSP_SZ * PAGE_SIZE + LR_HW_CONTEXT_SZ(i915))
+#define   RING_MAX_NONPRIV_SLOTS  12
+#define LNCFCMOCS_REG_COUNT			32
+enum {
+	GUC_CAPTURE_LIST_INDEX_PF = 0,
+	GUC_CAPTURE_LIST_INDEX_VF = 1,
+	GUC_CAPTURE_LIST_INDEX_MAX = 2,
+};
+
+#define GUC_GENERIC_GT_SYSINFO_SLICE_ENABLED		0
+#define GUC_GENERIC_GT_SYSINFO_VDBOX_SFC_SUPPORT_MASK	1
+#define GUC_GENERIC_GT_SYSINFO_DOORBELL_COUNT_PER_SQIDI	2
+#define GUC_GENERIC_GT_SYSINFO_MAX			16
+
+#define __const_hweight8(w)		\
+	((unsigned int)			\
+	 ((!!((w) & (1ULL << 0))) +	\
+	  (!!((w) & (1ULL << 1))) +	\
+	  (!!((w) & (1ULL << 2))) +	\
+	  (!!((w) & (1ULL << 3))) +	\
+	  (!!((w) & (1ULL << 4))) +	\
+	  (!!((w) & (1ULL << 5))) +	\
+	  (!!((w) & (1ULL << 6))) +	\
+	  (!!((w) & (1ULL << 7)))))
+
+#define GEN10_EU_DISABLE3			_MMIO(0x9140)
+#define   GEN10_EU_DIS_SS_MASK			0xff
+#define GEN11_GT_VEBOX_VDBOX_DISABLE		_MMIO(0x9140)
+#define   GEN11_GT_VEBOX_DISABLE_MASK		REG_GENMASK(19, 16)
+#define   GEN11_GT_VDBOX_DISABLE_MASK		REG_GENMASK(7, 0)
+
+
+#define GUC_REGSET_MASKED		BIT(0)
+#define GUC_REGSET_NEEDS_STEERING	BIT(1)
+#define GUC_REGSET_MASKED_WITH_VALUE	BIT(2)
+#define GUC_REGSET_RESTORE_ONLY		BIT(3)
+#define GUC_REGSET_STEERING_GROUP       GENMASK(15, 12)
+#define GUC_REGSET_STEERING_INSTANCE    GENMASK(23, 20)
+
+struct guc_mmio_reg {
+	u32 offset; // 0
+	u32 value;  // 4
+	u32 flags;  // 8
+	u32 mask;   // 12
+} __packed; // Current Linux Size: 16 bytes (0x10)
+
+struct guc_mmio_reg_set {
+	u32 address;   // 0
+	u16 count;     // 4
+	u16 reserved;  // 6
+} __packed; // Size: 8 bytes
+
+struct guc_ads {
+	struct guc_mmio_reg_set reg_state_list[16][32]; // 0x0000: 16 * 32 * 8 = 4096 (0x1000) bytes
+	u32 reserved0;                     // 0x1000
+	u32 scheduler_policies;            // 0x1004
+	u32 gt_system_info;                // 0x1008
+	u32 reserved1;                     // 0x100C
+	u32 control_data;                  // 0x1010
+	u32 golden_context_lrca[16];       // 0x1014: 16 * 4 = 64 (0x40) bytes
+	u32 eng_state_size[16];            // 0x1054: 16 * 4 = 64 (0x40) bytes
+	u32 private_data;                  // 0x1094
+	u32 reserved2;                     // 0x1098
+	u32 capture_instance[2][16];       // 0x109C: 2 * 16 * 4 = 128 (0x80) bytes
+	u32 capture_class[2][16];          // 0x111C: 2 * 16 * 4 = 128 (0x80) bytes
+	u32 capture_global[2];             // 0x119C: 2 * 4 = 8 bytes
+	u32 wa_klv_addr_lo;               // 0x11A4
+	u32 wa_klv_addr_hi;               // 0x11A8
+	u32 wa_klv_size;                  // 0x11AC
+	u32 reserved[11];                 // 0x11B0: 11 * 4 = 44 bytes
+} __packed; // Total Size: 0x11DC bytes
+
+struct guc_policies {
+	u32 submission_queue_depth[16]; // 0x00: 64 bytes
+	u32 dpc_promote_time;           // 0x40
+	u32 is_valid;                   // 0x44
+	u32 max_num_work_items;         // 0x48
+	u32 global_flags;               // 0x4C
+	u32 reserved[4];                // 0x50: 16 bytes
+} __packed; // Total Size: 0x60 bytes
+
+struct guc_gt_system_info {
+	u8 mapping_table[16][32];       // 0x00: 512 bytes
+	u32 engine_enabled_masks[16];   // 0x200: 64 bytes
+	u32 generic_gt_sysinfo[16];     // 0x240: 64 bytes
+} __packed; // Total Size: 0x280 bytes
+
+struct guc_engine_usage_record {
+	u32 current_context_index;      // 0x00
+	u32 last_switch_in_stamp;       // 0x04
+	u32 reserved0;                  // 0x08
+	u32 total_runtime;              // 0x0C
+	u32 reserved1[4];               // 0x10: 16 bytes
+} __packed; // Size: 0x20 bytes
+
+struct guc_engine_usage {
+	struct guc_engine_usage_record engines[16][32]; // 16 * 32 * 0x20 = 0x4000 bytes
+} __packed; // Total Size: 0x4000 bytes
+
+struct __guc_ads_blob {
+	struct guc_ads ads;                  // 0x0000 to 0x11DB (Size: 0x11DC)
+	struct guc_policies policies;         // 0x11DC to 0x123B (Size: 0x60)
+	struct guc_gt_system_info system_info; // 0x123C to 0x14BB (Size: 0x280)
+	struct guc_engine_usage engine_usage; // 0x14BC to 0x54BB (Size: 0x4000)
+	struct guc_mmio_reg regset[];         // 0x54BC onwards (Dynamic)
+} __packed;
+
+enum intel_uc_fw_type {
+	INTEL_UC_FW_TYPE_GUC = 0,
+	INTEL_UC_FW_TYPE_HUC,
+	INTEL_UC_FW_TYPE_GSC,
+};
+enum intel_uc_fw_status {
+	INTEL_UC_FIRMWARE_NOT_SUPPORTED = -1, /* no uc HW */
+	INTEL_UC_FIRMWARE_UNINITIALIZED = 0, /* used to catch checks done too early */
+	INTEL_UC_FIRMWARE_DISABLED, /* disabled */
+	INTEL_UC_FIRMWARE_SELECTED, /* selected the blob we want to load */
+	INTEL_UC_FIRMWARE_MISSING, /* blob not found on the system */
+	INTEL_UC_FIRMWARE_ERROR, /* invalid format or version */
+	INTEL_UC_FIRMWARE_AVAILABLE, /* blob found and copied in mem */
+	INTEL_UC_FIRMWARE_INIT_FAIL, /* failed to prepare fw objects for load */
+	INTEL_UC_FIRMWARE_LOADABLE, /* all fw-required objects are ready */
+	INTEL_UC_FIRMWARE_LOAD_FAIL, /* failed to xfer or init/auth the fw */
+	INTEL_UC_FIRMWARE_TRANSFERRED, /* dma xfer done */
+	INTEL_UC_FIRMWARE_RUNNING /* init/auth done */
+};
+
+struct intel_uc_fw {
+	enum intel_uc_fw_type type;
+	union {
+		const enum intel_uc_fw_status status;
+		enum intel_uc_fw_status __status; /* no accidental overwrites */
+	};
+	//struct intel_uc_fw_file file_wanted;
+	//struct intel_uc_fw_file file_selected;
+	bool user_overridden;
+	size_t size;
+	//struct drm_i915_gem_object *obj;
+
+	/**
+	 * @needs_ggtt_mapping: indicates whether the fw object needs to be
+	 * pinned to ggtt. If true, the fw is pinned at init time and unpinned
+	 * during driver unload.
+	 */
+	bool needs_ggtt_mapping;
+
+	/**
+	 * @vma_res: A vma resource used in binding the uc fw to ggtt. The fw is
+	 * pinned in a reserved area of the ggtt (above the maximum address
+	 * usable by GuC); therefore, we can't use the normal vma functions to
+	 * do the pinning and we instead use this resource to do so.
+	 */
+	//struct i915_vma_resource vma_res;
+	//struct i915_vma *rsa_data;
+
+	u32 rsa_size;
+	u32 ucode_size;
+	u32 private_data_size;
+
+	u32 dma_start_offset;
+
+	bool has_gsc_headers;
+};
+
+#define GUC_ENGINE_CLASS_SHIFT		0
+#define GUC_ENGINE_CLASS_MASK		(0x7 << GUC_ENGINE_CLASS_SHIFT)
+#define GUC_ENGINE_INSTANCE_SHIFT	3
+#define GUC_ENGINE_INSTANCE_MASK	(0xf << GUC_ENGINE_INSTANCE_SHIFT)
+#define GUC_ENGINE_ALL_INSTANCES	BIT(7)
+
+#define MAKE_GUC_ID(class, instance) \
+	(((class) << GUC_ENGINE_CLASS_SHIFT) | \
+	 ((instance) << GUC_ENGINE_INSTANCE_SHIFT))
+
+
+#define GEN6_GDRST				_MMIO(0x941c)
+#define   GEN6_GRDOM_FULL			(1 << 0)
+#define   GEN6_GRDOM_RENDER			(1 << 1)
+#define   GEN6_GRDOM_MEDIA			(1 << 2)
+#define   GEN6_GRDOM_BLT			(1 << 3)
+#define   GEN6_GRDOM_VECS			(1 << 4)
+#define   GEN9_GRDOM_GUC			(1 << 5)
+#define   GEN8_GRDOM_MEDIA2			(1 << 7)
+/* GEN11 changed all bit defs except for FULL & RENDER */
+#define   GEN11_GRDOM_FULL			GEN6_GRDOM_FULL
+#define   GEN11_GRDOM_RENDER			GEN6_GRDOM_RENDER
+#define   XEHPC_GRDOM_BLT8			REG_BIT(31)
+#define   XEHPC_GRDOM_BLT7			REG_BIT(30)
+#define   XEHPC_GRDOM_BLT6			REG_BIT(29)
+#define   XEHPC_GRDOM_BLT5			REG_BIT(28)
+#define   XEHPC_GRDOM_BLT4			REG_BIT(27)
+#define   XEHPC_GRDOM_BLT3			REG_BIT(26)
+#define   XEHPC_GRDOM_BLT2			REG_BIT(25)
+#define   XEHPC_GRDOM_BLT1			REG_BIT(24)
+#define   GEN12_GRDOM_GSC			REG_BIT(21)
+#define   GEN11_GRDOM_SFC3			REG_BIT(20)
+#define   GEN11_GRDOM_SFC2			REG_BIT(19)
+#define   GEN11_GRDOM_SFC1			REG_BIT(18)
+#define   GEN11_GRDOM_SFC0			REG_BIT(17)
+#define   GEN11_GRDOM_VECS4			REG_BIT(16)
+#define   GEN11_GRDOM_VECS3			REG_BIT(15)
+#define   GEN11_GRDOM_VECS2			REG_BIT(14)
+#define   GEN11_GRDOM_VECS			REG_BIT(13)
+#define   GEN11_GRDOM_MEDIA8			REG_BIT(12)
+#define   GEN11_GRDOM_MEDIA7			REG_BIT(11)
+#define   GEN11_GRDOM_MEDIA6			REG_BIT(10)
+#define   GEN11_GRDOM_MEDIA5			REG_BIT(9)
+#define   GEN11_GRDOM_MEDIA4			REG_BIT(8)
+#define   GEN11_GRDOM_MEDIA3			REG_BIT(7)
+#define   GEN11_GRDOM_MEDIA2			REG_BIT(6)
+#define   GEN11_GRDOM_MEDIA			REG_BIT(5)
+#define   GEN11_GRDOM_GUC			REG_BIT(3)
+#define   GEN11_GRDOM_BLT			REG_BIT(2)
+#define   GEN11_VCS_SFC_RESET_BIT(instance)	(GEN11_GRDOM_SFC0 << ((instance) >> 1))
+#define   GEN11_VECS_SFC_RESET_BIT(instance)	(GEN11_GRDOM_SFC0 << (instance))
+
+#define I915_ENGINE_USING_CMD_PARSER BIT(0)
+#define I915_ENGINE_SUPPORTS_STATS   BIT(1)
+#define I915_ENGINE_HAS_PREEMPTION   BIT(2)
+#define I915_ENGINE_HAS_SEMAPHORES   BIT(3)
+#define I915_ENGINE_HAS_TIMESLICES   BIT(4)
+#define I915_ENGINE_IS_VIRTUAL       BIT(5)
+#define I915_ENGINE_HAS_RELATIVE_MMIO BIT(6)
+#define I915_ENGINE_REQUIRES_CMD_PARSER BIT(7)
+#define I915_ENGINE_WANT_FORCED_PREEMPTION BIT(8)
+#define I915_ENGINE_HAS_RCS_REG_STATE  BIT(9)
+#define I915_ENGINE_HAS_EU_PRIORITY    BIT(10)
+#define I915_ENGINE_FIRST_RENDER_COMPUTE BIT(11)
+#define I915_ENGINE_USES_WA_HOLD_SWITCHOUT BIT(12)
+
+#define CONFIG_DRM_I915_PREEMPT_TIMEOUT_COMPUTE 7500
+
+#define CONFIG_DRM_I915_HEARTBEAT_INTERVAL 2500
+#define CONFIG_DRM_I915_MAX_REQUEST_BUSYWAIT 8000
+#define CONFIG_DRM_I915_PREEMPT_TIMEOUT 640
+#define CONFIG_DRM_I915_STOP_TIMEOUT 100
+#define CONFIG_DRM_I915_TIMESLICE_DURATION 1
+
+template <typename T>
+	constexpr unsigned long __ffs(T word) {
+		// Handle the 0 case (original __builtin_ctzl(0) is undefined behavior,
+		// but returning the bit width is the safest pure C++ equivalent)
+		if (word == 0) return sizeof(T) * 8;
+
+		unsigned long bit = 0;
+		while ((word & 1) == 0) {
+			word >>= 1;
+			bit++;
+		}
+		return bit;
+	}
+
+#define HSW_CXT_TOTAL_SIZE		(17 * PAGE_SIZE)
+#define DEFAULT_LR_CONTEXT_RENDER_SIZE	(22 * PAGE_SIZE)
+#define GEN8_LR_CONTEXT_RENDER_SIZE	(20 * PAGE_SIZE)
+#define GEN9_LR_CONTEXT_RENDER_SIZE	(22 * PAGE_SIZE)
+#define GEN11_LR_CONTEXT_RENDER_SIZE	(14 * PAGE_SIZE)
+#define GEN8_LR_CONTEXT_OTHER_SIZE	(2 * PAGE_SIZE)
+#define MAX_MMIO_BASES 3
+#define GEN7_CXT_SIZE				_MMIO(0x21a8)
+#define CXT_SIZE				_MMIO(0x21a0)
+#define   GEN6_CXT_POWER_SIZE(cxt_reg)		(((cxt_reg) >> 24) & 0x3f)
+#define   GEN6_CXT_RING_SIZE(cxt_reg)		(((cxt_reg) >> 18) & 0x3f)
+#define   GEN6_CXT_RENDER_SIZE(cxt_reg)		(((cxt_reg) >> 12) & 0x3f)
+#define   GEN6_CXT_EXTENDED_SIZE(cxt_reg)	(((cxt_reg) >> 6) & 0x3f)
+#define   GEN6_CXT_PIPELINE_SIZE(cxt_reg)	(((cxt_reg) >> 0) & 0x3f)
+#define   GEN6_CXT_TOTAL_SIZE(cxt_reg)		(GEN6_CXT_RING_SIZE(cxt_reg) + \
+						GEN6_CXT_EXTENDED_SIZE(cxt_reg) + \
+						GEN6_CXT_PIPELINE_SIZE(cxt_reg))
+#define GEN7_CXT_SIZE				_MMIO(0x21a8)
+#define   GEN7_CXT_POWER_SIZE(ctx_reg)		(((ctx_reg) >> 25) & 0x7f)
+#define   GEN7_CXT_RING_SIZE(ctx_reg)		(((ctx_reg) >> 22) & 0x7)
+#define   GEN7_CXT_RENDER_SIZE(ctx_reg)		(((ctx_reg) >> 16) & 0x3f)
+#define   GEN7_CXT_EXTENDED_SIZE(ctx_reg)	(((ctx_reg) >> 9) & 0x7f)
+#define   GEN7_CXT_GT1_SIZE(ctx_reg)		(((ctx_reg) >> 6) & 0x7)
+#define   GEN7_CXT_VFSTATE_SIZE(ctx_reg)	(((ctx_reg) >> 0) & 0x3f)
+#define   GEN7_CXT_TOTAL_SIZE(ctx_reg)		(GEN7_CXT_EXTENDED_SIZE(ctx_reg) + \
+						 GEN7_CXT_VFSTATE_SIZE(ctx_reg))
+
+#define HAS_L3_CCS_READ(i915) (INTEL_INFO(i915)->has_l3_ccs_read)
+#define RING_CMD_CCTL(base)			_MMIO((base) + 0xc4)
+#define CMD_CCTL_WRITE_OVERRIDE_MASK REG_GENMASK(13, 7)
+#define CMD_CCTL_READ_OVERRIDE_MASK REG_GENMASK(6, 0)
+#define CMD_CCTL_MOCS_MASK (CMD_CCTL_WRITE_OVERRIDE_MASK | \
+				CMD_CCTL_READ_OVERRIDE_MASK)
+#define CMD_CCTL_MOCS_OVERRIDE(write, read)				      \
+		(REG_FIELD_PREP(CMD_CCTL_WRITE_OVERRIDE_MASK, (write) << 1) | \
+		 REG_FIELD_PREP(CMD_CCTL_READ_OVERRIDE_MASK, (read) << 1))
+
+
+struct intel_uc_fw_ver {
+	u32 major;
+	u32 minor;
+	u32 patch;
+	u32 build;
+};
+
+struct iosys_map {
+	union {
+		void *vaddr_iomem;
+		void *vaddr;
+	};
+	bool is_iomem;
+};
+
+struct intel_guc {
+	
+	struct intel_gt *gt;
+	
+	/** @fw: the GuC firmware */
+	struct intel_uc_fw fw;
+	/** @log: sub-structure containing GuC log related data and objects */
+	struct intel_guc_log log;
+	/** @ct: the command transport communication channel */
+	//struct intel_guc_ct ct;
+	/** @slpc: sub-structure containing SLPC related data and objects */
+	//struct intel_guc_slpc slpc;
+	/** @capture: the error-state-capture module's data and objects */
+///	struct intel_guc_state_capture *capture;
+
+	/** @dbgfs_node: debugfs node */
+	//struct dentry *dbgfs_node;
+
+	/** @sched_engine: Global engine used to submit requests to GuC */
+	//struct i915_sched_engine *sched_engine;
+	/**
+	 * @stalled_request: if GuC can't process a request for any reason, we
+	 * save it until GuC restarts processing. No other request can be
+	 * submitted until the stalled request is processed.
+	 */
+//	struct i915_request *stalled_request;
+	/**
+	 * @submission_stall_reason: reason why submission is stalled
+	 */
+/*	enum {
+		STALL_NONE,
+		STALL_REGISTER_CONTEXT,
+		STALL_MOVE_LRC_TAIL,
+		STALL_ADD_REQUEST,
+	} submission_stall_reason;
+*/
+	/* intel_guc_recv interrupt related state */
+	/** @irq_lock: protects GuC irq state */
+//	spinlock_t irq_lock;
+	/**
+	 * @msg_enabled_mask: mask of events that are processed when receiving
+	 * an INTEL_GUC_ACTION_DEFAULT G2H message.
+	 */
+	unsigned int msg_enabled_mask;
+
+	/**
+	 * @outstanding_submission_g2h: number of outstanding GuC to Host
+	 * responses related to GuC submission, used to determine if the GT is
+	 * idle
+	 */
+//	atomic_t outstanding_submission_g2h;
+
+	/** @tlb_lookup: xarray to store all pending TLB invalidation requests */
+//	struct xarray tlb_lookup;
+
+	/**
+	 * @serial_slot: id to the initial waiter created in tlb_lookup,
+	 * which is used only when failed to allocate new waiter.
+	 */
+	u32 serial_slot;
+
+	/** @next_seqno: the next id (sequence number) to allocate. */
+	u32 next_seqno;
+
+	/** @interrupts: pointers to GuC interrupt-managing functions. */
+/*	struct {
+		bool enabled;
+		void (*reset)(struct intel_guc *guc);
+		void (*enable)(struct intel_guc *guc);
+		void (*disable)(struct intel_guc *guc);
+	} interrupts;
+*/
+	/**
+	 * @submission_state: sub-structure for submission state protected by
+	 * single lock
+	 */
+	struct {
+		/**
+		 * @submission_state.lock: protects everything in
+		 * submission_state, ce->guc_id.id, and ce->guc_id.ref
+		 * when transitioning in and out of zero
+		 */
+	//	spinlock_t lock;
+		/**
+		 * @submission_state.guc_ids: used to allocate new
+		 * guc_ids, single-lrc
+		 */
+	//	struct ida guc_ids;
+		/**
+		 * @submission_state.num_guc_ids: Number of guc_ids, selftest
+		 * feature to be able to reduce this number while testing.
+		 */
+		int num_guc_ids;
+		/**
+		 * @submission_state.guc_ids_bitmap: used to allocate
+		 * new guc_ids, multi-lrc
+		 */
+		unsigned long *guc_ids_bitmap;
+		/**
+		 * @submission_state.guc_id_list: list of intel_context
+		 * with valid guc_ids but no refs
+		 */
+		struct list_head guc_id_list;
+		/**
+		 * @submission_state.guc_ids_in_use: Number single-lrc
+		 * guc_ids in use
+		 */
+		unsigned int guc_ids_in_use;
+		/**
+		 * @submission_state.destroyed_contexts: list of contexts
+		 * waiting to be destroyed (deregistered with the GuC)
+		 */
+		struct list_head destroyed_contexts;
+		/**
+		 * @submission_state.destroyed_worker: worker to deregister
+		 * contexts, need as we need to take a GT PM reference and
+		 * can't from destroy function as it might be in an atomic
+		 * context (no sleeping)
+		 */
+	//	struct work_struct destroyed_worker;
+		/**
+		 * @submission_state.reset_fail_worker: worker to trigger
+		 * a GT reset after an engine reset fails
+		 */
+	//	struct work_struct reset_fail_worker;
+		/**
+		 * @submission_state.reset_fail_mask: mask of engines that
+		 * failed to reset
+		 */
+		intel_engine_mask_t reset_fail_mask;
+		/**
+		 * @submission_state.sched_disable_delay_ms: schedule
+		 * disable delay, in ms, for contexts
+		 */
+		unsigned int sched_disable_delay_ms;
+		/**
+		 * @submission_state.sched_disable_gucid_threshold:
+		 * threshold of min remaining available guc_ids before
+		 * we start bypassing the schedule disable delay
+		 */
+		unsigned int sched_disable_gucid_threshold;
+	} submission_state;
+
+	/**
+	 * @submission_supported: tracks whether we support GuC submission on
+	 * the current platform
+	 */
+	bool submission_supported;
+	/** @submission_selected: tracks whether the user enabled GuC submission */
+	bool submission_selected;
+	/** @submission_initialized: tracks whether GuC submission has been initialised */
+	bool submission_initialized;
+	/** @submission_version: Submission API version of the currently loaded firmware */
+	struct intel_uc_fw_ver submission_version;
+
+	/**
+	 * @rc_supported: tracks whether we support GuC rc on the current platform
+	 */
+	bool rc_supported;
+	/** @rc_selected: tracks whether the user enabled GuC rc */
+	bool rc_selected;
+
+	/** @ads_vma: object allocated to hold the GuC ADS */
+	void *ads_vma;
+	/** @ads_map: contents of the GuC ADS */
+	struct iosys_map ads_map;
+	/** @ads_regset_size: size of the save/restore regsets in the ADS */
+	u32 ads_regset_size;
+	/**
+	 * @ads_regset_count: number of save/restore registers in the ADS for
+	 * each engine
+	 */
+	u32 ads_regset_count[I915_NUM_ENGINES];
+	/** @ads_regset: save/restore regsets in the ADS */
+	struct guc_mmio_reg *ads_regset;
+	/** @ads_golden_ctxt_size: size of the golden contexts in the ADS */
+	u32 ads_golden_ctxt_size;
+	/** @ads_waklv_size: size of workaround KLVs */
+	u32 ads_waklv_size;
+	/** @ads_capture_size: size of register lists in the ADS used for error capture */
+	u32 ads_capture_size;
+
+	/** @lrc_desc_pool_v69: object allocated to hold the GuC LRC descriptor pool */
+	//struct i915_vma *lrc_desc_pool_v69;
+	/** @lrc_desc_pool_vaddr_v69: contents of the GuC LRC descriptor pool */
+	//void *lrc_desc_pool_vaddr_v69;
+
+	/**
+	 * @context_lookup: used to resolve intel_context from guc_id, if a
+	 * context is present in this structure it is registered with the GuC
+	 */
+	//struct xarray context_lookup;
+
+	/** @params: Control params for fw initialization */
+	u32 params[GUC_CTL_MAX_DWORDS];
+
+	/** @send_regs: GuC's FW specific registers used for sending MMIO H2G */
+	/*struct {
+		u32 base;
+		unsigned int count;
+		enum forcewake_domains fw_domains;
+	} send_regs;
+*/
+	/** @notify_reg: register used to send interrupts to the GuC FW */
+	u32 notify_reg;
+
+	/**
+	 * @mmio_msg: notification bitmask that the GuC writes in one of its
+	 * registers when the CT channel is disabled, to be processed when the
+	 * channel is back up.
+	 */
+	u32 mmio_msg;
+
+	/** @send_mutex: used to serialize the intel_guc_send actions */
+	//struct mutex send_mutex;
+
+	/**
+	 * @timestamp: GT timestamp object that stores a copy of the timestamp
+	 * and adjusts it for overflow using a worker.
+	 */
+	struct {
+		/**
+		 * @timestamp.lock: Lock protecting the below fields and
+		 * the engine stats.
+		 */
+		//spinlock_t lock;
+
+		/**
+		 * @timestamp.gt_stamp: 64-bit extended value of the GT
+		 * timestamp.
+		 */
+		u64 gt_stamp;
+
+		/**
+		 * @timestamp.ping_delay: Period for polling the GT
+		 * timestamp for overflow.
+		 */
+		unsigned long ping_delay;
+
+		/**
+		 * @timestamp.work: Periodic work to adjust GT timestamp,
+		 * engine and context usage for overflows.
+		 */
+	//	struct delayed_work work;
+
+		/**
+		 * @timestamp.shift: Right shift value for the gpm timestamp
+		 */
+		u32 shift;
+
+		/**
+		 * @timestamp.last_stat_jiffies: jiffies at last actual
+		 * stats collection time. We use this timestamp to ensure
+		 * we don't oversample the stats because runtime power
+		 * management events can trigger stats collection at much
+		 * higher rates than required.
+		 */
+		unsigned long last_stat_jiffies;
+	} timestamp;
+
+	/**
+	 * @dead_guc_worker: Asynchronous worker thread for forcing a GuC reset.
+	 * Specifically used when the G2H handler wants to issue a reset. Resets
+	 * require flushing the G2H queue. So, the G2H processing itself must not
+	 * trigger a reset directly. Instead, go via this worker.
+	 */
+//	struct work_struct dead_guc_worker;
+	/**
+	 * @last_dead_guc_jiffies: timestamp of previous 'dead guc' occurrence
+	 * used to prevent a fundamentally broken system from continuously
+	 * reloading the GuC.
+	 */
+	unsigned long last_dead_guc_jiffies;
+
+#ifdef CONFIG_DRM_I915_SELFTEST
+	/**
+	 * @number_guc_id_stolen: The number of guc_ids that have been stolen
+	 */
+	int number_guc_id_stolen;
+	/**
+	 * @fast_response_selftest: Backdoor to CT handler for fast response selftest
+	 */
+	u32 fast_response_selftest;
+#endif
+};
+
+struct temp_regset {
+	/*
+	 * ptr to the section of the storage for the engine currently being
+	 * worked on
+	 */
+	struct guc_mmio_reg *registers;
+	/* ptr to the base of the allocated storage for all engines */
+	struct guc_mmio_reg *storage;
+	u32 storage_used;
+	u32 storage_max;
+};
+
+
+
+struct intel_gsc_uc {
+	/* Generic uC firmware management */
+	struct intel_uc_fw fw;
+
+	/* GSC-specific additions */
+
+	/*
+	 * The GSC has 3 version numbers:
+	 * - Release version (incremented with each build)
+	 * - Security version (incremented on security fix)
+	 * - Compatibility version (incremented on interface change)
+	 *
+	 * The one we care about to use the binary is the last one, so that's
+	 * the one we save inside the intel_uc_fw structure. The other two
+	 * versions are only used for debug/info purposes, so we save them here.
+	 *
+	 * Note that the release and security versions are available in the
+	 * binary header, while the compatibility version must be queried after
+	 * loading the binary.
+	 */
+	struct intel_uc_fw_ver release;
+	u32 security_version;
+
+	//struct i915_vma *local; /* private memory for GSC usage */
+	void *local_vaddr; /* pointer to access the private memory */
+	//struct intel_context *ce; /* for submission to GSC FW via GSC engine */
+
+	/* for delayed load and proxy handling */
+	//struct workqueue_struct *wq;
+	//struct work_struct work;
+	u32 gsc_work_actions; /* protected by gt->irq_lock */
+#define GSC_ACTION_FW_LOAD BIT(0)
+#define GSC_ACTION_SW_PROXY BIT(1)
+
+	struct {
+		//struct i915_gsc_proxy_component *component;
+		bool component_added;
+		//struct i915_vma *vma;
+		void *to_gsc;
+		void *to_csme;
+		//struct mutex mutex; /* protects the tee channel binding */
+	} proxy;
+};
+
+enum intel_huc_authentication_type {
+	INTEL_HUC_AUTH_BY_GUC = 0,
+	INTEL_HUC_AUTH_BY_GSC,
+	INTEL_HUC_AUTH_MAX_MODES
+};
+
+
+struct intel_huc {
+	/* Generic uC firmware management */
+	struct intel_uc_fw fw;
+
+	/* HuC-specific additions */
+	struct {
+		u32 reg;
+		u32 mask;
+		u32 value;
+	} status[INTEL_HUC_AUTH_MAX_MODES];
+
+
+
+	/* for load via GSCCS */
+	//struct i915_vma *heci_pkt;
+
+	bool loaded_via_gsc;
+};
+
+struct intel_uc {
+	//struct intel_uc_ops *ops;
+	struct intel_gsc_uc gsc;
+	struct intel_guc guc;
+	struct intel_huc huc;
+
+	/* Snapshot of GuC log from last failed load */
+	//struct drm_i915_gem_object *load_err_log;
+
+	bool reset_in_progress;
+	bool fw_table_invalid;
+};
+
+struct intel_gt {
+	struct drm_i915_private *i915;
+	const char *name;
+	enum intel_gt_type type;
+
+	//struct intel_uncore *uncore;
+	//struct i915_ggtt *ggtt;
+
+	struct intel_uc uc;
+	//struct intel_gsc gsc;
+	//struct intel_wopcm wopcm;
+
+	/*struct {
+		struct mutex invalidate_lock;
+
+		seqcount_mutex_t seqno;
+	} tlb;*/
+
+	struct i915_wa_list wa_list;
+
+	/*struct intel_gt_timelines {
+		spinlock_t lock;
+		struct list_head active_list;
+	} timelines;
+
+	struct intel_gt_requests {
+
+		struct delayed_work retire_work;
+	} requests;
+
+	struct {
+		struct llist_head list;
+		struct work_struct work;
+	} watchdog;
+
+	struct intel_wakeref wakeref;
+	atomic_t user_wakeref;
+
+	struct list_head closed_vma;
+	spinlock_t closed_lock;
+
+	ktime_t last_init_time;
+	struct intel_reset reset;
+
+	intel_wakeref_t awake;*/
+
+	/*u32 clock_frequency;
+	u32 clock_period_ns;
+
+	struct intel_llc llc;
+	struct intel_rc6 rc6;
+	struct intel_rps rps;
+
+	spinlock_t *irq_lock;*/
+	u32 gt_imr;
+	u32 pm_ier;
+	u32 pm_imr;
+
+	u32 pm_guc_events;
+
+	/*struct {
+		bool active;
+
+
+		seqcount_mutex_t lock;
+
+		ktime_t total;
+
+		ktime_t start;
+	} stats;*/
+
+	struct intel_engine_cs *engine[I915_NUM_ENGINES];
+	struct intel_engine_cs *engine_class[MAX_ENGINE_CLASS + 1]
+						[MAX_ENGINE_INSTANCE + 1];
+	enum intel_submission_method submission_method;
+
+	struct {
+
+		intel_engine_mask_t cslices;
+	} ccs;
+
+
+	/*struct i915_address_space *vm;
+
+	struct intel_gt_buffer_pool buffer_pool;
+
+	struct i915_vma *scratch;
+
+	struct intel_migrate migrate;
+*/
+	const struct intel_mmio_range *steering_table[NUM_STEERING_TYPES];
+
+	struct {
+		u8 groupid;
+		u8 instanceid;
+	} default_steering;
+
+
+	//spinlock_t mcr_lock;
+
+	//phys_addr_t phys_addr;
+
+	struct intel_gt_info info;
+
+	struct {
+		u8 uc_index;
+		u8 wb_index;
+	} mocs;
+
+	/*struct kobject sysfs_gt;
+
+	struct gt_defaults defaults;
+	struct kobject *sysfs_defaults;
+
+	struct work_struct wedge;
+
+	struct i915_perf_gt perf;
+
+	struct list_head ggtt_link;*/
+};
+
+#define GEN12_RCU_MODE				_MMIO(0x14800)
+#define   XEHP_RCU_MODE_FIXED_SLICE_CCS_MODE	REG_BIT(1)
+#define   GEN12_RCU_MODE_CCS_ENABLE		REG_BIT(0)
+
+#define RING_MODE_GEN7(base)			_MMIO((base) + 0x29c)
+#define RING_HWS_PGA_GEN6(base)	_MMIO((base) + 0x2080)
+#define RING_IMR(base)				_MMIO((base) + 0xa8)
+#define RING_HWS_PGA(base)			_MMIO((base) + 0x80)
+
+#define PERF_REG(offset)			_MMIO(offset)
+#define EU_PERF_CNTL0				PERF_REG(0xe458)
+#define EU_PERF_CNTL4				PERF_REG(0xe45c)
+#define EU_PERF_CNTL1				PERF_REG(0xe558)
+#define EU_PERF_CNTL5				PERF_REG(0xe55c)
+#define EU_PERF_CNTL2				PERF_REG(0xe658)
+#define EU_PERF_CNTL6				PERF_REG(0xe65c)
+#define EU_PERF_CNTL3				PERF_REG(0xe758)
+#define i915_mmio_reg_offset(r) r
+#define GEN9_LNCFCMOCS(i)			_MMIO(0xb020 + (i) * 4)	/* L3 Cache Control */
+#define XEHP_LNCFCMOCS(i)			MCR_REG(0xb020 + (i) * 4)
+
+
+
+
+#define IS_GSI_REG(reg) ((reg) < 0x40000)
+
+#define XEHP_BITMAP_BITS(mask)	((int)BITS_PER_TYPE(__typeof(mask.xehp)))
+#define IS_ERR_VALUE(x) unlikely((unsigned long)(void *)(x) >= (unsigned long)-MAX_ERRNO)
+
+#define swap(a, b) \
+	do { __typeof(a) __tmp = (a); (a) = (b); (b) = __tmp; } while (0)
+
+#define GEN_DSS_PER_GSLICE	4
+#define GEN_DSS_PER_CSLICE	8
+#define GEN_DSS_PER_MSLICE	8
+
+
+
+#define __iosys_map_wr_sys(val__, vaddr__, type__)				\
+	(*reinterpret_cast<type__ *>(vaddr__) = (val__))
+
+#define __iosys_map_rd_sys(val__, vaddr__, type__)				\
+	(val__ = (*reinterpret_cast<type__ *>(vaddr__)))
+
+#define iosys_map_rd(map__, offset__, type__) ({					\
+	type__ val_;									\
+	__iosys_map_rd_sys(val_, static_cast<uint8_t*>((map__)->vaddr) + (offset__), type__);		\
+	val_;										\
+})
+
+#define iosys_map_wr(map__, offset__, type__, val__) ({					\
+	type__ val_ = (val__);								\
+	__iosys_map_wr_sys(val_, static_cast<uint8_t*>((map__)->vaddr) + (offset__), type__);		\
+})
+
+#define iosys_map_wr_field(map__, struct_offset__, struct_type__, field__, val__) ({	\
+	struct_type__ *s_;								\
+	iosys_map_wr(map__, struct_offset__ + offsetof(struct_type__, field__),		\
+			 __typeof(s_->field__), val__);					\
+})
+
+#define iosys_map_rd_field(map__, struct_offset__, struct_type__, field__) ({	\
+	struct_type__ *s_;							\
+	iosys_map_rd(map__, struct_offset__ + offsetof(struct_type__, field__),	\
+			 __typeof(s_->field__));					\
+})
+
+#define ads_blob_read(guc_, field_)					\
+	iosys_map_rd_field(&(guc_)->ads_map, 0, struct __guc_ads_blob, field_)
+
+#define ads_blob_write(guc_, field_, val_)				\
+	iosys_map_wr_field(&(guc_)->ads_map, 0, struct __guc_ads_blob,	\
+			   field_, val_)
+
+#define info_map_write(map_, field_, val_) \
+	iosys_map_wr_field(map_, 0, struct guc_gt_system_info, field_, val_)
+
+#define info_map_read(map_, field_) \
+	iosys_map_rd_field(map_, 0, struct guc_gt_system_info, field_)
+
+enum {
+	GUC_CAPTURE_LIST_CLASS_RENDER_COMPUTE = 0,
+	GUC_CAPTURE_LIST_CLASS_VIDEO = 1,
+	GUC_CAPTURE_LIST_CLASS_VIDEOENHANCE = 2,
+	GUC_CAPTURE_LIST_CLASS_BLITTER = 3,
+	GUC_CAPTURE_LIST_CLASS_GSC_OTHER = 4,
+};
+
+#define IS_DGFX(i915)   (INTEL_INFO(i915)->is_dgfx)
+
+
+template <typename T>
+constexpr int ilog2(T n) {
+	if (n < 2) return 0;
+	
+	int log = 0;
+	// Shift right until the highest '1' bit falls off the end
+	while (n >>= 1) {
+		log++;
+	}
+	return log;
+}
 
 
 #ifdef __cplusplus

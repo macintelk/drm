@@ -830,8 +830,8 @@ public:
 	static uint64_t finitDeviceMemory(void *that);
 	mach_vm_address_t ofinitDeviceMemory {};
 	
-	
-	
+	static uint64_t  setupAdditionalDataStructs(void *that0);
+	mach_vm_address_t osetupAdditionalDataStructs {};
 	
 public:
 

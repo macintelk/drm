@@ -36,10 +36,9 @@ class NBlue {
 
     public:
 	
-	//struct drm_i915_private dev_priv;
+	struct drm_i915_private *i915b;
 	
     static NBlue *callback;
-	struct intel_display display_base;
 	struct intel_dmc dmc0;
 	IOPCIDevice *iGPU {nullptr};
 	

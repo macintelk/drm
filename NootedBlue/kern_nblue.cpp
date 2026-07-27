@@ -957,8 +957,102 @@ int msecs_to_pps_units(int msecs)
 }
 
 
+void intel_sseu_set_info(struct sseu_dev_info *sseu, u8 max_slices,
+			 u8 max_subslices, u8 max_eus_per_subslice)
+{
+	sseu->max_slices = max_slices;
+	sseu->max_subslices = max_subslices;
+	sseu->max_eus_per_subslice = max_eus_per_subslice;
+}
 
 
+
+static inline bool
+intel_sseu_has_subslice(const struct sseu_dev_info *sseu, int slice,
+			int subslice)
+{
+	if (slice >= sseu->max_slices ||
+		subslice >= sseu->max_subslices)
+		return false;
+
+	if (sseu->has_xehp_dss)
+		return test_bit(subslice, sseu->subslice_mask.xehp);
+	else
+		return sseu->subslice_mask.hsw[slice] & BIT(subslice);
+}
+
+static void sseu_set_eus(struct sseu_dev_info *sseu, int slice, int subslice,
+			 u16 eu_mask)
+{
+	//GEM_WARN_ON(eu_mask && __fls(eu_mask) >= sseu->max_eus_per_subslice);
+	if (sseu->has_xehp_dss) {
+		//GEM_WARN_ON(slice > 0);
+		sseu->eu_mask.xehp[subslice] = eu_mask;
+	} else {
+		sseu->eu_mask.hsw[slice][subslice] = eu_mask;
+	}
+}
+
+static u16 compute_eu_total(const struct sseu_dev_info *sseu)
+{
+	int s, ss, total = 0;
+
+	for (s = 0; s < sseu->max_slices; s++)
+		for (ss = 0; ss < sseu->max_subslices; ss++)
+			if (sseu->has_xehp_dss)
+				total += hweight16(sseu->eu_mask.xehp[ss]);
+			else
+				total +=hweight16(sseu->eu_mask.hsw[s][ss]);
+
+	return total;
+}
+
+static void gen11_compute_sseu_info(struct sseu_dev_info *sseu,
+					u32 ss_en, u16 eu_en)
+{
+	u32 valid_ss_mask = GENMASK(sseu->max_subslices - 1, 0);
+	int ss;
+
+	sseu->slice_mask |= BIT(0);
+	sseu->subslice_mask.hsw[0] = ss_en & valid_ss_mask;
+
+	for (ss = 0; ss < sseu->max_subslices; ss++)
+		if (intel_sseu_has_subslice(sseu, 0, ss))
+			sseu_set_eus(sseu, 0, ss, eu_en);
+
+	sseu->eu_per_subslice = hweight16(eu_en);
+	sseu->eu_total = compute_eu_total(sseu);
+}
+
+static void gen12_sseu_info_init(struct intel_gt *gt)
+{
+	struct sseu_dev_info *sseu = &gt->info.sseu;
+	u32 g_dss_en;
+	u16 eu_en = 0;
+	u8 eu_en_fuse;
+	u8 s_en;
+	int eu;
+
+	intel_sseu_set_info(sseu, 1, 6, 16);
+
+
+	s_en = REG_FIELD_GET(GEN11_GT_S_ENA_MASK,
+						 NBlue::callback->readReg32 (GEN11_GT_SLICE_ENABLE));
+	//drm_WARN_ON(&gt->i915->drm, s_en != 0x1);
+
+	g_dss_en = NBlue::callback->readReg32 (GEN12_GT_GEOMETRY_DSS_ENABLE);
+
+	eu_en_fuse = ~REG_FIELD_GET(GEN11_EU_DIS_MASK,
+								NBlue::callback->readReg32 (GEN11_EU_DISABLE));
+
+	for (eu = 0; eu < sseu->max_eus_per_subslice / 2; eu++)
+		if (eu_en_fuse & BIT(eu))
+			eu_en |= BIT(eu * 2) | BIT(eu * 2 + 1);
+
+	gen11_compute_sseu_info(sseu, g_dss_en, eu_en);
+
+	sseu->has_slice_pg = 1;
+}
 
 void
 parse_lfp_backlight(struct intel_display *display)
@@ -986,7 +1080,9 @@ parse_lfp_backlight(struct intel_display *display)
 	intel_dp->link_rate = port_clock;
 	crtc_state->port_clock=port_clock;
 
-
+	struct intel_gt *gt =NBlue::callback->i915b->gt[0];
+	gen12_sseu_info_init(gt);
+	
 	backlight_data = (const struct bdb_lfp_backlight *)bdb_find_section(display, BDB_LFP_BACKLIGHT);
 	if (!backlight_data)
 		return;
@@ -2736,9 +2832,40 @@ parse_lfp_data(struct intel_display *display,
 }
 
 
+
 int NBlue::intel_opregion_setup()
 {
-	struct intel_display *display=&display_base;
+	struct drm_i915_private i915a;
+	i915b=&i915a;
+	struct drm_i915_private *i915=i915b;
+	struct intel_display display0;
+	struct intel_gt gt0;
+	i915->display=&display0;
+	i915->gt[0]=&gt0;
+	struct intel_gt *gt=i915->gt[0];
+	gt->i915 = i915;
+	gt->name = "Primary GT";
+
+	i915->__info = &tgl_info;//ADD OTHERS with find_devid
+	
+	struct intel_runtime_info *runtime = RUNTIME_INFO(i915);
+	memcpy(runtime, &INTEL_INFO(i915)->__runtime, sizeof(*runtime));
+	
+	const struct intel_device_info *info = INTEL_INFO(i915);
+	const struct intel_runtime_info *rinfo = RUNTIME_INFO(i915);
+	const unsigned int pi = __platform_mask_index(rinfo, info->platform);
+	const unsigned int pb = __platform_mask_bit(rinfo, info->platform);
+	u16 devid = deviceId;
+	u32 mask = 0;
+	
+	mask = BIT(INTEL_SUBPLATFORM_UY);
+	RUNTIME_INFO(i915)->platform_mask[pi] |= mask;
+	runtime->device_id = deviceId;
+	RUNTIME_INFO(i915)->media.ip = RUNTIME_INFO(i915)->graphics.ip;
+	
+	gt->info.engine_mask = INTEL_INFO(gt->i915)->platform_engine_mask;
+	
+	struct intel_display *display=i915b->display;
 	if (display->initok) return 0;
 	
 	struct intel_opregion *opregion = &display->opregion;
@@ -2911,7 +3038,7 @@ err_out:
 
 void NBlue::parse_backlight()
 {
-	parse_lfp_backlight(&display_base);
+	parse_lfp_backlight(i915b->display);
 }
 
 UInt32 NBlue::readReg32(unsigned long reg) {

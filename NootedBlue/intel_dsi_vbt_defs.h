@@ -15,6 +15,7 @@ typedef int8_t s8;
 typedef uint8_t u8;
 typedef uint16_t u16;
 typedef uint32_t u32;
+typedef int32_t s32;
 typedef uint64_t u64;
 typedef uint64_t resource_size_t;
 
@@ -85,6 +86,12 @@ struct AGDCDPPortConfig_t { /* PlaceHolder Structure */
 
 
 #define REG_FIELD_PREP(mask, val) (((val) << (__builtin_ffsll(mask) - 1)) & (mask))
+
+#define __bf_shf(x) (__builtin_ffsll(x) - 1)
+#define FIELD_PREP(_mask, _val)                        \
+({                                \
+((__typeof(_mask))(_val) << __bf_shf(_mask)) & (_mask);    \
+})
 
 #define REG_MASKED_FIELD_ENABLE(mask)  (((mask) << 16) | (mask))
 #define REG_MASKED_FIELD_DISABLE(mask) ((mask) << 16)
@@ -208,6 +215,10 @@ struct PACKED ConnectorInfo {
 })
 #define KHz(x) (1000 * (x))
 #define MHz(x) KHz(1000 * (x))
+
+#define __round_mask(x, y) ((__typeof__(x))((y)-1))
+#define round_up(x, y) ((((x)-1) | __round_mask(x, y))+1)
+
 
 enum intel_backlight_type {
 	INTEL_BACKLIGHT_PMIC,
