@@ -9863,6 +9863,12 @@ static const struct __ext_steer_reg xehpg_extregs[] = {
 		(REG_FIELD_PREP(BLIT_CCTL_DST_MOCS_MASK, (dst) << 1) | \
 		 REG_FIELD_PREP(BLIT_CCTL_SRC_MOCS_MASK, (src) << 1))
 
+#define HAS_GUC_DEPRIVILEGE(i915) \
+	(INTEL_INFO(i915)->has_guc_deprivilege)
+
+
+
+
 
 
 #ifdef __cplusplus

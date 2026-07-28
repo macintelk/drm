@@ -1927,6 +1927,104 @@ void intel_gt_init_workarounds(struct intel_gt *gt)
 	wa_init_finish(wal);
 }
 
+static bool __wopcm_regs_locked(
+				u32 *guc_wopcm_base, u32 *guc_wopcm_size)
+{
+
+	u32 reg_base = NBlue::callback->readReg32( DMA_GUC_WOPCM_OFFSET);
+	u32 reg_size = NBlue::callback->readReg32( GUC_WOPCM_SIZE);
+
+	if (!(reg_size & GUC_WOPCM_SIZE_LOCKED) ||
+		!(reg_base & GUC_WOPCM_OFFSET_VALID))
+		return false;
+
+	*guc_wopcm_base = reg_base & GUC_WOPCM_OFFSET_MASK;
+	*guc_wopcm_size = reg_size & GUC_WOPCM_SIZE_MASK;
+	return true;
+}
+
+static bool __wopcm_regs_writable(struct drm_i915_private *i915)
+{
+	if (!HAS_GUC_DEPRIVILEGE(i915))
+		return true;
+
+	return NBlue::callback->readReg32( GUC_SHIM_CONTROL2) & GUC_IS_PRIVILEGED;
+}
+
+static int uc_init_wopcm(struct intel_gt *gt)
+{
+	struct drm_i915_private *i915=gt->i915;
+	struct intel_display *display = i915->display;
+	
+	u32 base = gt->wopcm.guc.base;
+	u32 size = gt->wopcm.guc.size;
+	u32 huc_agent = 0;
+	u32 mask;
+	int err;
+
+	if (unlikely(!base || !size)) {
+		return -E2BIG;
+	}
+
+	mask = GUC_WOPCM_SIZE_MASK | GUC_WOPCM_SIZE_LOCKED;
+	err = intel_uncore_write_and_verify(display, GUC_WOPCM_SIZE, size, mask,
+						size | GUC_WOPCM_SIZE_LOCKED);
+	if (err)
+		goto err_out;
+
+	mask = GUC_WOPCM_OFFSET_MASK | GUC_WOPCM_OFFSET_VALID | huc_agent;
+	err = intel_uncore_write_and_verify(display, DMA_GUC_WOPCM_OFFSET,
+						base | huc_agent, mask,
+						base | huc_agent |
+						GUC_WOPCM_OFFSET_VALID);
+	if (err)
+		goto err_out;
+
+	return 0;
+
+err_out:
+
+
+	return err;
+}
+
+void intel_wopcm_init(struct intel_gt *gt, u32 guc_fw_size)
+{
+	struct intel_wopcm *wopcm= &gt->wopcm;
+	u32 huc_fw_size = 0;
+	u32 ctx_rsvd = ICL_WOPCM_HW_CTX_RESERVED;
+	u32 wopcm_size = wopcm->size;
+	u32 guc_wopcm_base;
+	u32 guc_wopcm_size;
+
+	if (!guc_fw_size)
+		return;
+
+	if (__wopcm_regs_locked( &guc_wopcm_base, &guc_wopcm_size)) {
+
+		if (!__wopcm_regs_writable(gt->i915))
+			wopcm_size = MAX_WOPCM_SIZE;
+
+		goto check;
+	}
+
+	guc_wopcm_base = huc_fw_size + WOPCM_RESERVED_SIZE;
+	guc_wopcm_base = ALIGN(guc_wopcm_base, GUC_WOPCM_OFFSET_ALIGNMENT);
+
+	guc_wopcm_base = min(guc_wopcm_base, wopcm_size - ctx_rsvd);
+
+	guc_wopcm_size = wopcm_size - ctx_rsvd - guc_wopcm_base;
+	guc_wopcm_size &= GUC_WOPCM_SIZE_MASK;
+	
+	wopcm->guc.base=guc_wopcm_base;
+	wopcm->guc.size=guc_wopcm_size;
+	
+	uc_init_wopcm(gt);
+
+check:
+}
+
+
 
 unsigned long Gen11::loadGuCBinary(void *that)
 {
@@ -2058,38 +2156,7 @@ unsigned long Gen11::loadGuCBinary(void *that)
 		intel_de_write(display, UOS_RSA_SCRATCH(i), rsa_val);
 	}
 	
-	wopcm_size = gt->wopcm.size;
-	ctx_rsvd=ICL_WOPCM_HW_CTX_RESERVED;
-	
-	reg_base = intel_de_read(display, DMA_GUC_WOPCM_OFFSET);
-	reg_size = intel_de_read(display, GUC_WOPCM_SIZE);
-	huc_agent=0;
-	
-	if (!(reg_size & GUC_WOPCM_SIZE_LOCKED) ||
-		!(reg_base & GUC_WOPCM_OFFSET_VALID))
-	{
-		guc_wopcm_base = WOPCM_RESERVED_SIZE;
-		guc_wopcm_base = ALIGN(guc_wopcm_base, GUC_WOPCM_OFFSET_ALIGNMENT);
-		guc_wopcm_base = min(guc_wopcm_base, wopcm_size - ctx_rsvd);
-		guc_wopcm_size = wopcm_size - ctx_rsvd - guc_wopcm_base;
-		guc_wopcm_size &= GUC_WOPCM_SIZE_MASK;
-	}
-	else
-	{
-		guc_wopcm_base = reg_base & GUC_WOPCM_OFFSET_MASK;
-		guc_wopcm_size = reg_size & GUC_WOPCM_SIZE_MASK;
-	}
-	
-	mask = GUC_WOPCM_SIZE_MASK | GUC_WOPCM_SIZE_LOCKED;
-	err = intel_uncore_write_and_verify(display, GUC_WOPCM_SIZE, guc_wopcm_size, mask,
-										guc_wopcm_size | GUC_WOPCM_SIZE_LOCKED);
-	if (err) goto fail;
-	
-	mask = GUC_WOPCM_OFFSET_MASK | GUC_WOPCM_OFFSET_VALID | huc_agent;
-	 err = intel_uncore_write_and_verify(display, DMA_GUC_WOPCM_OFFSET,
-										 guc_wopcm_base | huc_agent, mask,
-										 guc_wopcm_base | huc_agent | GUC_WOPCM_OFFSET_VALID);
-	if (err) goto fail;
+	intel_wopcm_init(gt, sizeof(uc_css_header) + ucode_size);
 		
 	
 	intel_de_write(display, GEN12_GUC_TLB_INV_CR, GEN12_GUC_TLB_INV_CR_INVALIDATE);
