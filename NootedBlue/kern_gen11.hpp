@@ -625,9 +625,9 @@ public:
 												  unsigned long value);
 	mach_vm_address_t owrapSetAttributeForConnection {};
 	
-	static IOReturn getAttributeForConnection(void* framebuffer, int32_t connectIndex, uint32_t attribute,
+	static IOReturn fgetAttributeForConnection(void* framebuffer, int32_t connectIndex, uint32_t attribute,
 											  unsigned long *value);
-	mach_vm_address_t ogetAttributeForConnection {};
+	mach_vm_address_t ofgetAttributeForConnection {};
 	
 	static void updateSliceConfig(void *that, uint32_t val);
 	mach_vm_address_t oupdateSliceConfig {};

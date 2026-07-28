@@ -462,6 +462,7 @@
 					"-Wextra",
 					"-Wall",
 					"-Wno-initializer-overrides",
+					"-Wunused-parameter",
 				);
 				OTHER_LDFLAGS = "-static";
 				PRODUCT_BUNDLE_IDENTIFIER = com.ChefKissInc.NootedBlue;
@@ -494,6 +495,7 @@
 					"-Wextra",
 					"-Wall",
 					"-Wno-initializer-overrides",
+					"-Wunused-parameter",
 				);
 				OTHER_LDFLAGS = "-static";
 				PRODUCT_BUNDLE_IDENTIFIER = com.ChefKissInc.NootedBlue;
@@ -586,6 +588,7 @@
 					"-Wextra",
 					"-Wall",
 					"-Wno-initializer-overrides",
+					"-Wunused-parameter",
 				);
 				OTHER_LDFLAGS = "-static";
 				PRODUCT_BUNDLE_IDENTIFIER = com.ChefKissInc.NootedBlue;

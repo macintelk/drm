@@ -6552,6 +6552,20 @@ static const struct icl_procmon {
 #define  DBUF_TRACKER_STATE_SERVICE(x)			REG_FIELD_PREP(DBUF_TRACKER_STATE_SERVICE_MASK, x)
 #define BIT_WORD(nr)		((nr) / BITS_PER_LONG)
 
+
+static inline unsigned long count_trailing_zeros(unsigned long x) {
+	unsigned long n = 0;
+	
+	if ((x & 0xFFFFFFFF) == 0) { n += 32; x >>= 32; }
+	if ((x & 0xFFFF) == 0)     { n += 16; x >>= 16; }
+	if ((x & 0xFF) == 0)       { n += 8;  x >>= 8;  }
+	if ((x & 0xF) == 0)        { n += 4;  x >>= 4;  }
+	if ((x & 0x3) == 0)        { n += 2;  x >>= 2;  }
+	if ((x & 0x1) == 0)        { n += 1; }
+	
+	return n;
+}
+
 inline unsigned long find_next_bit(const unsigned long *addr,
 								  unsigned long size,
 								  unsigned long offset)
@@ -6565,7 +6579,7 @@ inline unsigned long find_next_bit(const unsigned long *addr,
 	if (word_offset != 0) {
 		unsigned long mask = addr[BIT_WORD(i)] >> word_offset;
 		if (mask) {
-			return i + __builtin_ctzl(mask);
+			return i + count_trailing_zeros(mask);
 		}
 		i += BITS_PER_LONG - word_offset;
 	}
@@ -6578,7 +6592,7 @@ inline unsigned long find_next_bit(const unsigned long *addr,
 		}
 		
 		if (word) {
-			return i + __builtin_ctzl(word);
+			return i + count_trailing_zeros(word);
 		}
 	}
 	
@@ -9341,6 +9355,14 @@ struct intel_uc {
 	bool fw_table_invalid;
 };
 
+struct intel_wopcm {
+	u32 size;
+	struct {
+		u32 base;
+		u32 size;
+	} guc;
+};
+
 struct intel_gt {
 	struct drm_i915_private *i915;
 	const char *name;
@@ -9351,7 +9373,7 @@ struct intel_gt {
 
 	struct intel_uc uc;
 	//struct intel_gsc gsc;
-	//struct intel_wopcm wopcm;
+	struct intel_wopcm wopcm;
 
 	/*struct {
 		struct mutex invalidate_lock;

@@ -261,10 +261,10 @@ bool NBlue::wrapAddDrivers(void* const self, OSArray* const array, const bool do
 bool NBlue::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t address, size_t size) {
 	
 	if (kextIOAcceleratorFamily2.loadIndex == index) {
-		KernelPatcher::RouteRequest requests[] = {
+		/*KernelPatcher::RouteRequest requests[] = {
 			{"__ZN14IOAccelSurface11set_id_modeEjj", lset_id_mode, olset_id_mode},
 			{"__ZN20IOAccelLegacySurface11set_id_modeEjj", lset_id_mode, olset_id_mode},
-		};
+		};*/
 			
 			//SYSLOG_COND(!patcher.routeMultipleLong(index, requests, address, size), "IOAcceleratorFamily2", "Failed to apply patch");
 			//patcher.clearError();
@@ -2729,6 +2729,48 @@ static bool find_devid(u16 id, const u16 *p, unsigned int num)
 	return false;
 }
 
+static void intel_device_info_subplatform_init(struct drm_i915_private *i915)
+{
+	const struct intel_device_info *info = INTEL_INFO(i915);
+	const struct intel_runtime_info *rinfo = RUNTIME_INFO(i915);
+	const unsigned int pi = __platform_mask_index(rinfo, info->platform);
+	const unsigned int pb = __platform_mask_bit(rinfo, info->platform);
+	u16 devid = INTEL_DEVID(i915);
+	u32 mask = 0;
+
+	RUNTIME_INFO(i915)->platform_mask[pi] = BIT(pb);
+
+	if (find_devid(devid, subplatform_uy_ids,
+			   ARRAY_SIZE(subplatform_uy_ids))) {
+		mask = BIT(INTEL_SUBPLATFORM_UY);
+	} else if (find_devid(devid, subplatform_n_ids,
+				ARRAY_SIZE(subplatform_n_ids))) {
+		mask = BIT(INTEL_SUBPLATFORM_N);
+	} else if (find_devid(devid, subplatform_rpl_ids,
+				  ARRAY_SIZE(subplatform_rpl_ids))) {
+		mask = BIT(INTEL_SUBPLATFORM_RPL);
+		if (find_devid(devid, subplatform_rplu_ids,
+				   ARRAY_SIZE(subplatform_rplu_ids)))
+			mask |= BIT(INTEL_SUBPLATFORM_RPLU);
+	}
+
+	RUNTIME_INFO(i915)->platform_mask[pi] |= mask;
+}
+
+void intel_device_info_driver_create(struct drm_i915_private *i915,
+					 u16 device_id,
+					 const struct intel_device_info *match_info)
+{
+	struct intel_runtime_info *runtime;
+
+	i915->__info = match_info;
+
+	runtime = RUNTIME_INFO(i915);
+	memcpy(runtime, &INTEL_INFO(i915)->__runtime, sizeof(*runtime));
+
+	runtime->device_id = device_id;
+}
+
 int NBlue::intel_opregion_setup()
 {
 	
@@ -2744,30 +2786,28 @@ int NBlue::intel_opregion_setup()
 	struct intel_gt *gt=to_gt(i915);
 	struct intel_guc *guc = gt_to_guc(gt);
 	struct intel_display *display=i915->display;
-	
 	guc->gt=gt;
-	gt->i915 = i915;
-	gt->name = "Primary GT";
-
-	i915->__info = &tgl_info;//ADD OTHERS with find_devid
 	
-	struct intel_runtime_info *runtime = RUNTIME_INFO(i915);
-	memcpy(runtime, &INTEL_INFO(i915)->__runtime, sizeof(*runtime));
+	int i;
+	const struct intel_device_info *desc;
+	for (i = 0; i < ARRAY_SIZE(intel_platform_ids); i++) {
+		if (intel_platform_ids[i].devid == deviceId)
+		{
+			desc= intel_platform_ids[i].desc;
+			break;
+		}
+	}
+	if (!desc) panic ("intel_platform_ids");
+		
+	intel_device_info_driver_create(i915,deviceId,desc);
+	intel_device_info_subplatform_init(i915);
 	
-	const struct intel_device_info *info = INTEL_INFO(i915);
-	const struct intel_runtime_info *rinfo = RUNTIME_INFO(i915);
-	const unsigned int pi = __platform_mask_index(rinfo, info->platform);
-	const unsigned int pb = __platform_mask_bit(rinfo, info->platform);
-	u16 devid = deviceId;
-	u32 mask = 0;
-	
-	mask = BIT(INTEL_SUBPLATFORM_UY);
-	RUNTIME_INFO(i915)->platform_mask[pi] |= mask;
-	runtime->device_id = deviceId;
 	RUNTIME_INFO(i915)->media.ip = RUNTIME_INFO(i915)->graphics.ip;
 	
+	gt->i915 = i915;
+	gt->name = "Primary GT";
 	gt->info.engine_mask = INTEL_INFO(gt->i915)->platform_engine_mask;
-	
+	gt->wopcm.size = GEN11_WOPCM_SIZE;
 	
 	
 	struct intel_opregion *opregion = &display->opregion;

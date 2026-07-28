@@ -79,7 +79,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			//{"__ZN31AppleIntelFramebufferController14ReadRegister32Em",raReadRegister32, this->oraReadRegister32},
 			//{"__ZN31AppleIntelFramebufferController15WriteRegister32Emj",raWriteRegister32, this->oraWriteRegister32},
 			{"__ZN21AppleIntelFramebuffer25setAttributeForConnectionEijm",wrapSetAttributeForConnection, this->owrapSetAttributeForConnection},
-			{"__ZN21AppleIntelFramebuffer25getAttributeForConnectionEijPm",getAttributeForConnection, this->ogetAttributeForConnection},
+			{"__ZN21AppleIntelFramebuffer25getAttributeForConnectionEijPm",fgetAttributeForConnection, this->ofgetAttributeForConnection},
 			{"__ZN31AppleIntelFramebufferController13FBMemMgr_InitEv", FBMemMgr_Init,this->oFBMemMgr_Init},
 			{"__ZN31AppleIntelFramebufferController9hwGetCRTCEP21AppleIntelFramebufferP21AppleIntelDisplayPath",hwGetCRTC, this->ohwGetCRTC},
 			{"__ZN31AppleIntelFramebufferController21hwSetPanelPowerConfigEj", hwSetPanelPowerConfig,this->ohwSetPanelPowerConfig},
@@ -215,7 +215,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			//{"__ZN31AppleIntelRegisterAccessManager14ReadRegister32Em",raReadRegister32, this->oraReadRegister32},
 			//{"__ZN31AppleIntelRegisterAccessManager15WriteRegister32Emj",raWriteRegister32, this->oraWriteRegister32},
 			{"__ZN21AppleIntelFramebuffer25setAttributeForConnectionEijm",wrapSetAttributeForConnection, this->owrapSetAttributeForConnection},
-			{"__ZN21AppleIntelFramebuffer25getAttributeForConnectionEijPm",getAttributeForConnection, this->ogetAttributeForConnection},
+			{"__ZN21AppleIntelFramebuffer25getAttributeForConnectionEijPm",fgetAttributeForConnection, this->ofgetAttributeForConnection},
 			{"__ZN26AppleIntelDSBAccessManager13isDSBRegisterEj", dozero},
 			{"__ZN31AppleIntelRegisterAccessManager18isConflictRegisterEj", isConflictRegister},
 			{"__ZN15AppleIntelPlane10setupPlaneEP21AppleIntelDisplayPath",setupPlane2, this->osetupPlane2},
@@ -229,21 +229,11 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			//{"__ZN15AppleIntelPlane17configurePlaneCUSEP19FlipTransactionArgs10IGColorCtl",dovoid},
 			{"__ZN21AppleIntelDisplayPath8initHDCPEv", dozero},
 			{"__ZN17AppleIntelPortHAL4initEP10PortConfig",AppleIntelPortHALinit, this->oAppleIntelPortHALinit},
-			
 			{"__ZN21AppleIntelDisplayPath13getLinkConfigEP16IOFBDPLinkConfig",getLinkConfig, this->ogetLinkConfig},
-			
-			
-			{"__ZN21AppleIntelFramebuffer20callPlatformFunctionEPK8OSSymbolbPvS3_S3_S3_",fcallPlatformFunction, this->ofcallPlatformFunction},
-			
 			{"__ZN15AppleIntelPlane11updatePlaneEb",updatePlane, this->oupdatePlane},
 			{"__ZN21AppleIntelFramebuffer19RestoreTransactionsEb",RestoreTransactions, this->oRestoreTransactions},
-			
-			
-			
-			
 			{"__ZN19AppleIntelPowerWell19enableDisplayEngineEv",enableDisplayEngine, this->oenableDisplayEngine},
 			{"__ZN19AppleIntelPowerWell23overridePowerWellsStateEb",overridePowerWellsState, this->ooverridePowerWellsState},
-			{"__ZN24AppleIntelBaseController13probeBootPipeEPbPN17AppleIntelPortHAL3DDIE",probeBootPipe, this->oprobeBootPipe},
 			{"__ZN19AppleIntelPowerWell19disablePowerWellAuxEj",disablePowerWellAux, this->odisablePowerWellAux},
 			{"__ZN19AppleIntelPowerWell19disablePowerWellDDIEj",disablePowerWellDDI, this->odisablePowerWellDDI},
 			{"__ZN19AppleIntelPowerWell18disablePowerWellPGEj",disablePowerWellPG, this->odisablePowerWellPG},
@@ -263,9 +253,9 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		
 		if (isprod) {
 			RouteRequestPlus requests[] = {
-				
+				{"__ZN31AppleIntelFramebufferController13probeBootPipeEPbPN17AppleIntelPortHAL3DDIE",probeBootPipe, this->oprobeBootPipe},
 				{"__ZN31AppleIntelFramebufferController11initCDClockEv",initCDClock, this->oinitCDClock},
-				{"__ZN31AppleIntelFramebufferController15configureReportEP19IOReportChannelListjPvS2_",configureReport, this->oconfigureReport},
+				//{"__ZN31AppleIntelFramebufferController15configureReportEP19IOReportChannelListjPvS2_",configureReport, this->oconfigureReport},
 				{"__ZN19AppleIntelPowerWell4initEP31AppleIntelFramebufferController",AppleIntelPowerWellinit, this->oAppleIntelPowerWellinit},
 				//{"__ZN31AppleIntelFramebufferController16hwRegsNeedUpdateEP21AppleIntelFramebufferP21AppleIntelDisplayPathP10CRTCParamsPK29IODetailedTimingInformationV2PN16AppleIntelScaler12SCALERPARAMSE",hwRegsNeedUpdate, this->ohwRegsNeedUpdate},
 				{"__ZN31AppleIntelFramebufferController15hwSetPanelPowerEj",hwSetPanelPower, this->ohwSetPanelPower},
@@ -291,9 +281,9 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		} else //debug version
 		{
 			RouteRequestPlus requests[] = {
-				
+				{"__ZN24AppleIntelBaseController13probeBootPipeEPbPN17AppleIntelPortHAL3DDIE",probeBootPipe, this->oprobeBootPipe},
 				{"__ZN24AppleIntelBaseController11initCDClockEv",initCDClock, this->oinitCDClock},
-				{"__ZN24AppleIntelBaseController15configureReportEP19IOReportChannelListjPvS2_",configureReport, this->oconfigureReport},
+				//{"__ZN24AppleIntelBaseController15configureReportEP19IOReportChannelListjPvS2_",configureReport, this->oconfigureReport},
 				{"__ZN19AppleIntelPowerWell4initEP24AppleIntelBaseController",AppleIntelPowerWellinit, this->oAppleIntelPowerWellinit},
 				//{"__ZN24AppleIntelBaseController16hwRegsNeedUpdateEP21AppleIntelFramebufferP21AppleIntelDisplayPathP10CRTCParamsPK29IODetailedTimingInformationV2PN16AppleIntelScaler12SCALERPARAMSE",hwRegsNeedUpdate, this->ohwRegsNeedUpdate},
 				{"__ZN24AppleIntelBaseController15hwSetPanelPowerEj",hwSetPanelPower, this->ohwSetPanelPower},
@@ -438,7 +428,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		 RouteRequestPlus requests[] = {
 			 
 			 {"__ZN16IntelAccelerator19PAVPCommandCallbackE22PAVPSessionCommandID_tjPjb", wrapPavpSessionCallback, this->orgPavpSessionCallback},
-			 {"__ZL27ContextStatusBufferValidateRK15IGHwCsExecList5PK28SGfxContextStatusBufferEntry.cold.2", dovoid},
+			 //{"__ZL27ContextStatusBufferValidateRK15IGHwCsExecList5PK28SGfxContextStatusBufferEntry.cold.2", dovoid},
 			 {"__ZN16IntelAccelerator18setAsyncSliceCountE13IGSliceConfig",setAsyncSliceCount2, this->osetAsyncSliceCount2},
 			 {"__ZN16IntelAccelerator14setSliceConfigE13IGSliceConfig",setSliceConfig, this->osetSliceConfig},
 			 
@@ -515,7 +505,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			 {"__ZN20IGSharedMappedBuffer11withOptionsEP11IGAccelTaskmjj",IGSharedMappedBufferwithOptions, this->oIGSharedMappedBufferwithOptions},
 			 {"__ZNK20IGSharedMappedBuffer17getVirtualAddressEv",fgetVirtualAddress, this->ofgetVirtualAddress},
 			 {"__ZNK14IGMappedBuffer20getGPUVirtualAddressEv",fgetGPUVirtualAddress, this->ofgetGPUVirtualAddress},
-			 {"__ZN5IGGuC18checkWOPCMSettingsEmR14IOVirtualRange",checkWOPCMSettings, this->ocheckWOPCMSettings},
+			 //{"__ZN5IGGuC18checkWOPCMSettingsEmR14IOVirtualRange",checkWOPCMSettings, this->ocheckWOPCMSettings},
 			 {"__ZN16IntelAccelerator13SafeForceWakeEbj",SafeForceWake, this->oSafeForceWake},
 			 {"__ZN20IGSharedMappedBuffer4freeEv",IGSharedMappedBufferfree, this->oIGSharedMappedBufferfree},
 			 //{"__ZN16IntelAccelerator15configureDeviceEP11IOPCIDevice",fconfigureDevice, this->ofconfigureDevice},
@@ -557,7 +547,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 				{&kext, f2a, r2a, arrsize(f2a),	1},
 				{&kext, f3, r3, arrsize(f3),	1},
 				{&kext, f3a, r3a, arrsize(f3a),	1},
-				{&kext, f4, r4, arrsize(f4),	1},
+				//{&kext, f4, r4, arrsize(f4),	1},
 				{&kext, f5, r5, arrsize(f5),	1},
 
 				
@@ -1028,10 +1018,10 @@ uint64_t Gen11::disableVDDForAux(void *that)
 
 };
 
-IOReturn Gen11::getAttributeForConnection(void* framebuffer, int32_t connectIndex, uint32_t attribute,
+IOReturn Gen11::fgetAttributeForConnection(void* framebuffer, int32_t connectIndex, uint32_t attribute,
 										  unsigned long *value)
 {
-	const auto ret = FunctionCast(getAttributeForConnection, callback->ogetAttributeForConnection)(
+	const auto ret = FunctionCast(fgetAttributeForConnection, callback->ofgetAttributeForConnection)(
 																										   framebuffer, connectIndex, attribute, value);
 	
 	
@@ -1306,19 +1296,19 @@ static void _wa_add(struct i915_wa_list *wal, const struct i915_wa *wa)
 	const unsigned int grow = WA_LIST_CHUNK;
 	struct i915_wa *wa_;
 
-	//GEM_BUG_ON(!is_power_of_2(grow));
-
 	if (IS_ALIGNED(wal->count, grow)) { /* Either uninitialized or full. */
 		struct i915_wa *list;
+		size_t new_size = ALIGN(wal->count + 1, grow) * sizeof(struct i915_wa);
+		size_t old_size = wal->count * sizeof(struct i915_wa);
 
-		list = (struct i915_wa *)IOMalloc(sizeof(*list));//, ALIGN(wal->count + 1, grow));
+		list = (struct i915_wa *)IOMalloc(new_size);
 		if (!list) {
 			return;
 		}
 
 		if (wal->list) {
-			memcpy(list, wal->list, sizeof(*wa) * wal->count);
-			IOFree( wal->list,sizeof(*list));
+			memcpy(list, wal->list, old_size);
+			IOFree(wal->list, old_size);
 		}
 
 		wal->list = list;
@@ -1358,6 +1348,7 @@ static void _wa_add(struct i915_wa_list *wal, const struct i915_wa *wa)
 		swap(wa_[1], wa_[0]);
 	}
 }
+
 static void wa_add(struct i915_wa_list *wal, u32 reg,
 		   u32 clear, u32 set, u32 read_mask, bool masked_reg)
 {
@@ -2038,16 +2029,13 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	
 	
 	_guc_log_init_sizes(&guc->log);
-	
 	guc->log.vma=getMember<void*>(that, 0x60);
 	guc->log.vma=(void*)fgetGPUVirtualAddress(guc->log.vma);
-	
 	guc_init_params(guc);
 	//getMember<void*>(that, 0x8c)=params;
 	intel_guc_write_params(guc);
 	
 
-	//guc_prepare_xfer
 	shim_flags = GUC_ENABLE_READ_CACHE_LOGIC |
 			 GUC_ENABLE_READ_CACHE_FOR_SRAM_DATA |
 			 GUC_ENABLE_READ_CACHE_FOR_WOPCM_DATA |
@@ -2058,18 +2046,9 @@ unsigned long Gen11::loadGuCBinary(void *that)
 				  GUC_ENABLE_MIA_CACHING;
 	
 	intel_de_write(display, GUC_SHIM_CONTROL, shim_flags);
-	
-	/*if (IS_GEN9_LP(uncore->i915))
-		intel_uncore_write(uncore, GEN9LP_GT_PM_CONFIG, GT_DOORBELL_ENABLE);
-	else*/
 	intel_de_write(display, GEN9_GT_PM_CONFIG, GT_DOORBELL_ENABLE);
-	
-	//if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 50))
-	//	intel_de_rmw(display, GUC_SHIM_CONTROL2, 0, GUC_ENABLE_DEBUG_REG);
-	
 	intel_de_rmw(display, GEN6_PMINTRMSK, ARAT_EXPIRED_INTRMSK, 0);
 	
-	//guc_xfer_rsa
 	rsa_offset = sizeof(struct uc_css_header) + ucode_size;
 	rsa_bytes = reinterpret_cast<uint8_t*>(fw.data) + rsa_offset;
 	rsa_words = reinterpret_cast<uint32_t*>(rsa_bytes);
@@ -2079,10 +2058,7 @@ unsigned long Gen11::loadGuCBinary(void *that)
 		intel_de_write(display, UOS_RSA_SCRATCH(i), rsa_val);
 	}
 	
-
-//gen11_rc6_enable
-	
-	wopcm_size = GEN11_WOPCM_SIZE;
+	wopcm_size = gt->wopcm.size;
 	ctx_rsvd=ICL_WOPCM_HW_CTX_RESERVED;
 	
 	reg_base = intel_de_read(display, DMA_GUC_WOPCM_OFFSET);
@@ -2102,13 +2078,8 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	{
 		guc_wopcm_base = reg_base & GUC_WOPCM_OFFSET_MASK;
 		guc_wopcm_size = reg_size & GUC_WOPCM_SIZE_MASK;
-		//wopcm_size = MAX_WOPCM_SIZE;
 	}
 	
-	/*checkWOPCMSettings(that,0x100,&guc_range);
-	guc_wopcm_base=guc_range.address;
-	guc_wopcm_size=(guc_range.length;
-*/
 	mask = GUC_WOPCM_SIZE_MASK | GUC_WOPCM_SIZE_LOCKED;
 	err = intel_uncore_write_and_verify(display, GUC_WOPCM_SIZE, guc_wopcm_size, mask,
 										guc_wopcm_size | GUC_WOPCM_SIZE_LOCKED);
@@ -2126,7 +2097,6 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	{
 		// Spinwait
 	}
-	//panic("lll");
 	
 	dma_flags=UOS_MOVE;
 	intel_de_write(display, DMA_ADDR_0_LOW, lower_32_bits(gpuAddr));
@@ -3489,6 +3459,9 @@ static void gen11_compute_sseu_info(struct sseu_dev_info *sseu,
 
 static void gen12_sseu_info_init(struct intel_gt *gt)
 {
+	struct drm_i915_private *i915 = gt->i915;
+	struct intel_display *display=i915->display;
+	
 	struct sseu_dev_info *sseu = &gt->info.sseu;
 	u32 g_dss_en;
 	u16 eu_en = 0;
@@ -3498,15 +3471,14 @@ static void gen12_sseu_info_init(struct intel_gt *gt)
 
 	intel_sseu_set_info(sseu, 1, 6, 16);
 
-
 	s_en = REG_FIELD_GET(GEN11_GT_S_ENA_MASK,
-						 NBlue::callback->readReg32 (GEN11_GT_SLICE_ENABLE));
+						 intel_de_read (display, GEN11_GT_SLICE_ENABLE));
 	//drm_WARN_ON(&gt->i915->drm, s_en != 0x1);
 
-	g_dss_en = NBlue::callback->readReg32 (GEN12_GT_GEOMETRY_DSS_ENABLE);
+	g_dss_en = intel_de_read (display,GEN12_GT_GEOMETRY_DSS_ENABLE);
 
 	eu_en_fuse = ~REG_FIELD_GET(GEN11_EU_DIS_MASK,
-								NBlue::callback->readReg32 (GEN11_EU_DISABLE));
+								intel_de_read (display,GEN11_EU_DISABLE));
 
 	for (eu = 0; eu < sseu->max_eus_per_subslice / 2; eu++)
 		if (eu_en_fuse & BIT(eu))
@@ -3526,18 +3498,19 @@ static void gen11_sseu_device_status(struct intel_gt *gt,
 					 struct sseu_dev_info *sseu)
 {
 #define SS_MAX 8
-
+	struct drm_i915_private *i915 = gt->i915;
+	struct intel_display *display=i915->display;
 	const struct intel_gt_info *info = &gt->info;
 	u32 s_reg[SS_MAX], eu_reg[2 * SS_MAX], eu_mask[2];
 	int s, ss;
 	
 	for (s = 0; s < info->sseu.max_slices; s++) {
 
-		s_reg[s] = NBlue::callback->readReg32( GEN10_SLICE_PGCTL_ACK(s)) &
+		s_reg[s] = intel_de_read (display, GEN10_SLICE_PGCTL_ACK(s)) &
 			GEN10_PGCTL_VALID_SS_MASK(s);
-		eu_reg[2 * s] = NBlue::callback->readReg32(
+		eu_reg[2 * s] = intel_de_read (display,
 						  GEN10_SS01_EU_PGCTL_ACK(s));
-		eu_reg[2 * s + 1] = NBlue::callback->readReg32(
+		eu_reg[2 * s + 1] = intel_de_read (display,
 							  GEN10_SS23_EU_PGCTL_ACK(s));
 	}
 
@@ -3552,7 +3525,6 @@ static void gen11_sseu_device_status(struct intel_gt *gt,
 
 	for (s = 0; s < info->sseu.max_slices; s++) {
 		if ((s_reg[s] & GEN9_PGCTL_SLICE_ACK) == 0)
-			/* skip disabled slice */
 			continue;
 
 		sseu->slice_mask |= BIT(s);
@@ -3563,7 +3535,6 @@ static void gen11_sseu_device_status(struct intel_gt *gt,
 
 			if (info->sseu.has_subslice_pg &&
 				!(s_reg[s] & (GEN9_PGCTL_SS_ACK(ss))))
-				/* skip disabled subslice */
 				continue;
 
 			eu_cnt = 2 * hweight32(eu_reg[2 * s + ss / 2] &
@@ -3582,12 +3553,12 @@ void Gen11::engines()
 {
 	struct drm_i915_private *i915 = NBlue::callback->i915b;
 	struct intel_gt *gt=to_gt(i915);
-	
+	struct intel_display *display=i915->display;
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 
 	gt->submission_method = INTEL_SUBMISSION_GUC;
-	
+
 	gen12_sseu_info_init(gt);
 	gen11_sseu_device_status(gt, &gt->info.sseu);
 	
@@ -3595,7 +3566,7 @@ void Gen11::engines()
 		GRAPHICS_VER_FULL(i915) < IP_VER(12, 55)) {
 		gt->steering_table[L3BANK] = icl_l3bank_steering_table;
 		gt->info.l3bank_mask =
-		~NBlue::callback->readReg32 ( GEN10_MIRROR_FUSE3) &
+		~intel_de_read (display, GEN10_MIRROR_FUSE3) &
 		GEN10_L3BANK_MASK;
 	}
 	intel_engines_init_mmio(gt);
@@ -5264,9 +5235,8 @@ intel_crtc_has_dp_encoder(const struct intel_crtc_state *crtc_state)
 		 BIT(INTEL_OUTPUT_EDP));
 }
 
-static u32 intel_ddi_set_dp_msa(bool wr)
+static u32 intel_ddi_set_dp_msa(struct intel_display *display, bool wr)
 {
-	struct intel_display *display = NBlue::callback->i915b->display;
 	struct intel_crtc_state *crtc_state=&display->crtc_state0;
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 	u32 temp;
@@ -6305,9 +6275,8 @@ u8 drm_dp_link_rate_to_bw_code(int link_rate)
 	}
 }
 
-static void intel_ddi_init_dp_buf_reg(struct intel_dp *intel_dp)
+static void intel_ddi_init_dp_buf_reg(struct intel_display *display, struct intel_dp *intel_dp)
 {
-	struct intel_display *display = NBlue::callback->i915b->display;
 	
 
 	intel_dp->DP = DDI_PORT_WIDTH(display->panel.vbt.edp.lanes) |
@@ -6368,9 +6337,8 @@ static void intel_ddi_buf_enable( u32 buf_ctl)
 
 
 
-static void intel_ddi_prepare_link_retrain(struct intel_dp *intel_dp)
+static void intel_ddi_prepare_link_retrain(struct intel_display *display, struct intel_dp *intel_dp)
 {
-	struct intel_display *display = NBlue::callback->i915b->display;
 	struct intel_crtc_state *crtc_state = &display->crtc_state0;
 	u32 dp_tp_ctl;
 
@@ -6475,9 +6443,8 @@ int drm_dp_pcon_convert_rgb_to_ycbcr(u8 color_spc)
 	return Gen11::callback->writeAUX(linkp,DP_PROTOCOL_CONVERTER_CONTROL_2, &buf,1);
 }
 
-void intel_dp_configure_protocol_converter(struct intel_dp *intel_dp)
+void intel_dp_configure_protocol_converter(struct intel_display *display, struct intel_dp *intel_dp)
 {
-	struct intel_display *display = NBlue::callback->i915b->display;
 	struct intel_crtc_state *crtc_state=&display->crtc_state0;
 	
 	bool ycbcr444_to_420 = false;
@@ -6681,12 +6648,11 @@ static void intel_dp_update_link_bw_set(struct intel_dp *intel_dp,
 }
 
 static bool
-intel_dp_prepare_link_train(struct intel_dp *intel_dp)
+intel_dp_prepare_link_train(struct intel_display *display, struct intel_dp *intel_dp)
 {
 	u8 link_bw, rate_select;
-	struct intel_display *display=NBlue::callback->i915b->display;
 	
-	intel_ddi_prepare_link_retrain(intel_dp);
+	intel_ddi_prepare_link_retrain(display, intel_dp);
 	intel_dp_compute_rate(intel_dp, display->port_clock,&link_bw, &rate_select);
 
 	if (!link_bw) {
@@ -6701,9 +6667,8 @@ intel_dp_prepare_link_train(struct intel_dp *intel_dp)
 	return true;
 }
 
-void intel_dp_stop_link_train(struct intel_dp *intel_dp)
+void intel_dp_stop_link_train(struct intel_display *display, struct intel_dp *intel_dp)
 {
-	struct intel_display *display = NBlue::callback->i915b->display;;
 	int ret;
 
 	intel_dp->link.active = true;
@@ -6800,9 +6765,8 @@ intel_ddi_config_transcoder_func(struct intel_crtc_state *crtc_state)
 }
 
 
-static void intel_ddi_mso_configure(struct intel_crtc_state *crtc_state)
+static void intel_ddi_mso_configure(struct intel_display *display, struct intel_crtc_state *crtc_state)
 {
-	struct intel_display *display = NBlue::callback->i915b->display;
 	enum pipe pipe = display->pipe0;
 	struct intel_dp *intel_dp=&display->intel_dp0;
 	
@@ -6827,9 +6791,8 @@ static void intel_ddi_mso_configure(struct intel_crtc_state *crtc_state)
 }
 
 
-void intel_dp_sink_enable_decompression()
+void intel_dp_sink_enable_decompression(struct intel_display *display)
 {
-	struct intel_display *display = NBlue::callback->i915b->display;
 
 	//if (!new_crtc_state->dsc.compression_enable)
 		return;
@@ -6929,15 +6892,15 @@ enum drm_dp_mst_mode drm_dp_read_mst_cap(struct intel_dp *intel_dp,
 
 	return DRM_DP_SST;
 }
+
 bool intel_dp_mst_source_support(struct intel_dp *intel_dp)
 {
 	return false;//intel_dp->mst.mgr.cbs;
 }
-static enum drm_dp_mst_mode
-intel_dp_mst_mode_choose(struct intel_dp *intel_dp,
+
+static enum drm_dp_mst_mode intel_dp_mst_mode_choose(struct intel_display *display, struct intel_dp *intel_dp,
 			 enum drm_dp_mst_mode sink_mst_mode)
 {
-	struct intel_display *display = NBlue::callback->i915b->display;
 
 	//if (!display->params.enable_dp_mst)
 	//	return DRM_DP_SST;
@@ -6953,15 +6916,14 @@ intel_dp_mst_mode_choose(struct intel_dp *intel_dp,
 }
 
 static enum drm_dp_mst_mode
-intel_dp_mst_detect(struct intel_dp *intel_dp)
+intel_dp_mst_detect(struct intel_display *display, struct intel_dp *intel_dp)
 {
-	struct intel_display *display = NBlue::callback->i915b->display;
 	enum drm_dp_mst_mode sink_mst_mode;
 	enum drm_dp_mst_mode mst_detect;
 
 	sink_mst_mode = drm_dp_read_mst_cap(intel_dp, intel_dp->dpcd);
 
-	mst_detect = intel_dp_mst_mode_choose(intel_dp, sink_mst_mode);
+	mst_detect = intel_dp_mst_mode_choose(display, intel_dp, sink_mst_mode);
 
 	return mst_detect;
 }
@@ -6995,9 +6957,8 @@ int drm_dp_read_downstream_info(struct intel_dp *intel_dp,
 	return 0;
 }
 
-bool intel_dp_start_link_train(struct intel_dp *intel_dp)
+bool intel_dp_start_link_train(struct intel_display *display, struct intel_dp *intel_dp)
 {
-	struct intel_display *display = NBlue::callback->i915b->display;
 	//struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	//struct intel_encoder *encoder = &dig_port->base;
 	bool passed;
@@ -7011,7 +6972,7 @@ bool intel_dp_start_link_train(struct intel_dp *intel_dp)
 	if (lttpr_count < 0)
 		lttpr_count = 0;
 */
-	intel_dp_prepare_link_train(intel_dp);
+	intel_dp_prepare_link_train(display, intel_dp);
 
 	/*if (intel_dp_is_uhbr(crtc_state))
 		passed = intel_dp_128b132b_link_train(intel_dp, crtc_state, lttpr_count);
@@ -7088,9 +7049,8 @@ static void intel_dp_enable_port(struct intel_dp *intel_dp,
 	intel_de_posting_read(display, intel_dp->output_reg);
 }
 
-bool tgl_ddi_pre_enable_dp(struct intel_crtc_state *crtc_state)
+bool tgl_ddi_pre_enable_dp(struct intel_display *display, struct intel_crtc_state *crtc_state)
 {
-	struct intel_display *display =NBlue::callback->i915b->display;
 	struct intel_dp *intel_dp = &display->intel_dp0;
 	bool is_mst = intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP_MST);
 	int ret;
@@ -7100,7 +7060,7 @@ bool tgl_ddi_pre_enable_dp(struct intel_crtc_state *crtc_state)
 				 crtc_state->lane_count);
 
 
-	intel_ddi_init_dp_buf_reg( intel_dp);
+	intel_ddi_init_dp_buf_reg( display, intel_dp);
 	
 	//intel_dp_enable_port(intel_dp,crtc_state);
 
@@ -7137,14 +7097,14 @@ bool tgl_ddi_pre_enable_dp(struct intel_crtc_state *crtc_state)
 								   display->child0->lane_reversal);
 	
 
-	intel_ddi_mso_configure(crtc_state);
+	intel_ddi_mso_configure(display, crtc_state);
 
 	if (!is_mst)
 		intel_dp_set_power(intel_dp, DP_SET_POWER_D0);
 
-	intel_dp_configure_protocol_converter(intel_dp);
+	intel_dp_configure_protocol_converter(display,intel_dp);
 	if (!is_mst)
-		intel_dp_sink_enable_decompression();
+		intel_dp_sink_enable_decompression(display);
 
 	//intel_dp_sink_set_fec_ready(intel_dp, crtc_state, true);
 
@@ -7152,10 +7112,10 @@ bool tgl_ddi_pre_enable_dp(struct intel_crtc_state *crtc_state)
 	//intel_dp_pcon_dsc_configure(intel_dp, crtc_state);
 
 
-	ret=intel_dp_start_link_train( intel_dp);
+	ret=intel_dp_start_link_train( display,intel_dp);
 
 	//if (!is_trans_port_sync_mode(crtc_state))
-		intel_dp_stop_link_train(intel_dp);
+		intel_dp_stop_link_train(display,intel_dp);
 
 	//intel_ddi_enable_fec(encoder, crtc_state);
 	return ret;
@@ -7176,9 +7136,8 @@ drm_dp_enhanced_frame_cap(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
 		(dpcd[9] & DP_ENHANCED_FRAME_CAP);
 }
 
-bool intel_dsc_source_support(const struct intel_crtc_state *crtc_state)
+bool intel_dsc_source_support(struct intel_display *display, const struct intel_crtc_state *crtc_state)
 {
-	struct intel_display *display =NBlue::callback->i915b->display;
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 
 	if (!HAS_DSC(display))
@@ -7202,9 +7161,8 @@ int intel_dp_output_format_link_bpp_x16(enum intel_output_format output_format, 
 	return fxp_q4_from_int(pipe_bpp);
 }
 int
-intel_dp_compute_config(struct intel_crtc_state *pipe_config)
+intel_dp_compute_config(struct intel_display *display, struct intel_crtc_state *pipe_config)
 {
-	struct intel_display *display=NBlue::callback->i915b->display;
 	struct intel_dp *intel_dp=&display->intel_dp0;
 	int ret = 0, link_bpp_x16;
 	struct drm_display_mode *adjusted_mode = &pipe_config->hw.adjusted_mode;
@@ -7257,7 +7215,7 @@ intel_dp_compute_config(struct intel_crtc_state *pipe_config)
 			drm_dp_enhanced_frame_cap(intel_dp->dpcd);
 	
 
-	pipe_config->dsc.compression_enable=intel_dsc_source_support(crtc_state);
+	pipe_config->dsc.compression_enable=intel_dsc_source_support(display, crtc_state);
 	
 	if (pipe_config->dsc.compression_enable)
 		link_bpp_x16 = pipe_config->dsc.compressed_bpp_x16;
@@ -7328,9 +7286,8 @@ static u8 intel_ddi_splitter_pipe_mask(struct intel_display *display)
 		return BIT(PIPE_A);
 }
 
-static void intel_ddi_mso_get_config( struct intel_crtc_state *pipe_config)
+static void intel_ddi_mso_get_config( struct intel_display *display, struct intel_crtc_state *pipe_config)
 {
-	struct intel_display *display =NBlue::callback->i915b->display;
 	enum pipe pipe = display->pipe0;
 	u32 dss1;
 
@@ -7374,10 +7331,9 @@ intel_bios_encoder_supports_edp(struct intel_display *display)
 	display->child0->device_type & DEVICE_TYPE_INTERNAL_CONNECTOR;
 }
 
-static void intel_ddi_read_func_ctl_dp_sst(struct intel_crtc_state *crtc_state,
+static void intel_ddi_read_func_ctl_dp_sst(struct intel_display *display, struct intel_crtc_state *crtc_state,
 					   u32 ddi_func_ctl)
 {
-	struct intel_display *display = NBlue::callback->i915b->display;
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 
 	//if (encoder->type == INTEL_OUTPUT_EDP)
@@ -7413,9 +7369,8 @@ static void intel_ddi_read_func_ctl_dp_sst(struct intel_crtc_state *crtc_state,
 			intel_hdmi_infoframes_enabled(encoder, crtc_state);*/
 }
 
-static void intel_ddi_read_func_ctl(struct intel_crtc_state *pipe_config)
+static void intel_ddi_read_func_ctl(struct intel_display *display, struct intel_crtc_state *pipe_config)
 {
-	struct intel_display *display= NBlue::callback->i915b->display;
 	enum transcoder cpu_transcoder = pipe_config->cpu_transcoder;
 	u32 ddi_func_ctl, ddi_mode, flags = 0;
 
@@ -7458,7 +7413,7 @@ static void intel_ddi_read_func_ctl(struct intel_crtc_state *pipe_config)
 	} else if (ddi_mode == TRANS_DDI_MODE_SELECT_FDI_OR_128B132B && !HAS_DP20(display)) {
 		intel_ddi_read_func_ctl_fdi(encoder, pipe_config, ddi_func_ctl);
 	} else*/ if (ddi_mode == TRANS_DDI_MODE_SELECT_DP_SST)
-		intel_ddi_read_func_ctl_dp_sst( pipe_config, ddi_func_ctl);
+		intel_ddi_read_func_ctl_dp_sst( display, pipe_config, ddi_func_ctl);
 	/*} else if (ddi_mode == TRANS_DDI_MODE_SELECT_DP_MST) {
 		intel_ddi_read_func_ctl_dp_mst(encoder, pipe_config, ddi_func_ctl);
 	} else if (ddi_mode == TRANS_DDI_MODE_SELECT_FDI_OR_128B132B && HAS_DP20(display)) {
@@ -7471,7 +7426,7 @@ static void intel_ddi_read_func_ctl(struct intel_crtc_state *pipe_config)
 		/*if (intel_dp_mst_active_streams(intel_dp))
 			intel_ddi_read_func_ctl_dp_mst(encoder, pipe_config, ddi_func_ctl);
 		else*/
-			intel_ddi_read_func_ctl_dp_sst( pipe_config, ddi_func_ctl);
+			intel_ddi_read_func_ctl_dp_sst( display, pipe_config, ddi_func_ctl);
 }
 
 static enum transcoder bdw_transcoder_master_readout(struct intel_display *display,
@@ -7503,9 +7458,8 @@ static enum transcoder bdw_transcoder_master_readout(struct intel_display *displ
 		return static_cast<enum transcoder>(master_select - 1);
 }
 
-static void bdw_get_trans_port_sync_config(struct intel_crtc_state *crtc_state)
+static void bdw_get_trans_port_sync_config(struct intel_display *display, struct intel_crtc_state *crtc_state)
 {
-	struct intel_display *display = NBlue::callback->i915b->display;
 	u32 transcoders = BIT(TRANSCODER_A) | BIT(TRANSCODER_B) |
 		BIT(TRANSCODER_C) | BIT(TRANSCODER_D);
 	enum transcoder cpu_transcoder;
@@ -7535,15 +7489,14 @@ static void bdw_get_trans_port_sync_config(struct intel_crtc_state *crtc_state)
 
 
 
-static void intel_ddi_get_config(struct intel_crtc_state *pipe_config)
+static void intel_ddi_get_config(struct intel_display *display, struct intel_crtc_state *pipe_config)
 {
-	struct intel_display *display = NBlue::callback->i915b->display;
 	enum transcoder cpu_transcoder = pipe_config->cpu_transcoder;
 
 
-	intel_ddi_read_func_ctl( pipe_config);
+	intel_ddi_read_func_ctl( display, pipe_config);
 
-	intel_ddi_mso_get_config( pipe_config);
+	intel_ddi_mso_get_config( display, pipe_config);
 
 	pipe_config->has_audio = false;
 		//intel_ddi_is_audio_enabled(display, cpu_transcoder);
@@ -7575,7 +7528,7 @@ static void intel_ddi_get_config(struct intel_crtc_state *pipe_config)
 				 &pipe_config->infoframes.drm);*/
 
 	if (DISPLAY_VER(display) >= 8)
-		bdw_get_trans_port_sync_config(pipe_config);
+		bdw_get_trans_port_sync_config(display, pipe_config);
 
 	//intel_psr_get_config(encoder, pipe_config);
 
@@ -7592,9 +7545,8 @@ static u32 bdw_trans_port_sync_master_select(enum transcoder master_transcoder)
 	else
 		return master_transcoder + 1;
 }
-void intel_ddi_enable_transcoder_func(struct intel_crtc_state *crtc_state)
+void intel_ddi_enable_transcoder_func(struct intel_display *display , struct intel_crtc_state *crtc_state)
 {
-	struct intel_display *display  =NBlue::callback->i915b->display;
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 
 	if (DISPLAY_VER(display) >= 11) {
@@ -7631,9 +7583,8 @@ static bool pipe_scanline_is_moving(struct intel_display *display, enum pipe pip
 	return line1 != line2;
 }
 
-int wait_for_pipe_scanline_moving()
+int wait_for_pipe_scanline_moving(struct intel_display *display)
 {
-			struct intel_display *display = NBlue::callback->i915b->display;
 
 			AbsoluteTime deadline, now;
 			uint32_t wait_us = 2;
@@ -7668,9 +7619,8 @@ int wait_for_pipe_scanline_moving()
 }
 
 
-void intel_enable_transcoder(struct intel_crtc_state *new_crtc_state)
+void intel_enable_transcoder(struct intel_display *display, struct intel_crtc_state *new_crtc_state)
 {
-	struct intel_display *display =NBlue::callback->i915b->display;
 	enum transcoder cpu_transcoder = new_crtc_state->cpu_transcoder;
 	enum pipe pipe = display->pipe0;
 	u32 val;
@@ -7729,25 +7679,24 @@ void intel_enable_transcoder(struct intel_crtc_state *new_crtc_state)
 */
 
 	//if (intel_crtc_max_vblank_count(new_crtc_state) == 0)
-	wait_for_pipe_scanline_moving();
+	wait_for_pipe_scanline_moving(display);
 }
 
 
 
-static void intel_ddi_enable(struct intel_crtc_state *crtc_state)
+static void intel_ddi_enable(struct intel_display *display, struct intel_crtc_state *crtc_state)
 {
-	struct intel_display *display =NBlue::callback->i915b->display;
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 	bool is_hdmi = false;
 	int i;
 
 
 
-	intel_ddi_enable_transcoder_func( crtc_state);
+	intel_ddi_enable_transcoder_func( display,crtc_state);
 
 	//intel_vrr_transcoder_enable(crtc_state);
 
-	intel_enable_transcoder(crtc_state);
+	intel_enable_transcoder(display, crtc_state);
 
 	//intel_ddi_wait_for_fec_status(encoder, crtc_state, true);
 
@@ -7768,15 +7717,14 @@ static void intel_ddi_enable(struct intel_crtc_state *crtc_state)
 
 }
 
-static void icl_ddi_combo_get_config(struct intel_crtc_state *crtc_state)
+static void icl_ddi_combo_get_config(struct intel_display *display, struct intel_crtc_state *crtc_state)
 {
 	//intel_ddi_get_clock( crtc_state, icl_ddi_combo_get_pll(encoder));
-	intel_ddi_get_config( crtc_state);
+	intel_ddi_get_config( display, crtc_state);
 }
 
-static bool intel_pipe_is_interlaced(const struct intel_crtc_state *crtc_state)
+static bool intel_pipe_is_interlaced(struct intel_display *display, const struct intel_crtc_state *crtc_state)
 {
-	struct intel_display *display = NBlue::callback->i915b->display;
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 
 	if (DISPLAY_VER(display) == 2 || DISPLAY_VER(display) >= 35)
@@ -7805,9 +7753,8 @@ static u8 hsw_panel_transcoders(struct intel_display *display)
 	return panel_transcoder_mask;
 }
 
-static void intel_get_transcoder_timings(struct intel_crtc_state *pipe_config)
+static void intel_get_transcoder_timings(struct intel_display *display, struct intel_crtc_state *pipe_config)
 {
-	struct intel_display *display = NBlue::callback->i915b->display;
 	enum transcoder cpu_transcoder = pipe_config->cpu_transcoder;
 	struct drm_display_mode *adjusted_mode = &pipe_config->hw.adjusted_mode;
 	u32 tmp;
@@ -7841,7 +7788,7 @@ static void intel_get_transcoder_timings(struct intel_crtc_state *pipe_config)
 	adjusted_mode->crtc_vsync_start = REG_FIELD_GET(VSYNC_START_MASK, tmp) + 1;
 	adjusted_mode->crtc_vsync_end = REG_FIELD_GET(VSYNC_END_MASK, tmp) + 1;
 
-	if (intel_pipe_is_interlaced(pipe_config)) {
+	if (intel_pipe_is_interlaced(display, pipe_config)) {
 		adjusted_mode->flags |= DRM_MODE_FLAG_INTERLACE;
 		adjusted_mode->crtc_vtotal += 1;
 		adjusted_mode->crtc_vblank_end += 1;
@@ -7867,7 +7814,6 @@ static void intel_get_transcoder_timings(struct intel_crtc_state *pipe_config)
 
 static int intel_ddi_compute_config_late(struct intel_crtc_state *crtc_state)
 {
-	struct intel_display *display = NBlue::callback->i915b->display;
 	u8 port_sync_transcoders = 0;
 	int ret = 0;
 
@@ -7927,7 +7873,7 @@ uint64_t  Gen11::linkTraining(void *that,void *param_1)
 		intel_dp->para->preEmphasis = 0;
 	}
 	
-	auto ret=tgl_ddi_pre_enable_dp(crtc_state);
+	auto ret=tgl_ddi_pre_enable_dp(display, crtc_state);
 	
 	intel_dp->para0. version=intel_dp->dpcd[DP_DPCD_REV];		 // 8 bit high (major); 8 bit low (minor)
 	intel_dp->para0.  bitRate=(u8)getMember<u8>(that, kexticl ? 0x24 : 0x128);
@@ -7937,9 +7883,9 @@ uint64_t  Gen11::linkTraining(void *that,void *param_1)
 	
 	
 	if (!intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP_MST))
-		intel_ddi_set_dp_msa(true);
+		intel_ddi_set_dp_msa(display, true);
 	
-	intel_ddi_enable(crtc_state);
+	intel_ddi_enable(display, crtc_state);
 	
 	return 0; // hack
 	
@@ -7999,11 +7945,11 @@ void Gen11::SetupParams2 (void *param_2, CRTCParams *param_3)
 			//dpcd_access_needs_probe
 			drm_dp_read_dpcd_caps(intel_dp,intel_dp->dpcd);
 			
-			Gen11::callback->readAUX(linkp,DP_EDP_DPCD_REV,&intel_dp->edp_dpcd, sizeof(intel_dp->edp_dpcd));
+			readAUX(linkp,DP_EDP_DPCD_REV,&intel_dp->edp_dpcd, sizeof(intel_dp->edp_dpcd));
 			
 			drm_dp_read_downstream_info(intel_dp, intel_dp->dpcd,intel_dp->downstream_ports);
 			
-			intel_dp->mst_detect = intel_dp_mst_detect(intel_dp);
+			intel_dp->mst_detect = intel_dp_mst_detect(display, intel_dp);
 			intel_dp->is_mst = intel_dp->mst_detect != DRM_DP_SST;
 			if (!intel_dp->is_mst) intel_dp->mst_detect = DRM_DP_SST;
 
@@ -8012,8 +7958,7 @@ void Gen11::SetupParams2 (void *param_2, CRTCParams *param_3)
 			
 			intel_dp_init_source_oui(intel_dp);
 			
-			Gen11::callback->readAUX(linkp, DP_RECEIVER_ALPM_CAP,
-							&intel_dp->alpm_dpcd,1);
+			readAUX(linkp, DP_RECEIVER_ALPM_CAP,&intel_dp->alpm_dpcd,1);
 			
 			/*intel_psr_init_dpcd(intel_dp);
 			intel_edp_set_sink_rates(intel_dp);
@@ -8022,10 +7967,10 @@ void Gen11::SetupParams2 (void *param_2, CRTCParams *param_3)
 			*/
 			//hsw_get_pipe_config
 			//intel_ddi_init
-			intel_get_transcoder_timings(crtc_state);
-			icl_ddi_combo_get_config(crtc_state);
-			intel_ddi_mso_get_config(crtc_state);
-			intel_dp_compute_config(crtc_state);
+			intel_get_transcoder_timings(display,crtc_state);
+			icl_ddi_combo_get_config(display, crtc_state);
+			intel_ddi_mso_get_config(display, crtc_state);
+			intel_dp_compute_config(display, crtc_state);
 			intel_ddi_compute_config_late(crtc_state);
 			
 			if (hsw_panel_transcoders(display) & BIT(crtc_state->cpu_transcoder)) {
@@ -8040,7 +7985,7 @@ void Gen11::SetupParams2 (void *param_2, CRTCParams *param_3)
 		}
 		
 		param_3->TRANS_CLK_SEL=TGL_TRANS_CLK_SEL_PORT(display->port0);
-		param_3->TRANS_MSA_MISC =intel_ddi_set_dp_msa(false);
+		param_3->TRANS_MSA_MISC =intel_ddi_set_dp_msa(display, false);
 		param_3->TRANS_DDI_FUNC_CTL= intel_ddi_transcoder_func_reg_val_get();
 		param_3->PIPE_MISC=bdw_set_pipe_misc();
 		param_3->TRANSCONF= 0xc0000024;
@@ -8393,7 +8338,6 @@ void  Gen11::enableDisplayEngine(void *that0)
 {
 	struct intel_display *display = NBlue::callback->i915b->display;
 	u32 pg_state, pll_state, dbuf_state0, ddi_state;
-	int iVar6;
 	AppleIntelPowerWell0 *that=(AppleIntelPowerWell0*)that0;
 	
 	pg_state = intel_de_read(display, HSW_PWR_WELL_CTL2); // 0x45404

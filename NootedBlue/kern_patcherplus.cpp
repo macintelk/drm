@@ -53,7 +53,7 @@ bool RouteRequestPlus::route(KernelPatcher &patcher, size_t id, mach_vm_address_
 		return false;
 	}
 
-	auto org = patcher.routeFunction(address + offset, this->to, true);
+	auto org = patcher.routeFunctionLong(address + offset, this->to, true);
 	if (!org) {
 		DBGLOG("Patcher+", "Failed to route %s using pattern: %d", safeString(this->symbol), patcher.getError());
 		return false;
