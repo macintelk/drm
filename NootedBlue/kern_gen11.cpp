@@ -4714,23 +4714,15 @@ static void gen12_dbuf_slices_config(struct intel_display *display)
 
 static void gen9_dbuf_slice_set(struct intel_display *display, enum dbuf_slice slice, bool enable)
 {
-		u32 val;
-		u32 reg = DBUF_CTL_S(slice);
+	u32 reg = DBUF_CTL_S(slice);
+	bool state;
 
-		val = intel_de_read(display, reg);
-		
-		if (enable)
-			val |= DBUF_POWER_REQUEST;
-		else
-			val &= ~DBUF_POWER_REQUEST;
-			
-		intel_de_write(display, reg, val);
-
-		if (enable) {
-			if (intel_de_wait_for_set_ms(display, reg, DBUF_POWER_STATE, 1) != kIOReturnSuccess) {
-
-			}
-		}
+	intel_de_rmw(display, reg, DBUF_POWER_REQUEST,
+			 enable ? DBUF_POWER_REQUEST : 0);
+	intel_de_posting_read(display, reg);
+	//udelay(10);
+	IODelay(10);
+	state = intel_de_read(display, reg) & DBUF_POWER_STATE;
 }
 
 void gen9_dbuf_slices_update(struct intel_display *display,
@@ -4740,12 +4732,12 @@ void gen9_dbuf_slices_update(struct intel_display *display,
 	u8 slice_mask = DISPLAY_INFO(display)->dbuf.slice_mask;
 	enum dbuf_slice slice;
 
-	IOSimpleLockLock(power_domains->lock);
+	//IOSimpleLockLock(power_domains->lock);
 	for_each_dbuf_slice(display, slice)
 		gen9_dbuf_slice_set(display, slice, req_slices & BIT(slice));
 
 	display->dbuf.enabled_slices = req_slices;
-	IOSimpleLockUnlock(power_domains->lock);
+	//IOSimpleLockUnlock(power_domains->lock);
 }
 
 
@@ -5090,8 +5082,10 @@ void intel_dmc_load_program(struct intel_display *display)
 
 void Gen11::hwInitializeCState(void *that)
 {
-	struct intel_display *display=NBlue::callback->i915b->display;
-	if (NBlue::callback->i915b->initok) return;
+	struct drm_i915_private *i915=NBlue::callback->i915b;
+	if (i915->initok) return;
+	struct intel_display *display=i915->display;
+	
 	
 	if (getMember<int>(that, kexticl ? 0xb38 : 0xb48) != 1) return;
 	
@@ -8348,6 +8342,7 @@ void  Gen11::enableDisplayEngine(void *that0)
 					  ((pll_state & BXT_DE_PLL_LOCK) != 0) &&
 					  ((dbuf_state0 & (DBUF_POWER_REQUEST | DBUF_POWER_STATE)) != 0);
 
+	
 	if (!de_enabled) {
 		ddi_state = intel_de_read(display, ICL_PWR_WELL_CTL_DDI2); // 0x45454
 		
@@ -8369,24 +8364,19 @@ void  Gen11::enableDisplayEngine(void *that0)
 	}
 
 	
-	icl_set_pipe_chicken();
+	//icl_set_pipe_chicken();
+	
+	if (DISPLAY_VER(display) == 12)
+		intel_de_rmw(display, CLKREQ_POLICY, CLKREQ_POLICY_MEM_UP_OVRD, 0);
 	
 	gen9_set_dc_state(display, DC_STATE_DISABLE);
 
 	if (intel_display_wa(display, INTEL_DISPLAY_WA_14011294188))
 		intel_de_rmw(display, SOUTH_DSPCLK_GATE_D, 0, PCH_DPMGUNIT_CLOCK_GATE_DISABLE);
 	
-	if (DISPLAY_VER(display) == 12)
-		intel_de_rmw(display, CLKREQ_POLICY, CLKREQ_POLICY_MEM_UP_OVRD, 0);
-	
 	
 	cnp_rawclk(display);
-	//u32 rawclk = intel_de_read(display, PCH_RAWCLK_FREQ); // 0xc6204
-	//u32 sfuse = intel_de_read(display, SFUSE_STRAP);      // 0xc2014
-	//u32 mask = (sfuse & SFUSE_STRAP_RAW_FREQUENCY) ? 0x170000 : 0x10120800;
-	//intel_de_write(display, PCH_RAWCLK_FREQ, (rawclk & 0xc000c7ff) | mask);
-	
-	//intel_de_rmw(display, HSW_NDE_RSTWRN_OPT, 0, RESET_PCH_HANDSHAKE_ENABLE);
+
 	intel_pch_reset_handshake(display, !HAS_PCH_NOP(display));
 	
 
@@ -8418,7 +8408,6 @@ void  Gen11::enableDisplayEngine(void *that0)
 	gen9_wait_for_power_well_fuses(display, SKL_PG2);
 	
 	callback->orgSetCDClockFrequency(that->contr, getMember<u64>(that->contr, 0xea8)/*that->contr->fPendingCDClockFrequency*/);
-
 	
 	if (DISPLAY_VER(display) == 12 || display->platform.dg2)
 		gen12_dbuf_slices_config(display);
@@ -8429,6 +8418,25 @@ void  Gen11::enableDisplayEngine(void *that0)
 
 	if (DISPLAY_VER(display) >= 12)
 		tgl_bw_buddy_init(display);
+	
+	/* Wa_14011508470:tgl,dg1,rkl,adl-s,adl-p,dg2 */
+	if (intel_display_wa(display, INTEL_DISPLAY_WA_14011508470))
+		intel_de_rmw(display, GEN11_CHICKEN_DCPR_2, 0,
+				 DCPR_CLEAR_MEMSTAT_DIS | DCPR_SEND_RESP_IMM |
+				 DCPR_MASK_LPMODE | DCPR_MASK_MAXLATENCY_MEMUP_CLR);
+
+	/* Wa_14011503030:xelpd */
+	if (intel_display_wa(display, INTEL_DISPLAY_WA_14011503030))
+		intel_de_write(display, XELPD_DISPLAY_ERR_FATAL_MASK, ~0);
+
+	/* Wa_15013987218 */
+	if (intel_display_wa(display, INTEL_DISPLAY_WA_15013987218)) {
+		intel_de_rmw(display, SOUTH_DSPCLK_GATE_D,
+				 0, PCH_GMBUSUNIT_CLOCK_GATE_DISABLE);
+		intel_de_rmw(display, SOUTH_DSPCLK_GATE_D,
+				 PCH_GMBUSUNIT_CLOCK_GATE_DISABLE, 0);
+	}
+	
 	
 
 	struct intel_dbuf_state dbuf_state;

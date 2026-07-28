@@ -97,6 +97,7 @@ void NBlue::processPatcher(KernelPatcher &patcher) {
 		this->iGPU->setProperty("hda-gfx", const_cast<char *>("onboard-1"), 10);
 		this->iGPU->setProperty("model", const_cast<char *>("Intel Iris Xe Graphics"), 23);
 			
+		i915b=nullptr;
 		nlock=IOSimpleLockAlloc();
         this->deviceId = WIOKit::readPCIConfigValue(this->iGPU, WIOKit::kIOPCIConfigDeviceID);
         this->pciRevision = WIOKit::readPCIConfigValue(NBlue::callback->iGPU, WIOKit::kIOPCIConfigRevisionID);
@@ -959,11 +960,13 @@ int msecs_to_pps_units(int msecs)
 
 
 
-void
-parse_lfp_backlight(struct intel_display *display)
+static void
+parse_lfp_backlight()
 {
-	if (NBlue::callback->i915b->initok) return;
-	NBlue::callback->i915b->initok=true;
+	struct drm_i915_private *i915=NBlue::callback->i915b;
+	if (i915->initok) return;
+	i915->initok=true;
+	struct intel_display *display=i915->display;
 	
 	struct intel_panel *panel=&display->panel;
 	const struct bdb_lfp_backlight *backlight_data;
@@ -977,8 +980,6 @@ parse_lfp_backlight(struct intel_display *display)
 		display->port_clock = 270000;
 	
 	int port_clock= display->port_clock;
-	enum phy phy=display->phy0;
-	enum port port=display->port0;
 	struct intel_dp *intel_dp=&display->intel_dp0;
 	struct intel_crtc_state *crtc_state=&display->crtc_state0;
 	
@@ -2773,20 +2774,19 @@ void intel_device_info_driver_create(struct drm_i915_private *i915,
 
 int NBlue::intel_opregion_setup()
 {
+	if (i915b!=nullptr) return 0;
 	
-	if (i915b->initok) return 0;
+	i915b = (struct drm_i915_private*)IOMalloc(sizeof(struct drm_i915_private));
+	i915b->display= (struct intel_display*)IOMalloc(sizeof(struct intel_display));
+	i915b->gt[0]= (struct intel_gt*)IOMalloc(sizeof(struct intel_gt));
+	i915b->display->dmc.dmc=(struct intel_dmc*)IOMalloc(sizeof(struct intel_dmc));
 	
-	struct drm_i915_private i915a;
-	i915b=&i915a;
 	struct drm_i915_private *i915=i915b;
-	struct intel_display display0;
-	struct intel_gt gt0;
-	i915->display=&display0;
-	i915->gt[0]=&gt0;
 	struct intel_gt *gt=to_gt(i915);
 	struct intel_guc *guc = gt_to_guc(gt);
 	struct intel_display *display=i915->display;
 	guc->gt=gt;
+	i915b->initok=false;
 	
 	int i;
 	const struct intel_device_info *desc;
@@ -2811,7 +2811,6 @@ int NBlue::intel_opregion_setup()
 	
 	
 	struct intel_opregion *opregion = &display->opregion;
-	display->dmc.dmc=&dmc0;
 	display->dmc.dmc->display=display;
 	
 	unsigned short id = deviceId & INTEL_PCH_DEVICE_ID_MASK;
@@ -2980,7 +2979,7 @@ err_out:
 
 void NBlue::parse_backlight()
 {
-	parse_lfp_backlight(i915b->display);
+	parse_lfp_backlight();
 }
 
 UInt32 NBlue::readReg32(unsigned long reg) {
