@@ -2215,7 +2215,7 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	auth = status & GS_AUTH_STATUS_MASK;
 	
 	if (!success)
-	panic("auth %x bootrom %x ukernel %x guc_wopcm_base %x guc_wopcm_size %x",auth,bootrom,ukernel,guc_wopcm_base,guc_wopcm_size);
+	panic("auth %x bootrom %x ukernel %x guc_wopcm_base %x guc_wopcm_size %x",auth,bootrom,ukernel,gt->wopcm.guc.base,gt->wopcm.guc.size);
 	
 	return success ? 1 : 0;
 
