@@ -1819,7 +1819,7 @@ static void guc_init_params(struct intel_guc *guc)
 	params[GUC_CTL_LOG_PARAMS] = guc_ctl_log_params_flags(guc);
 	params[GUC_CTL_FEATURE] = guc_ctl_feature_flags(guc);
 	params[GUC_CTL_DEBUG] = guc_ctl_debug_flags(guc);
-	params[GUC_CTL_ADS] = guc_ctl_ads_flags(guc);
+	//params[GUC_CTL_ADS] = guc_ctl_ads_flags(guc);
 	params[GUC_CTL_WA] = guc_ctl_wa_flags(guc);
 	params[GUC_CTL_DEVID] = guc_ctl_devid(guc);
 
@@ -2032,6 +2032,7 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	guc->log.vma=getMember<void*>(that, 0x60);
 	guc->log.vma=(void*)fgetGPUVirtualAddress(guc->log.vma);
 	guc_init_params(guc);
+	guc->params[GUC_CTL_ADS] =((u32)(fgetGPUVirtualAddress(getMember<void *>(that, 0x9e8)) >> PAGE_SHIFT) << GUC_ADS_ADDR_SHIFT);
 	//getMember<void*>(that, 0x8c)=params;
 	intel_guc_write_params(guc);
 	
@@ -9943,7 +9944,7 @@ uint64_t Gen11::setupAdditionalDataStructs(void *that0) {
 	guc->ads_vma = IGSharedMappedBufferwithOptions(field_0x150, size, 2, 0);
 	if (!guc->ads_vma) return 1;
 	getMember<void *>(that0, 0x9e8)= guc->ads_vma;
-	guc->ads_vma= (void *)fgetGPUVirtualAddress(guc->ads_vma);
+	guc->ads_vma= (void *)fgetVirtualAddress(guc->ads_vma);
 	guc->ads_map.vaddr = guc->ads_vma;
 	guc->ads_map.is_iomem = false;
 	
@@ -9952,7 +9953,7 @@ uint64_t Gen11::setupAdditionalDataStructs(void *that0) {
 
 	
 	
-	u32 ads_param_val = ((u32)(intel_guc_ggtt_offset(guc, guc->ads_vma) >> PAGE_SHIFT) << GUC_ADS_ADDR_SHIFT);
+	u32 ads_param_val = ((u32)(fgetGPUVirtualAddress(getMember<void *>(that0, 0x9e8)) >> PAGE_SHIFT) << GUC_ADS_ADDR_SHIFT);
 	u32 a0=getMember<u32>(that0, 0xa0);
 	getMember<u32>(that0, 0xa0) = (a0 & 0xFFC00001) | ads_param_val;
 	
