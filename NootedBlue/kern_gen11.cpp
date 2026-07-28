@@ -1812,7 +1812,6 @@ static u32 guc_ctl_devid(struct intel_guc *guc)
 
 static void guc_init_params(struct intel_guc *guc)
 {
-	int i;
 	u32 *params = guc->params;
 	//BUILD_BUG_ON(sizeof(guc->params) != GUC_CTL_MAX_DWORDS * sizeof(u32));
 
@@ -2395,7 +2394,7 @@ static void whitelist_reg(struct i915_wa_list *wal, u32 reg)
 static void gen12_ctx_workarounds_init(struct intel_engine_cs *engine,
 									   struct i915_wa_list *wal)
 {
-
+	struct drm_i915_private *i915 = engine->i915;
 	wa_masked_en(wal, GEN11_COMMON_SLICE_CHICKEN3,
 				 GEN12_DISABLE_CPS_AWARE_COLOR_PIPE);
 
@@ -2410,11 +2409,11 @@ static void gen12_ctx_workarounds_init(struct intel_engine_cs *engine,
 		   FF_MODE2_TDS_TIMER_128 | FF_MODE2_GS_TIMER_224,
 		   0, false);
 
-	//if (!IS_DG1(i915)) {
+	if (!IS_DG1(i915)) {
 		wa_masked_en(wal, HIZ_CHICKEN, HZ_DEPTH_TEST_LE_GE_OPT_DISABLE);
 
 		wa_masked_en(wal, COMMON_SLICE_CHICKEN4, DISABLE_TDC_LOAD_BALANCING_CALC);
-	//}
+	}
 
 	wa_mcr_write_or(wal, GEN8_WM_CHICKEN2, WAIT_ON_DEPTH_STALL_DONE_DISABLE);
 }
@@ -2723,18 +2722,56 @@ engine_init_workarounds(struct intel_engine_cs *engine, struct i915_wa_list *wal
 	
 }
 
-void intel_engine_init_ctx_wa(struct intel_engine_cs *engine)
+static void gen12_ctx_gt_mocs_init(struct intel_engine_cs *engine,
+				   struct i915_wa_list *wal)
 {
-	struct i915_wa_list *wal = &engine->ctx_wa_list;
+	u8 mocs;
 
-	wa_init_start(wal, engine->gt, "context", engine->name);
-	gen12_ctx_workarounds_init(engine, wal);
+	if (engine->classb == COPY_ENGINE_CLASS) {
+		mocs = engine->gt->mocs.uc_index;
+		wa_write_clr_set(wal,
+				 BLIT_CCTL(engine->mmio_base),
+				 BLIT_CCTL_MASK,
+				 BLIT_CCTL_MOCS(mocs, mocs));
+	}
+}
+
+static void
+gen12_ctx_gt_fake_wa_init(struct intel_engine_cs *engine,
+			  struct i915_wa_list *wal)
+{
+	//if (GRAPHICS_VER_FULL(engine->i915) >= IP_VER(12, 55))
+	//	fakewa_disable_nestedbb_mode(engine, wal);
+
+	gen12_ctx_gt_mocs_init(engine, wal);
+}
+
+static void
+__intel_engine_init_ctx_wa(struct intel_engine_cs *engine,
+			   struct i915_wa_list *wal,
+			   const char *name)
+{
+	struct drm_i915_private *i915 = engine->i915;
+
+	wa_init_start(wal, engine->gt, name, engine->name);
+
+	if (GRAPHICS_VER(i915) >= 12)
+		gen12_ctx_gt_fake_wa_init(engine, wal);
+
+	if (engine->classb != RENDER_CLASS)
+		goto done;
+
+	if (GRAPHICS_VER(i915) == 12)
+		gen12_ctx_workarounds_init(engine, wal);
+
+
+done:
 	wa_init_finish(wal);
 }
 
-static void engine_init_whitelist(struct intel_engine_cs *engine, struct i915_wa_list *wal)
+void intel_engine_init_ctx_wa(struct intel_engine_cs *engine)
 {
-	tgl_whitelist_build(engine);
+	__intel_engine_init_ctx_wa(engine, &engine->ctx_wa_list, "context");
 }
 
 void intel_engine_init_workarounds(struct intel_engine_cs *engine)
@@ -2750,11 +2787,15 @@ void intel_engine_init_workarounds(struct intel_engine_cs *engine)
 
 void intel_engine_init_whitelist(struct intel_engine_cs *engine)
 {
-	struct i915_wa_list *wal = &engine->whitelist;
+	struct drm_i915_private *i915 = engine->i915;
+	struct i915_wa_list *w = &engine->whitelist;
 
-	wa_init_start(wal, engine->gt, "whitelist", engine->name);
-	engine_init_whitelist(engine, wal);
-	wa_init_finish(wal);
+	wa_init_start(w, engine->gt, "whitelist", engine->name);
+
+	if (GRAPHICS_VER(i915) == 12)
+		tgl_whitelist_build(engine);
+	
+	wa_init_finish(w);
 }
 
 void intel_engine_apply_workarounds(struct intel_engine_cs *engine)
@@ -3576,15 +3617,14 @@ void Gen11::engines()
 		
 		engine->sseu =	intel_sseu_from_device_info(&engine->gt->info.sseu);
 		
-		engine->wa_list.count = 0;
-		engine->whitelist.count = 0;
-		engine->ctx_wa_list.count = 0;
-		
-		engine->flags |= I915_ENGINE_HAS_RELATIVE_MMIO;
-		
 		intel_engine_init_workarounds(engine);
 		intel_engine_init_whitelist(engine);
 		intel_engine_init_ctx_wa(engine);
+		
+		engine->flags |= I915_ENGINE_HAS_RELATIVE_MMIO;
+		engine->flags |= I915_ENGINE_SUPPORTS_STATS;
+		engine->flags |= I915_ENGINE_HAS_PREEMPTION;
+		engine->flags |= I915_ENGINE_HAS_TIMESLICES;
 		
 	}
 	
@@ -9936,9 +9976,6 @@ uint64_t Gen11::setupAdditionalDataStructs(void *that0) {
 
 	size = guc_ads_blob_size(guc);
 
-	//ret = intel_guc_allocate_and_map_vma(guc, size, &guc->ads_vma, &ads_blob);
-	//iosys_map_set_vaddr(&guc->ads_map, ads_blob);
-	
 	void *acel=getMember<void *>(that0, 0x38);
 	void *field_0x150=getMember<void *>(acel, 0x150);
 	guc->ads_vma = IGSharedMappedBufferwithOptions(field_0x150, size, 2, 0);
@@ -9948,10 +9985,7 @@ uint64_t Gen11::setupAdditionalDataStructs(void *that0) {
 	guc->ads_map.vaddr = guc->ads_vma;
 	guc->ads_map.is_iomem = false;
 	
-	
 	__guc_ads_init(guc);
-
-	
 	
 	u32 ads_param_val = ((u32)(fgetGPUVirtualAddress(getMember<void *>(that0, 0x9e8)) >> PAGE_SHIFT) << GUC_ADS_ADDR_SHIFT);
 	u32 a0=getMember<u32>(that0, 0xa0);
