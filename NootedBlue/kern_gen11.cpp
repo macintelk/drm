@@ -1918,6 +1918,118 @@ static void wa_init_finish(struct i915_wa_list *wal)
 		return;
 }
 
+static IOReturn __intel_de_wait_for_register(struct intel_display *display,
+											 uint32_t reg,
+											  uint32_t mask,
+											  uint32_t value,
+											  uint32_t timeout_us,
+											  uint32_t *out_val,
+											  bool is_atomic)
+{
+	AbsoluteTime deadline, now;
+	uint64_t timeout_ns = (uint64_t)timeout_us * NSEC_PER_USEC;
+	nanoseconds_to_absolutetime(timeout_ns, &deadline);
+	
+	uint32_t wait_us = 10;
+	const uint32_t wait_max_us = 1000;
+	uint32_t reg_value;
+	IOReturn ret = kIOReturnError;
+	
+	if (timeout_us <= 10) {
+		is_atomic = true;
+		wait_us = 1;
+	}
+	
+	for (;;) {
+		now = mach_absolute_time();
+		
+		
+		reg_value = intel_de_read(display, reg);
+		
+		if ((reg_value & mask) == value) {
+			ret = kIOReturnSuccess;
+			break;
+		}
+		
+		if (CMP_ABSOLUTETIME(&now, &deadline)) {
+			ret = kIOReturnTimeout;
+			break;
+		}
+		
+		if (!is_atomic && wait_us >= 1000) {
+			IOSleep(wait_us / 1000);
+		} else {
+			IODelay(wait_us);
+		}
+		
+		if (wait_us < wait_max_us) {
+			wait_us <<= 1;
+		}
+	}
+	
+	if (out_val != NULL) {
+		*out_val = reg_value;
+	}
+	
+	return ret;
+}
+
+
+static IOReturn intel_de_wait_for_register(struct intel_display *display,
+										   uint32_t reg,
+											uint32_t mask,
+											uint32_t value,
+											uint32_t fast_timeout_us,
+											uint32_t slow_timeout_us,
+											uint32_t *out_value,
+											bool is_atomic)
+{
+	IOReturn ret = kIOReturnError;
+	if (fast_timeout_us != 0) {
+		ret = __intel_de_wait_for_register(display, reg, mask, value,
+										   fast_timeout_us,
+										   out_value, is_atomic);
+	}
+	if (ret != kIOReturnSuccess && slow_timeout_us != 0) {
+		ret = __intel_de_wait_for_register(display, reg, mask, value,
+										   slow_timeout_us,
+										   out_value, is_atomic);
+	}
+	return ret;
+}
+
+
+IOReturn intel_de_wait_ms(struct intel_display *display,
+						  uint32_t reg,
+						  uint32_t mask,
+						  uint32_t value,
+						  unsigned int timeout_ms,
+						  uint32_t *out_value)
+{
+	IOReturn ret;
+	ret = intel_de_wait_for_register(display, reg, mask, value,
+									 2,
+									 timeout_ms * 1000,
+									 out_value,
+									 false);
+	
+	return ret;
+}
+
+
+
+int intel_de_wait_for_set_ms(struct intel_display *display, u32 reg,
+							 u32 mask, unsigned int timeout_ms)
+{
+	return intel_de_wait_ms(display, reg, mask, mask, timeout_ms, NULL);
+}
+
+int intel_de_wait_for_clear_ms(struct intel_display *display, u32 reg,
+							   u32 mask, unsigned int timeout_ms)
+{
+	return intel_de_wait_ms(display, reg, mask, 0, timeout_ms, NULL);
+}
+
 void intel_gt_init_workarounds(struct intel_gt *gt)
 {
 	struct i915_wa_list *wal = &gt->wa_list;
@@ -2024,117 +2136,44 @@ void intel_wopcm_init(struct intel_gt *gt, u32 guc_fw_size)
 check:
 }
 
-
-
-unsigned long Gen11::loadGuCBinary(void *that)
+static int gen6_hw_domain_reset(struct intel_gt *gt, u32 hw_domain_mask)
 {
-	struct drm_i915_private *i915=NBlue::callback->i915b;
-	struct intel_gt *gt=to_gt(i915);
+	struct drm_i915_private *i915=gt->i915;
 	struct intel_display *display = i915->display;
-	struct intel_guc *guc = gt_to_guc(gt);
-	
-	void *m_accelerator = getMember<void *>(that, 0x38);
-	
-	if (!display || !m_accelerator) return 0;
-	
+	int loops;
 	int err;
-	struct Firmware fw = {};
-	struct uc_css_header *header = nullptr;
-	uint32_t ucode_size = 0;
-	uint32_t rsa_size = 0;
-	size_t min_expected_size = 0;
-	size_t dma_buffer_size = 0;
-	u32 reg_base;
-	u32 reg_size;
-	void *igtask = nullptr;
-	void* fwBuffer = nullptr;
-	void* vaddr = nullptr;
-	u32 dma_flags;
-	uint64_t gpuAddr = 0;
-	u32 shim_flags = 0;
-	u32 ctx_rsvd;
-	u32 guc_wopcm_base;
-	u32 wopcm_size = 0;
-	u32 guc_wopcm_size;
-	u32 mask = 0;
-	u32 rsa_offset = 0;
-	u32 i = 0;
-	int dmaRetry = 0;
-	u32 huc_agent =0;
-	uint32_t auth;
-	bool success = false;
-	bool done = false;
-	int retryCount = 0;
-	int count = 0;
-	int innerTimeout = 0;
-	uint32_t status = 0;
-	uint32_t bootrom = 0;
-	uint32_t ukernel = 0;
-	uint8_t* rsa_bytes;
-	uint32_t* rsa_words;
-	uint32_t rsa_val;
-	
-	
-	fw = getFWByName("tgl_guc_70.1.1.bin");
-	if (!fw.data || fw.size == 0) return 0;
-	if (fw.size < sizeof(uc_css_header)) return 0;
-	
-	header = (struct uc_css_header *)fw.data;
-	
-	if (header->size_dw > header->header_size_dw) {
-		ucode_size = (header->size_dw - header->header_size_dw) * 4;
-	} else {
-		return 0;
-	}
-	if (ucode_size == 0) return 0;
-	
-	guc->fw.private_data_size=header->private_data_size;
-	
-	rsa_size = header->key_size_dw * 4;
-	if (rsa_size > 256) rsa_size = 256;
-	
-	min_expected_size = sizeof(uc_css_header) + ucode_size + rsa_size;
-	if (fw.size < min_expected_size) return 0;
-	
-	
-	dma_buffer_size = ((sizeof(uc_css_header) + ucode_size) + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
-	
-	igtask = getMember<void*>(m_accelerator, 0x150);
-	fwBuffer = IGSharedMappedBufferwithOptions(igtask, dma_buffer_size, 2, 0);
-	if (!fwBuffer) return 0;
-	
-	vaddr = (void*)fgetVirtualAddress(fwBuffer);
-	if (!vaddr) {
-		IGSharedMappedBufferfree(fwBuffer);
-		return 0;
-	}
-	
-	memcpy(vaddr, fw.data , sizeof(uc_css_header) + ucode_size);
-	
-	gpuAddr = fgetGPUVirtualAddress(fwBuffer);
-	if (gpuAddr == 0) {
-		IGSharedMappedBufferfree(fwBuffer);
-		return 0;
-	}
-	
-	if (!initSchedControl(that)) return 0;
-	
-	SafeForceWake(m_accelerator, true, 7);
-	
-	intel_gt_init_workarounds(gt);
-	wa_list_apply(&gt->wa_list);
-	
-	
-	_guc_log_init_sizes(&guc->log);
-	guc->log.vma=getMember<void*>(that, 0x60);
-	guc->log.vma=(void*)fgetGPUVirtualAddress(guc->log.vma);
-	guc_init_params(guc);
-	guc->params[GUC_CTL_ADS] =((u32)(fgetGPUVirtualAddress(getMember<void *>(that, 0x9e8)) >> PAGE_SHIFT) << GUC_ADS_ADDR_SHIFT);
-	//getMember<void*>(that, 0x8c)=params;
-	intel_guc_write_params(guc);
-	
 
-	shim_flags = GUC_ENABLE_READ_CACHE_LOGIC |
+	loops = GRAPHICS_VER_FULL(gt->i915) < IP_VER(12, 70) ? 2 : 1;
+
+	do {
+		intel_de_write(display, GEN6_GDRST, hw_domain_mask);
+
+		
+		err = intel_de_wait_for_register(display, GEN6_GDRST,
+						   hw_domain_mask, 0,
+						   2000, 0,
+						   NULL, false);
+	} while (err == 0 && --loops);
+
+	//udelay(50);
+	IODelay(50);
+	return err;
+}
+static int __reset_guc(struct intel_gt *gt)
+{
+	u32 guc_domain =
+		GRAPHICS_VER(gt->i915) >= 11 ? GEN11_GRDOM_GUC : GEN9_GRDOM_GUC;
+
+	return gen6_hw_domain_reset(gt, guc_domain);
+}
+
+static void guc_prepare_xfer(struct intel_gt *gt)
+{
+	struct drm_i915_private *i915=gt->i915;
+	struct intel_display *display = i915->display;
+
+	
+	u32 shim_flags = GUC_ENABLE_READ_CACHE_LOGIC |
 			 GUC_ENABLE_READ_CACHE_FOR_SRAM_DATA |
 			 GUC_ENABLE_READ_CACHE_FOR_WOPCM_DATA |
 			 GUC_ENABLE_MIA_CLOCK_GATING;
@@ -2142,88 +2181,27 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	if (GRAPHICS_VER_FULL(i915) < IP_VER(12, 55))
 		shim_flags |= GUC_DISABLE_SRAM_INIT_TO_ZEROES |
 				  GUC_ENABLE_MIA_CACHING;
-	
+
 	intel_de_write(display, GUC_SHIM_CONTROL, shim_flags);
+
+	/*if (IS_GEN9_LP(uncore->i915))
+		intel_uncore_write(uncore, GEN9LP_GT_PM_CONFIG, GT_DOORBELL_ENABLE);
+	else*/
 	intel_de_write(display, GEN9_GT_PM_CONFIG, GT_DOORBELL_ENABLE);
-	intel_de_rmw(display, GEN6_PMINTRMSK, ARAT_EXPIRED_INTRMSK, 0);
-	
-	rsa_offset = sizeof(struct uc_css_header) + ucode_size;
-	rsa_bytes = reinterpret_cast<uint8_t*>(fw.data) + rsa_offset;
-	rsa_words = reinterpret_cast<uint32_t*>(rsa_bytes);
 
-	for ( i = 0; i < UOS_RSA_SCRATCH_COUNT; i++) {
-		rsa_val = rsa_words[i];
-		intel_de_write(display, UOS_RSA_SCRATCH(i), rsa_val);
-	}
-	
-	intel_wopcm_init(gt, sizeof(uc_css_header) + ucode_size);
-		
-	
-	intel_de_write(display, GEN12_GUC_TLB_INV_CR, GEN12_GUC_TLB_INV_CR_INVALIDATE);
-	while ((intel_de_read(display, GEN12_GUC_TLB_INV_CR) & GEN12_GUC_TLB_INV_CR_INVALIDATE) != 0)
-	{
-		// Spinwait
-	}
-	
-	dma_flags=UOS_MOVE;
-	intel_de_write(display, DMA_ADDR_0_LOW, lower_32_bits(gpuAddr));
-	intel_de_write(display, DMA_ADDR_0_HIGH, upper_32_bits(gpuAddr) | DMA_ADDRESS_SPACE_GTT);
-	intel_de_write(display, DMA_ADDR_1_LOW, 0x2000);
-	intel_de_write(display, DMA_ADDR_1_HIGH, DMA_ADDRESS_SPACE_WOPCM);
-	intel_de_write(display, DMA_COPY_SIZE, sizeof(struct uc_css_header) + ucode_size);
-	
-	intel_de_write(display, DMA_CTRL, REG_MASKED_FIELD_ENABLE(dma_flags | START_DMA));
-	
-	dmaRetry = 1000;
-	while (intel_de_read(display, DMA_CTRL) & START_DMA) {
-		IODelay(100);
-		if (--dmaRetry <= 0) goto fail;
-	}
-	
-	intel_de_write(display, DMA_CTRL, REG_MASKED_FIELD_DISABLE(dma_flags));
-	
-	retryCount = 3;
-	for (count = 0; count < retryCount; count++) {
-		success = false;
-		innerTimeout = 1000;
-		done = false;
-		
-		while (innerTimeout > 0) {
+	if (GRAPHICS_VER(i915) == 9) {
+		intel_de_rmw(display, GEN7_MISCCPCTL, 0,
+				 GEN8_DOP_CLOCK_GATE_GUC_ENABLE);
 
-			guc_load_done(&status,&success);
-			bootrom = REG_FIELD_GET(GS_BOOTROM_MASK, status);
-			ukernel = REG_FIELD_GET(GS_UKERNEL_MASK, status);
-			
-			if (success) {
-					done = true;
-					break;
-			}
-			
-			IODelay(1000);
-			innerTimeout--;
-		}
-		
-		if (done) {
-			break;
-		}
+		intel_de_write(display, GUC_ARAT_C6DIS, 0x1FF);
 	}
-	
-	
-	SafeForceWake(m_accelerator, false, 7);
-	IGSharedMappedBufferfree(fwBuffer);
-	
-	auth = status & GS_AUTH_STATUS_MASK;
-	
-	if (!success)
-	panic("auth %x bootrom %x ukernel %x guc_wopcm_base %x guc_wopcm_size %x",auth,bootrom,ukernel,gt->wopcm.guc.base,gt->wopcm.guc.size);
-	
-	return success ? 1 : 0;
 
-fail:
-	SafeForceWake(m_accelerator, false, 7);
-	IGSharedMappedBufferfree(fwBuffer);
-	return 0;
+
+	if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 50))
+		intel_de_rmw(display, GUC_SHIM_CONTROL2, 0, GUC_ENABLE_DEBUG_REG);
 }
+
+
 		
 	
 
@@ -4698,117 +4676,7 @@ skip_phy_misc:
 	}
 }
 
-static IOReturn __intel_de_wait_for_register(struct intel_display *display,
-											 uint32_t reg,
-											  uint32_t mask,
-											  uint32_t value,
-											  uint32_t timeout_us,
-											  uint32_t *out_val,
-											  bool is_atomic)
-{
-	AbsoluteTime deadline, now;
-	uint64_t timeout_ns = (uint64_t)timeout_us * NSEC_PER_USEC;
-	nanoseconds_to_absolutetime(timeout_ns, &deadline);
-	
-	uint32_t wait_us = 10;
-	const uint32_t wait_max_us = 1000;
-	uint32_t reg_value;
-	IOReturn ret = kIOReturnError;
-	
-	if (timeout_us <= 10) {
-		is_atomic = true;
-		wait_us = 1;
-	}
-	
-	for (;;) {
-		now = mach_absolute_time();
-		
-		
-		reg_value = intel_de_read(display, reg);
-		
-		if ((reg_value & mask) == value) {
-			ret = kIOReturnSuccess;
-			break;
-		}
-		
-		if (CMP_ABSOLUTETIME(&now, &deadline)) {
-			ret = kIOReturnTimeout;
-			break;
-		}
-		
-		if (!is_atomic && wait_us >= 1000) {
-			IOSleep(wait_us / 1000);
-		} else {
-			IODelay(wait_us);
-		}
-		
-		if (wait_us < wait_max_us) {
-			wait_us <<= 1;
-		}
-	}
-	
-	if (out_val != NULL) {
-		*out_val = reg_value;
-	}
-	
-	return ret;
-}
 
-
-static IOReturn intel_de_wait_for_register(struct intel_display *display,
-										   uint32_t reg,
-											uint32_t mask,
-											uint32_t value,
-											uint32_t fast_timeout_us,
-											uint32_t slow_timeout_us,
-											uint32_t *out_value,
-											bool is_atomic)
-{
-	IOReturn ret = kIOReturnError;
-	if (fast_timeout_us != 0) {
-		ret = __intel_de_wait_for_register(display, reg, mask, value,
-										   fast_timeout_us,
-										   out_value, is_atomic);
-	}
-	if (ret != kIOReturnSuccess && slow_timeout_us != 0) {
-		ret = __intel_de_wait_for_register(display, reg, mask, value,
-										   slow_timeout_us,
-										   out_value, is_atomic);
-	}
-	return ret;
-}
-
-
-IOReturn intel_de_wait_ms(struct intel_display *display,
-						  uint32_t reg,
-						  uint32_t mask,
-						  uint32_t value,
-						  unsigned int timeout_ms,
-						  uint32_t *out_value)
-{
-	IOReturn ret;
-	ret = intel_de_wait_for_register(display, reg, mask, value,
-									 2,
-									 timeout_ms * 1000,
-									 out_value,
-									 false);
-	
-	return ret;
-}
-
-
-
-int intel_de_wait_for_set_ms(struct intel_display *display, u32 reg,
-							 u32 mask, unsigned int timeout_ms)
-{
-	return intel_de_wait_ms(display, reg, mask, mask, timeout_ms, NULL);
-}
-
-int intel_de_wait_for_clear_ms(struct intel_display *display, u32 reg,
-							   u32 mask, unsigned int timeout_ms)
-{
-	return intel_de_wait_ms(display, reg, mask, 0, timeout_ms, NULL);
-}
 
 static void gen12_dbuf_slices_config(struct intel_display *display)
 {
@@ -10010,6 +9878,231 @@ int intel_guc_capture_init(struct intel_guc *guc)
 	return 0;
 }
 
+static inline void iosys_map_memset(struct iosys_map *dst, size_t offset,
+					int value, size_t len)
+{
+	/*if (dst->is_iomem)
+		memset_io(dst->vaddr_iomem + offset, value, len);
+	else*/
+		memset((u8*)dst->vaddr + offset, value, len);
+}
+
+static void guc_ads_private_data_reset(struct intel_guc *guc)
+{
+	u32 size;
+
+	size = guc_ads_private_data_size(guc);
+	if (!size)
+		return;
+
+	iosys_map_memset(&guc->ads_map, guc_ads_private_data_offset(guc),
+			 0, size);
+}
+void intel_guc_ads_reset(struct intel_guc *guc)
+{
+	if (!guc->ads_vma)
+		return;
+
+	__guc_ads_init(guc);
+
+	guc_ads_private_data_reset(guc);
+}
+
+unsigned long Gen11::loadGuCBinary(void *that)
+{
+	struct drm_i915_private *i915=NBlue::callback->i915b;
+	struct intel_gt *gt=to_gt(i915);
+	struct intel_display *display = i915->display;
+	struct intel_guc *guc = gt_to_guc(gt);
+	
+	void *m_accelerator = getMember<void *>(that, 0x38);
+	
+	if (!display || !m_accelerator) return 0;
+	
+	int err;
+	struct Firmware fw = {};
+	struct uc_css_header *header = nullptr;
+	uint32_t ucode_size = 0;
+	uint32_t rsa_size = 0;
+	size_t min_expected_size = 0;
+	size_t dma_buffer_size = 0;
+	u32 reg_base;
+	u32 reg_size;
+	void *igtask = nullptr;
+	void* fwBuffer = nullptr;
+	void* vaddr = nullptr;
+	u32 dma_flags;
+	uint64_t gpuAddr = 0;
+	u32 shim_flags = 0;
+	u32 ctx_rsvd;
+	u32 guc_wopcm_base;
+	u32 wopcm_size = 0;
+	u32 guc_wopcm_size;
+	u32 mask = 0;
+	u32 rsa_offset = 0;
+	u32 i = 0;
+	int dmaRetry = 0;
+	u32 huc_agent =0;
+	uint32_t auth;
+	bool success = false;
+	bool done = false;
+	int retryCount = 0;
+	int count = 0;
+	int innerTimeout = 0;
+	uint32_t status = 0;
+	uint32_t bootrom = 0;
+	uint32_t ukernel = 0;
+	uint8_t* rsa_bytes;
+	uint32_t* rsa_words;
+	uint32_t rsa_val;
+	
+	
+	fw = getFWByName("tgl_guc_70.1.1.bin");
+	if (!fw.data || fw.size == 0) return 0;
+	if (fw.size < sizeof(uc_css_header)) return 0;
+	
+	header = (struct uc_css_header *)fw.data;
+	
+	if (header->size_dw > header->header_size_dw) {
+		ucode_size = (header->size_dw - header->header_size_dw) * 4;
+	} else {
+		return 0;
+	}
+	if (ucode_size == 0) return 0;
+	
+	guc->fw.private_data_size=header->private_data_size;
+	
+	rsa_size = header->key_size_dw * 4;
+	if (rsa_size > 256) rsa_size = 256;
+	
+	min_expected_size = sizeof(uc_css_header) + ucode_size + rsa_size;
+	if (fw.size < min_expected_size) return 0;
+	
+	
+	dma_buffer_size = ((sizeof(uc_css_header) + ucode_size) + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
+	
+	igtask = getMember<void*>(m_accelerator, 0x150);
+	fwBuffer = IGSharedMappedBufferwithOptions(igtask, dma_buffer_size, 2, 0);
+	if (!fwBuffer) return 0;
+	
+	vaddr = (void*)fgetVirtualAddress(fwBuffer);
+	if (!vaddr) {
+		IGSharedMappedBufferfree(fwBuffer);
+		return 0;
+	}
+	
+	memcpy(vaddr, fw.data , sizeof(uc_css_header) + ucode_size);
+	
+	gpuAddr = fgetGPUVirtualAddress(fwBuffer);
+	if (gpuAddr == 0) {
+		IGSharedMappedBufferfree(fwBuffer);
+		return 0;
+	}
+	
+	if (!initSchedControl(that)) return 0;
+	
+	SafeForceWake(m_accelerator, true, 7);
+	
+	intel_wopcm_init(gt, sizeof(uc_css_header) + ucode_size);
+	
+	intel_gt_init_workarounds(gt);
+	wa_list_apply(&gt->wa_list);
+	
+	_guc_log_init_sizes(&guc->log);
+	
+	guc->log.vma=getMember<void*>(that, 0x60);
+	guc->log.vma=(void*)fgetGPUVirtualAddress(guc->log.vma);
+	guc_init_params(guc);
+	guc->params[GUC_CTL_ADS] =((u32)(fgetGPUVirtualAddress(getMember<void *>(that, 0x9e8)) >> PAGE_SHIFT) << GUC_ADS_ADDR_SHIFT);
+	
+	/*intel_de_write(display, GEN12_GUC_TLB_INV_CR, GEN12_GUC_TLB_INV_CR_INVALIDATE);
+	while ((intel_de_read(display, GEN12_GUC_TLB_INV_CR) & GEN12_GUC_TLB_INV_CR_INVALIDATE) != 0)
+	{
+		// Spinwait
+	}*/
+	
+
+	retryCount = 3;
+	for (count = 0; count < retryCount; count++) {
+		success = false;
+		done    = false;
+
+		__reset_guc(gt);
+		
+		intel_guc_ads_reset(guc);
+		intel_guc_write_params(guc);
+
+		guc_prepare_xfer(gt);
+		
+		//guc_xfer_rsa_mmio(guc_fw, uncore);
+		rsa_offset = sizeof(struct uc_css_header) + ucode_size;
+		rsa_bytes = reinterpret_cast<uint8_t*>(fw.data) + rsa_offset;
+		rsa_words = reinterpret_cast<uint32_t*>(rsa_bytes);
+		for ( i = 0; i < UOS_RSA_SCRATCH_COUNT; i++) {
+			rsa_val = rsa_words[i];
+			intel_de_write(display, UOS_RSA_SCRATCH(i), rsa_val);
+		}
+
+		//uc_fw_xfer()
+		dma_flags = UOS_MOVE;
+		intel_de_write(display, DMA_ADDR_0_LOW,
+				   lower_32_bits(gpuAddr));
+		intel_de_write(display, DMA_ADDR_0_HIGH,
+				   upper_32_bits(gpuAddr) | DMA_ADDRESS_SPACE_GTT);
+		intel_de_write(display, DMA_ADDR_1_LOW, 0x2000);
+		intel_de_write(display, DMA_ADDR_1_HIGH,
+				   DMA_ADDRESS_SPACE_WOPCM);
+		intel_de_write(display, DMA_COPY_SIZE,
+				   sizeof(struct uc_css_header) + ucode_size);
+		intel_de_write(display, DMA_CTRL,
+				   REG_MASKED_FIELD_ENABLE(dma_flags | START_DMA));
+		dmaRetry = 1000;
+		while (intel_de_read(display, DMA_CTRL) & START_DMA) {
+			IODelay(100);
+			if (--dmaRetry <= 0)
+				goto fail;
+		}
+		intel_de_write(display, DMA_CTRL,
+				   REG_MASKED_FIELD_DISABLE(dma_flags));
+
+
+		innerTimeout = 1000;
+		while (innerTimeout > 0) {
+			
+			guc_load_done(&status,&success);
+			bootrom = REG_FIELD_GET(GS_BOOTROM_MASK, status);
+			ukernel = REG_FIELD_GET(GS_UKERNEL_MASK, status);
+			
+			if (success) {
+					done = true;
+					break;
+			}
+			
+			IODelay(1000);
+			innerTimeout--;
+		}
+
+		if (done)
+			break;
+	}
+	
+	
+	SafeForceWake(m_accelerator, false, 7);
+	IGSharedMappedBufferfree(fwBuffer);
+	
+	auth = status & GS_AUTH_STATUS_MASK;
+	
+	if (!success)
+	panic("auth %x bootrom %x ukernel %x guc_wopcm_base %x guc_wopcm_size %x",auth,bootrom,ukernel,gt->wopcm.guc.base,gt->wopcm.guc.size);
+	
+	return success ? 1 : 0;
+
+fail:
+	SafeForceWake(m_accelerator, false, 7);
+	IGSharedMappedBufferfree(fwBuffer);
+	return 0;
+}
+
 uint64_t Gen11::setupAdditionalDataStructs(void *that0) {
 	
 	struct drm_i915_private *i915= NBlue::callback->i915b;
@@ -10052,7 +10145,7 @@ uint64_t Gen11::setupAdditionalDataStructs(void *that0) {
 	guc->ads_map.vaddr = guc->ads_vma;
 	guc->ads_map.is_iomem = false;
 	
-	__guc_ads_init(guc);
+	//__guc_ads_init(guc);
 	
 	u32 ads_param_val = ((u32)(fgetGPUVirtualAddress(getMember<void *>(that0, 0x9e8)) >> PAGE_SHIFT) << GUC_ADS_ADDR_SHIFT);
 	u32 a0=getMember<u32>(that0, 0xa0);
