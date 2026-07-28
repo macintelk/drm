@@ -8520,11 +8520,7 @@ inline unsigned long find_next_zero_bit(const unsigned long *addr,
 #define LRC_SKIP_SIZE(i915) (LRC_PPHWSP_SZ * PAGE_SIZE + LR_HW_CONTEXT_SZ(i915))
 #define   RING_MAX_NONPRIV_SLOTS  12
 #define LNCFCMOCS_REG_COUNT			32
-enum {
-	GUC_CAPTURE_LIST_INDEX_PF = 0,
-	GUC_CAPTURE_LIST_INDEX_VF = 1,
-	GUC_CAPTURE_LIST_INDEX_MAX = 2,
-};
+
 
 #define GUC_GENERIC_GT_SYSINFO_SLICE_ENABLED		0
 #define GUC_GENERIC_GT_SYSINFO_VDBOX_SFC_SUPPORT_MASK	1
@@ -8949,6 +8945,14 @@ struct __guc_capture_ads_cache {
 	size_t size;
 	int status;
 };
+
+enum {
+	GUC_CAPTURE_LIST_INDEX_PF = 0,
+	GUC_CAPTURE_LIST_INDEX_VF = 1,
+	GUC_CAPTURE_LIST_INDEX_MAX = 2,
+};
+
+
 struct intel_guc_state_capture {
 
 	const struct __guc_mmio_reg_descr_group *reglists;
@@ -9647,6 +9651,208 @@ static inline void * ERR_PTR(long error)
 {
 	return (void *) error;
 }
+
+
+#define GEN12_SFC_DONE(n)			_MMIO(0x1cc000 + (n) * 0x1000)
+#define GEN7_SC_INSTDONE			_MMIO(0x7100)
+#define GEN12_SC_INSTDONE_EXTRA			_MMIO(0x7104)
+#define GEN12_SC_INSTDONE_EXTRA2		_MMIO(0x7108)
+#define RING_IMR(base)				_MMIO((base) + 0xa8)
+#define RING_EIR(base)				_MMIO((base) + 0xb0)
+#define RING_EMR(base)				_MMIO((base) + 0xb4)
+#define RING_ESR(base)				_MMIO((base) + 0xb8)
+#define RING_ACTHD_UDW(base)			_MMIO((base) + 0x5c)
+#define RING_DMA_FADD_UDW(base)			_MMIO((base) + 0x60) /* gen8+ */
+#define RING_DMA_FADD(base)			_MMIO((base) + 0x78)
+#define    FORCEWAKE_MT_ENABLE			(1 << 5)
+#define FORCEWAKE_MT				_MMIO(0xa188) /* multi-threaded */
+#define FORCEWAKE_GT_GEN9			_MMIO(0xa188)
+#define FORCEWAKE				_MMIO(0xa18c)
+#define DONE_REG				_MMIO(0x40b0)
+#define ERROR_GEN6				_MMIO(0x40a0)
+#define HSW_GTT_CACHE_EN	_MMIO(0x4024)
+#define   GTT_CACHE_EN_ALL	0xF0007FFF
+#define GEN12_AUX_ERR_DBG			_MMIO(0x43f4)
+#define GEN12_FAULT_TLB_DATA0			_MMIO(0xceb8)
+#define XEHP_FAULT_TLB_DATA0			MCR_REG(0xceb8)
+#define GEN12_FAULT_TLB_DATA1			_MMIO(0xcebc)
+#define XEHP_FAULT_TLB_DATA1			MCR_REG(0xcebc)
+#define GEN12_GAM_DONE				_MMIO(0xcf68)
+#define GEN12_RING_FAULT_REG			_MMIO(0xcec4)
+#define XEHP_RING_FAULT_REG			MCR_REG(0xcec4)
+#define XELPMP_RING_FAULT_REG			_MMIO(0xcec4)
+#define CCID(base)				_MMIO((base) + 0x180)
+#define   CCID_EN				BIT(0)
+#define   CCID_EXTENDED_STATE_RESTORE		BIT(2)
+#define   CCID_EXTENDED_STATE_SAVE		BIT(3)
+#define RING_ACTHD_UDW(base)			_MMIO((base) + 0x5c)
+#define RING_ACTHD(base)			_MMIO((base) + 0x74)
+#define RING_BBADDR_UDW(base)			_MMIO((base) + 0x168) /* gen8+ */
+#define RING_BBADDR(base)			_MMIO((base) + 0x140)
+#define RING_BBSTATE(base)			_MMIO((base) + 0x110)
+#define   RING_BB_PPGTT				(1 << 5)
+#define RING_CTL(base)				_MMIO((base) + 0x3c)
+#define   RING_CTL_SIZE(size)			((size) - PAGE_SIZE)
+#define RING_CONTEXT_CONTROL(base)		_MMIO((base) + 0x244)
+#define GEN8_RING_PDP_LDW(base, n)		_MMIO((base) + 0x270 + (n) * 8)
+#define GEN8_RING_PDP_UDW(base, n)		_MMIO((base) + 0x270 + (n) * 8 + 4)
+#define RING_INSTDONE(base)			_MMIO((base) + 0x6c)
+#define RING_INSTPM(base)			_MMIO((base) + 0xc0)
+#define RING_INSTPS(base)			_MMIO((base) + 0x70)
+#define RING_IPEHR(base)			_MMIO((base) + 0x68)
+#define RING_IPEIR(base)			_MMIO((base) + 0x64)
+#define RING_MI_MODE(base)			_MMIO((base) + 0x9c)
+#define RING_START(base)			_MMIO((base) + 0x38)
+#define RING_TAIL(base)				_MMIO((base) + 0x30)
+#define RING_HEAD(base)				_MMIO((base) + 0x34)
+
+
+
+#define COMMON_BASE_GLOBAL \
+	{ FORCEWAKE_MT,             0,      0, "FORCEWAKE" }
+
+#define COMMON_GEN8BASE_GLOBAL \
+	{ ERROR_GEN6,               0,      0, "ERROR_GEN6" }, \
+	{ DONE_REG,                 0,      0, "DONE_REG" }, \
+	{ HSW_GTT_CACHE_EN,         0,      0, "HSW_GTT_CACHE_EN" }
+
+#define GEN8_GLOBAL \
+	{ GEN8_FAULT_TLB_DATA0,     0,      0, "GEN8_FAULT_TLB_DATA0" }, \
+	{ GEN8_FAULT_TLB_DATA1,     0,      0, "GEN8_FAULT_TLB_DATA1" }
+
+#define COMMON_GEN12BASE_GLOBAL \
+	{ GEN12_FAULT_TLB_DATA0,    0,      0, "GEN12_FAULT_TLB_DATA0" }, \
+	{ GEN12_FAULT_TLB_DATA1,    0,      0, "GEN12_FAULT_TLB_DATA1" }, \
+	{ GEN12_AUX_ERR_DBG,        0,      0, "AUX_ERR_DBG" }, \
+	{ GEN12_GAM_DONE,           0,      0, "GAM_DONE" }, \
+	{ GEN12_RING_FAULT_REG,     0,      0, "FAULT_REG" }
+
+#define COMMON_BASE_ENGINE_INSTANCE \
+	{ RING_PSMI_CTL(0),         0,      0, "RC PSMI" }, \
+	{ RING_ESR(0),              0,      0, "ESR" }, \
+	{ RING_DMA_FADD(0),         0,      0, "RING_DMA_FADD_LDW" }, \
+	{ RING_DMA_FADD_UDW(0),     0,      0, "RING_DMA_FADD_UDW" }, \
+	{ RING_EIR(0),              0,      0, "EIR" }, \
+	{ RING_IPEIR(0),            0,      0, "IPEIR" }, \
+	{ RING_IPEHR(0),            0,      0, "IPEHR" }, \
+	{ RING_INSTPS(0),           0,      0, "INSTPS" }, \
+	{ RING_BBADDR(0),           0,      0, "RING_BBADDR_LOW32" }, \
+	{ RING_BBADDR_UDW(0),       0,      0, "RING_BBADDR_UP32" }, \
+	{ RING_BBSTATE(0),          0,      0, "BB_STATE" }, \
+	{ CCID(0),                  0,      0, "CCID" }, \
+	{ RING_ACTHD(0),            0,      0, "ACTHD_LDW" }, \
+	{ RING_ACTHD_UDW(0),        0,      0, "ACTHD_UDW" }, \
+	{ RING_INSTPM(0),           0,      0, "INSTPM" }, \
+	{ RING_INSTDONE(0),         0,      0, "INSTDONE" }, \
+	{ RING_NOPID(0),            0,      0, "RING_NOPID" }, \
+	{ RING_START(0),            0,      0, "START" }, \
+	{ RING_HEAD(0),             0,      0, "HEAD" }, \
+	{ RING_TAIL(0),             0,      0, "TAIL" }, \
+	{ RING_CTL(0),              0,      0, "CTL" }, \
+	{ RING_MI_MODE(0),          0,      0, "MODE" }, \
+	{ RING_CONTEXT_CONTROL(0),  0,      0, "RING_CONTEXT_CONTROL" }, \
+	{ RING_HWS_PGA(0),          0,      0, "HWS" }, \
+	{ RING_MODE_GEN7(0),        0,      0, "GFX_MODE" }, \
+	{ GEN8_RING_PDP_LDW(0, 0),  0,      0, "PDP0_LDW" }, \
+	{ GEN8_RING_PDP_UDW(0, 0),  0,      0, "PDP0_UDW" }, \
+	{ GEN8_RING_PDP_LDW(0, 1),  0,      0, "PDP1_LDW" }, \
+	{ GEN8_RING_PDP_UDW(0, 1),  0,      0, "PDP1_UDW" }, \
+	{ GEN8_RING_PDP_LDW(0, 2),  0,      0, "PDP2_LDW" }, \
+	{ GEN8_RING_PDP_UDW(0, 2),  0,      0, "PDP2_UDW" }, \
+	{ GEN8_RING_PDP_LDW(0, 3),  0,      0, "PDP3_LDW" }, \
+	{ GEN8_RING_PDP_UDW(0, 3),  0,      0, "PDP3_UDW" }
+
+#define COMMON_BASE_RENDER \
+	{ GEN7_SC_INSTDONE,         0,      0, "GEN7_SC_INSTDONE" }
+
+#define COMMON_GEN12BASE_RENDER \
+	{ GEN12_SC_INSTDONE_EXTRA,  0,      0, "GEN12_SC_INSTDONE_EXTRA" }, \
+	{ GEN12_SC_INSTDONE_EXTRA2, 0,      0, "GEN12_SC_INSTDONE_EXTRA2" }
+
+#define COMMON_GEN12BASE_VEC \
+	{ GEN12_SFC_DONE(0),        0,      0, "SFC_DONE[0]" }, \
+	{ GEN12_SFC_DONE(1),        0,      0, "SFC_DONE[1]" }, \
+	{ GEN12_SFC_DONE(2),        0,      0, "SFC_DONE[2]" }, \
+	{ GEN12_SFC_DONE(3),        0,      0, "SFC_DONE[3]" }
+
+
+
+#define TO_GCAP_DEF_OWNER(x) (GUC_CAPTURE_LIST_INDEX_##x)
+#define TO_GCAP_DEF_TYPE(x) (GUC_CAPTURE_LIST_TYPE_##x)
+#define MAKE_REGLIST(regslist, regsowner, regstype, classb) \
+	{ \
+		regslist, \
+		ARRAY_SIZE(regslist), \
+		TO_GCAP_DEF_OWNER(regsowner), \
+		TO_GCAP_DEF_TYPE(regstype), \
+		classb, \
+		NULL, \
+	}
+
+
+static const struct __guc_mmio_reg_descr xe_lp_global_regs[] = {
+	COMMON_BASE_GLOBAL,
+	COMMON_GEN8BASE_GLOBAL,
+	COMMON_GEN12BASE_GLOBAL,
+};
+static const struct __guc_mmio_reg_descr xe_lp_rc_class_regs[] = {
+	COMMON_BASE_RENDER,
+	COMMON_GEN12BASE_RENDER,
+};
+static const struct __guc_mmio_reg_descr gen8_rc_inst_regs[] = {
+	COMMON_BASE_ENGINE_INSTANCE,
+};
+static const struct __guc_mmio_reg_descr empty_regs_list[] = {
+};
+static const struct __guc_mmio_reg_descr gen8_vd_inst_regs[] = {
+	COMMON_BASE_ENGINE_INSTANCE,
+};
+static const struct __guc_mmio_reg_descr xe_lp_vec_class_regs[] = {
+	COMMON_GEN12BASE_VEC,
+};
+static const struct __guc_mmio_reg_descr gen8_vec_inst_regs[] = {
+	COMMON_BASE_ENGINE_INSTANCE,
+};
+static const struct __guc_mmio_reg_descr gen8_blt_inst_regs[] = {
+	COMMON_BASE_ENGINE_INSTANCE,
+};
+static const struct __guc_mmio_reg_descr xe_lp_gsc_inst_regs[] = {
+	COMMON_BASE_ENGINE_INSTANCE,
+};
+
+
+
+static const struct __guc_mmio_reg_descr_group xe_lp_lists[] = {
+	MAKE_REGLIST(xe_lp_global_regs, PF, GLOBAL, 0),
+	MAKE_REGLIST(xe_lp_rc_class_regs, PF, ENGINE_CLASS, GUC_CAPTURE_LIST_CLASS_RENDER_COMPUTE),
+	MAKE_REGLIST(gen8_rc_inst_regs, PF, ENGINE_INSTANCE, GUC_CAPTURE_LIST_CLASS_RENDER_COMPUTE),
+	MAKE_REGLIST(empty_regs_list, PF, ENGINE_CLASS, GUC_CAPTURE_LIST_CLASS_VIDEO),
+	MAKE_REGLIST(gen8_vd_inst_regs, PF, ENGINE_INSTANCE, GUC_CAPTURE_LIST_CLASS_VIDEO),
+	MAKE_REGLIST(xe_lp_vec_class_regs, PF, ENGINE_CLASS, GUC_CAPTURE_LIST_CLASS_VIDEOENHANCE),
+	MAKE_REGLIST(gen8_vec_inst_regs, PF, ENGINE_INSTANCE, GUC_CAPTURE_LIST_CLASS_VIDEOENHANCE),
+	MAKE_REGLIST(empty_regs_list, PF, ENGINE_CLASS, GUC_CAPTURE_LIST_CLASS_BLITTER),
+	MAKE_REGLIST(gen8_blt_inst_regs, PF, ENGINE_INSTANCE, GUC_CAPTURE_LIST_CLASS_BLITTER),
+	MAKE_REGLIST(empty_regs_list, PF, ENGINE_CLASS, GUC_CAPTURE_LIST_CLASS_GSC_OTHER),
+	MAKE_REGLIST(xe_lp_gsc_inst_regs, PF, ENGINE_INSTANCE, GUC_CAPTURE_LIST_CLASS_GSC_OTHER),
+	{}
+};
+
+#define GEN8_SAMPLER_INSTDONE			MCR_REG(0xe160)
+#define GEN8_ROW_INSTDONE			MCR_REG(0xe164)
+
+struct __ext_steer_reg {
+	const char *name;
+	u32 reg;
+};
+static const struct __ext_steer_reg gen8_extregs[] = {
+	{"GEN8_SAMPLER_INSTDONE", GEN8_SAMPLER_INSTDONE},
+	{"GEN8_ROW_INSTDONE", GEN8_ROW_INSTDONE}
+};
+#define XEHPG_INSTDONE_GEOM_SVG			MCR_REG(0x666c)
+
+static const struct __ext_steer_reg xehpg_extregs[] = {
+	{"XEHPG_INSTDONE_GEOM_SVG", XEHPG_INSTDONE_GEOM_SVG}
+};
 
 
 

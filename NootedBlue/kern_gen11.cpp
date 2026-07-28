@@ -1687,7 +1687,7 @@ static void _guc_log_init_sizes(struct intel_guc_log *log)
 
 static inline u64 __i915_vma_offset(void *vma)
 {
-	return (u64) Gen11::callback->fgetGPUVirtualAddress(vma);
+	return (u64) vma;//Gen11::callback->fgetGPUVirtualAddress(vma);
 	//vma->node.start + vma->guard;
 }
 static inline u64 i915_vma_offset(void *vma)
@@ -9755,9 +9755,122 @@ static void __guc_ads_init(struct intel_guc *guc)
 	//i915_gem_object_flush_map(guc->ads_vma->obj);
 }
 
+static void intel_gt_mcr_get_ss_steering(struct intel_gt *gt, unsigned int dss,
+				   unsigned int *group, unsigned int *instance)
+{
+	if (GRAPHICS_VER_FULL(gt->i915) >= IP_VER(12, 55)) {
+		*group = dss / GEN_DSS_PER_GSLICE;
+		*instance = dss % GEN_DSS_PER_GSLICE;
+	} else {
+		*group = dss / GEN_MAX_SS_PER_HSW_SLICE;
+		*instance = dss % GEN_MAX_SS_PER_HSW_SLICE;
+		return;
+	}
+}
 
 
+#define _HAS_SS(ss_, gt_, group_, instance_) ( \
+	GRAPHICS_VER_FULL(gt_->i915) >= IP_VER(12, 55) ? \
+		intel_sseu_has_subslice(&(gt_)->info.sseu, 0, ss_) : \
+		intel_sseu_has_subslice(&(gt_)->info.sseu, group_, instance_))
 
+#define for_each_ss_steering(ss_, gt_, group_, instance_) \
+	for (ss_ = 0, intel_gt_mcr_get_ss_steering(gt_, 0, &group_, &instance_); \
+		 ss_ < I915_MAX_SS_FUSE_BITS; \
+		 ss_++, intel_gt_mcr_get_ss_steering(gt_, ss_, &group_, &instance_)) \
+		for_each_if(_HAS_SS(ss_, gt_, group_, instance_))
+
+
+static int
+__alloc_ext_regs(struct __guc_mmio_reg_descr_group *newlist,
+		 const struct __guc_mmio_reg_descr_group *rootlist, int num_regs)
+{
+	struct __guc_mmio_reg_descr *list;
+
+	//list = kzalloc_objs(struct __guc_mmio_reg_descr, num_regs);
+	list = (struct __guc_mmio_reg_descr *)IOMalloc(num_regs*sizeof(struct __guc_mmio_reg_descr));
+	
+	if (!list)
+		return -ENOMEM;
+
+	newlist->extlist = list;
+	newlist->num_regs = num_regs;
+	newlist->owner = rootlist->owner;
+	newlist->engine = rootlist->engine;
+	newlist->type = rootlist->type;
+
+	return 0;
+}
+
+static void __fill_ext_reg(struct __guc_mmio_reg_descr *ext,
+			   const struct __ext_steer_reg *extlist,
+			   int slice_id, int subslice_id)
+{
+	ext->reg = _MMIO(i915_mmio_reg_offset(extlist->reg));
+	ext->flags = FIELD_PREP(GUC_REGSET_STEERING_GROUP, slice_id);
+	ext->flags |= FIELD_PREP(GUC_REGSET_STEERING_INSTANCE, subslice_id);
+	ext->regname = extlist->name;
+}
+
+static void
+guc_capture_alloc_steered_lists(struct intel_guc *guc,
+				const struct __guc_mmio_reg_descr_group *lists)
+{
+	struct intel_gt *gt = guc->gt;
+	int  iter, i, num_steer_regs, num_tot_regs = 0;
+	const struct __guc_mmio_reg_descr_group *list;
+	struct __guc_mmio_reg_descr_group *extlists;
+	struct __guc_mmio_reg_descr *extarray;
+	bool has_xehpg_extregs;
+	unsigned int slice,subslice;
+	
+	list = guc_capture_get_one_list(lists, GUC_CAPTURE_LIST_INDEX_PF,
+					GUC_CAPTURE_LIST_TYPE_ENGINE_CLASS,
+					GUC_CAPTURE_LIST_CLASS_RENDER_COMPUTE);
+
+	if (!list || guc->capture->extlists)
+		return;
+
+	has_xehpg_extregs = GRAPHICS_VER_FULL(gt->i915) >= IP_VER(12, 55);
+
+	num_steer_regs = ARRAY_SIZE(gen8_extregs);
+	if (has_xehpg_extregs)
+		num_steer_regs += ARRAY_SIZE(xehpg_extregs);
+
+	for_each_ss_steering(iter, gt, slice, subslice)
+		num_tot_regs += num_steer_regs;
+
+	if (!num_tot_regs)
+		return;
+
+	//extlists = kzalloc_objs(struct __guc_mmio_reg_descr_group, 2);
+	extlists = (struct __guc_mmio_reg_descr_group *)IOMalloc(2*sizeof(struct __guc_mmio_reg_descr_group));
+	if (!extlists)
+		return;
+
+	if (__alloc_ext_regs(&extlists[0], list, num_tot_regs)) {
+		//kfree(extlists);
+		IOFree(extlists, 2*sizeof(struct __guc_mmio_reg_descr_group));
+		return;
+	}
+
+	extarray = extlists[0].extlist;
+	for_each_ss_steering(iter, gt, slice, subslice) {
+		for (i = 0; i < ARRAY_SIZE(gen8_extregs); ++i) {
+			__fill_ext_reg(extarray, &gen8_extregs[i], slice, subslice);
+			++extarray;
+		}
+
+		if (has_xehpg_extregs) {
+			for (i = 0; i < ARRAY_SIZE(xehpg_extregs); ++i) {
+				__fill_ext_reg(extarray, &xehpg_extregs[i], slice, subslice);
+				++extarray;
+			}
+		}
+	}
+
+	guc->capture->extlists = extlists;
+}
 
 static const struct __guc_mmio_reg_descr_group *
 guc_capture_get_device_reglist(struct intel_guc *guc)
@@ -9766,9 +9879,9 @@ guc_capture_get_device_reglist(struct intel_guc *guc)
 	const struct __guc_mmio_reg_descr_group *lists;
 
 	//if (GRAPHICS_VER(i915) >= 12)
-	//	lists = xe_lp_lists;
+		lists = xe_lp_lists;
 
-	//guc_capture_alloc_steered_lists(guc, lists);
+	guc_capture_alloc_steered_lists(guc, lists);
 
 	return lists;
 }
@@ -9824,15 +9937,16 @@ uint64_t Gen11::setupAdditionalDataStructs(void *that0) {
 
 	//ret = intel_guc_allocate_and_map_vma(guc, size, &guc->ads_vma, &ads_blob);
 	//iosys_map_set_vaddr(&guc->ads_map, ads_blob);
+	
 	void *acel=getMember<void *>(that0, 0x38);
 	void *field_0x150=getMember<void *>(acel, 0x150);
 	guc->ads_vma = IGSharedMappedBufferwithOptions(field_0x150, size, 2, 0);
 	if (!guc->ads_vma) return 1;
 	getMember<void *>(that0, 0x9e8)= guc->ads_vma;
-	guc->ads_vma= (void *)fgetVirtualAddress(guc->ads_vma);
-	
+	guc->ads_vma= (void *)fgetGPUVirtualAddress(guc->ads_vma);
 	guc->ads_map.vaddr = guc->ads_vma;
 	guc->ads_map.is_iomem = false;
+	
 	
 	__guc_ads_init(guc);
 
@@ -9841,6 +9955,8 @@ uint64_t Gen11::setupAdditionalDataStructs(void *that0) {
 	u32 ads_param_val = ((u32)(intel_guc_ggtt_offset(guc, guc->ads_vma) >> PAGE_SHIFT) << GUC_ADS_ADDR_SHIFT);
 	u32 a0=getMember<u32>(that0, 0xa0);
 	getMember<u32>(that0, 0xa0) = (a0 & 0xFFC00001) | ads_param_val;
+	
+	//intel_guc_ct_init
 	
 	//IGSharedMappedBufferfree(guc->ads_vma);
 	
