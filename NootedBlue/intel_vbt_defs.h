@@ -9631,6 +9631,24 @@ inline struct intel_gt *to_gt(const struct drm_i915_private *i915)
 #define   GEN11_MCR_SUBSLICE_MASK		GEN11_MCR_SUBSLICE(0x7)
 #define XELPD_DISPLAY_ERR_FATAL_MASK	_MMIO(0x4421c)
 
+# define unlikely(x)	__builtin_expect(!!(x), 0)
+#define MAX_ERRNO	4095
+#define IS_ERR_VALUE(x) unlikely((unsigned long)(void *)(x) >= (unsigned long)-MAX_ERRNO)
+static inline bool IS_ERR( const void *ptr)
+{
+	return IS_ERR_VALUE((unsigned long)ptr);
+}
+static inline long PTR_ERR( const void *ptr)
+{
+	return (long) ptr;
+}
+
+static inline void * ERR_PTR(long error)
+{
+	return (void *) error;
+}
+
+
 
 
 

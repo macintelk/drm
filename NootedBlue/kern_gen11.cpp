@@ -8644,12 +8644,18 @@ void  Gen11::AppleIntelPowerWellinit(void *that0, void *param_1)
 
 
 
-static int guc_mmio_reg_cmp(const void *a, const void *b)
+static int
+guc_mmio_reg_cmp(const void *a, const void *b)
 {
-	struct guc_mmio_reg *ra = (struct guc_mmio_reg*)a;
-	struct guc_mmio_reg *rb = (struct guc_mmio_reg*)b;
+	const struct guc_mmio_reg *ra = (const struct guc_mmio_reg *)a;
+	const struct guc_mmio_reg *rb = (const struct guc_mmio_reg *)b;
 
-	return (int)ra->offset - (int)rb->offset;
+	if (ra->offset > rb->offset)
+		return 1;
+	else if (ra->offset < rb->offset)
+		return -1;
+	
+	return 0;
 }
 
 static struct guc_mmio_reg *
@@ -8659,16 +8665,28 @@ __mmio_reg_add(struct temp_regset *regset, struct guc_mmio_reg *reg)
 	struct guc_mmio_reg *slot;
 
 	if (pos >= regset->storage_max) {
-		size_t size = ALIGN((pos + 1) * sizeof(*slot), PAGE_SIZE);
-		struct guc_mmio_reg *r = (struct guc_mmio_reg *)((u8*)regset->storage+size);
-		//struct guc_mmio_reg *r = krealloc(regset->storage, size, GFP_KERNEL);
-		if (!r) {
-			return nullptr;
-		}
+		size_t new_size  = ALIGN((pos + 1) * sizeof(*slot), PAGE_SIZE);
+		size_t old_bytes = regset->storage_max * sizeof(*slot);
 
-		regset->registers = r + (regset->registers - regset->storage);
-		regset->storage = r;
-		regset->storage_max = size / sizeof(*slot);
+		struct guc_mmio_reg *r =
+			(struct guc_mmio_reg *)IOMalloc(new_size);
+		if (!r)
+			return (struct guc_mmio_reg *)ERR_PTR(-ENOMEM);
+
+		if (regset->storage && regset->storage_used)
+			memcpy(r, regset->storage,
+				   regset->storage_used * sizeof(*slot));
+
+		if (!regset->registers)
+			regset->registers = r;
+		else
+			regset->registers = r + (regset->registers - regset->storage);
+
+		if (regset->storage)
+			IOFree(regset->storage, old_bytes);
+
+		regset->storage     = r;
+		regset->storage_max = new_size / sizeof(*slot);
 	}
 
 	slot = &regset->storage[pos];
@@ -8678,15 +8696,15 @@ __mmio_reg_add(struct temp_regset *regset, struct guc_mmio_reg *reg)
 	return slot;
 }
 
-static
-void *bsearch(const void *key, const void *base, size_t num, size_t size)
+static void *
+bsearch(const void *key, const void *base, size_t num, size_t size)
 {
-	char *pivot;
+	const char *pivot;
 	int result;
 
 	while (num > 0) {
-		pivot = (char *)((u8*)base + (num >> 1) * size);
-		result = guc_mmio_reg_cmp(key, pivot);
+		pivot = (const char *)base + (num >> 1) * size;
+		result = guc_mmio_reg_cmp(key, (const void *)pivot);
 
 		if (result == 0)
 			return (void *)pivot;
@@ -8700,6 +8718,8 @@ void *bsearch(const void *key, const void *base, size_t num, size_t size)
 
 	return NULL;
 }
+
+
 
 static long guc_mmio_reg_add(struct intel_gt *gt,
 					  struct temp_regset *regset,
@@ -8717,8 +8737,8 @@ static long guc_mmio_reg_add(struct intel_gt *gt,
 		return 0;
 
 	slot = __mmio_reg_add(regset, &entry);
-	if (slot==nullptr)
-		return 0;
+	if (IS_ERR(slot))
+		return PTR_ERR(slot);
 
 	while (slot-- > regset->registers) {
 		//GEM_BUG_ON(slot[0].offset == slot[1].offset);
@@ -8859,7 +8879,7 @@ static long guc_mcr_reg_add(struct intel_gt *gt,
 	guc_mcr_reg_add(gt, \
 			 regset, \
 			 (reg), \
-			 static_cast<u32>((masked) ? GUC_REGSET_MASKED : 0))
+			 (masked) ? GUC_REGSET_MASKED : 0)
 
 static int guc_mmio_regset_init(struct temp_regset *regset,
 				struct intel_engine_cs *engine)
@@ -8883,7 +8903,7 @@ static int guc_mmio_regset_init(struct temp_regset *regset,
 
 
 	for (i = 0, wa = wal->list; i < wal->count; i++, wa++)
-		if (wa->mcr_reg) ret |= GUC_MCR_REG_ADD(gt, regset, wa->mcr_reg, wa->masked_reg);
+		ret |= GUC_MCR_REG_ADD(gt, regset, wa->mcr_reg, wa->masked_reg);
 
 	for (i = 0; i < RING_MAX_NONPRIV_SLOTS; i++)
 		ret |= GUC_MMIO_REG_ADD(gt, regset,
@@ -8937,6 +8957,9 @@ static long guc_mmio_reg_state_create(struct intel_guc *guc)
 
 fail_regset_init:
 	//kfree(temp_set.storage);
+	if (temp_set.storage)
+			IOFree(temp_set.storage, temp_set.storage_max * sizeof(struct guc_mmio_reg));
+	
 	return ret;
 }
 
@@ -9329,18 +9352,19 @@ guc_capture_alloc_one_node(struct intel_guc *guc)
 {
 	struct __guc_capture_parsed_output *new2;
 	int i;
+	size_t regs_size = sizeof(struct guc_mmio_reg) * guc->capture->max_mmio_per_node;
 
-	new2 = (struct __guc_capture_parsed_output *)IOMalloc(sizeof(*new2));
+	new2 = (struct __guc_capture_parsed_output *)IOMallocZero(sizeof(*new2));
 	if (!new2)
 		return NULL;
 
 	for (i = 0; i < GUC_CAPTURE_LIST_TYPE_MAX; ++i) {
-		new2->reginfo[i].regs = (struct guc_mmio_reg *)IOMalloc(sizeof(struct guc_mmio_reg));//,
-						//	guc->capture->max_mmio_per_node);
+		new2->reginfo[i].regs = (struct guc_mmio_reg *)IOMallocZero(regs_size);
 		if (!new2->reginfo[i].regs) {
-			while (i)
-				IOFree( new2->reginfo[--i].regs, sizeof(struct guc_mmio_reg));
-			IOFree(new2,sizeof(*new2));
+			while (i) {
+				IOFree(new2->reginfo[--i].regs, regs_size);
+			}
+			IOFree(new2, sizeof(*new2));
 			return NULL;
 		}
 	}
@@ -9800,8 +9824,8 @@ uint64_t Gen11::setupAdditionalDataStructs(void *that0) {
 
 	//ret = intel_guc_allocate_and_map_vma(guc, size, &guc->ads_vma, &ads_blob);
 	//iosys_map_set_vaddr(&guc->ads_map, ads_blob);
-	
-	void *field_0x150=getMember<void *>(that0, 0x150);
+	void *acel=getMember<void *>(that0, 0x38);
+	void *field_0x150=getMember<void *>(acel, 0x150);
 	guc->ads_vma = IGSharedMappedBufferwithOptions(field_0x150, size, 2, 0);
 	if (!guc->ads_vma) return 1;
 	getMember<void *>(that0, 0x9e8)= guc->ads_vma;
