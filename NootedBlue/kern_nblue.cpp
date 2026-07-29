@@ -1280,7 +1280,7 @@ static void *generate_lfp_data_ptrs(struct intel_display *display,
 		sizeof(struct bdb_edid_pnp_id);
 	if (size * 16 > block_size)
 		return NULL;
-	ptrs_block =IOMalloc(sizeof(*ptrs) + 3);
+	ptrs_block =IOMalloc(sizeof(struct bdb_lfp_data_ptrs) + 3);
 	//ptrs_block = kzalloc(sizeof(*ptrs) + 3, GFP_KERNEL);
 	if (!ptrs_block)
 		return NULL;
@@ -2015,7 +2015,7 @@ parse_general_definitions(struct intel_display *display)
 
 	//	drm_dbg_kms(display->drm,				"Found VBT child device with type 0x%x\n",				child->device_type);
 
-		devdata = (struct intel_bios_encoder_data *)IOMalloc(sizeof(*devdata));
+		devdata = (struct intel_bios_encoder_data *)IOMalloc(sizeof(struct intel_bios_encoder_data));
 		
 		if (!devdata)
 			break;
@@ -2095,7 +2095,7 @@ parse_compression_parameters(struct intel_display *display)
 
 		index = child->compression_structure_index;
 
-		devdata->dsc = (struct dsc_compression_parameters_entry *)IOMallocZero(sizeof(*devdata->dsc));
+		devdata->dsc = (struct dsc_compression_parameters_entry *)IOMallocZero(sizeof(struct dsc_compression_parameters_entry));
 		if (devdata->dsc) {
 			memcpy(devdata->dsc, &params->data[index], sizeof(*devdata->dsc));
 		}
@@ -2535,7 +2535,7 @@ parse_generic_dtd(struct intel_display *display,
 
 	dtd = &generic_dtd->dtd[panel->vbt.panel_type];
 
-	panel_fixed_mode = (struct drm_display_mode *)IOMalloc(sizeof(*panel_fixed_mode));
+	panel_fixed_mode = (struct drm_display_mode *)IOMalloc(sizeof(struct drm_display_mode));
 	if (!panel_fixed_mode)
 		return;
 
@@ -2659,7 +2659,7 @@ parse_lfp_panel_dtd(struct intel_display *display,
 						  lfp_data_ptrs,
 						  panel_type);
 
-	panel_fixed_mode = (struct drm_display_mode *)IOMalloc(sizeof(*panel_fixed_mode));
+	panel_fixed_mode = (struct drm_display_mode *)IOMalloc(sizeof(struct drm_display_mode));
 	if (!panel_fixed_mode)
 		return;
 

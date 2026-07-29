@@ -1818,7 +1818,7 @@ static void guc_init_params(struct intel_guc *guc)
 	params[GUC_CTL_LOG_PARAMS] = guc_ctl_log_params_flags(guc);
 	params[GUC_CTL_FEATURE] = guc_ctl_feature_flags(guc);
 	params[GUC_CTL_DEBUG] = guc_ctl_debug_flags(guc);
-	//params[GUC_CTL_ADS] = guc_ctl_ads_flags(guc);
+	params[GUC_CTL_ADS] = guc_ctl_ads_flags(guc);
 	params[GUC_CTL_WA] = guc_ctl_wa_flags(guc);
 	params[GUC_CTL_DEVID] = guc_ctl_devid(guc);
 
@@ -3286,7 +3286,7 @@ static int intel_engine_setup(struct intel_gt *gt, enum intel_engine_id id2,
 	if ((gt->engine_class[info->classb][info->instance]))
 		return -EINVAL;
 
-	engine =  (struct intel_engine_cs *)IOMalloc(sizeof(*engine));
+	engine =  (struct intel_engine_cs *)IOMalloc(sizeof(struct intel_engine_cs));
 	if (!engine)
 		return -ENOMEM;
 
@@ -8641,7 +8641,7 @@ __mmio_reg_add(struct temp_regset *regset, struct guc_mmio_reg *reg)
 	struct guc_mmio_reg *slot;
 
 	if (pos >= regset->storage_max) {
-		size_t new_size  = ALIGN((pos + 1) * sizeof(*slot), PAGE_SIZE);
+		size_t new_size  = ALIGN((pos + 1) * sizeof(struct guc_mmio_reg), PAGE_SIZE);
 		size_t old_bytes = regset->storage_max * sizeof(*slot);
 
 		struct guc_mmio_reg *r =
@@ -9330,7 +9330,7 @@ guc_capture_alloc_one_node(struct intel_guc *guc)
 	int i;
 	size_t regs_size = sizeof(struct guc_mmio_reg) * guc->capture->max_mmio_per_node;
 
-	new2 = (struct __guc_capture_parsed_output *)IOMallocZero(sizeof(*new2));
+	new2 = (struct __guc_capture_parsed_output *)IOMallocZero(sizeof(struct __guc_capture_parsed_output));
 	if (!new2)
 		return NULL;
 
@@ -9625,7 +9625,6 @@ static void guc_mapping_table_init(struct intel_gt *gt,
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 
-	/* Table must be set to invalid values for entries not used */
 	for (i = 0; i < GUC_MAX_ENGINE_CLASSES; ++i)
 		for (j = 0; j < GUC_MAX_INSTANCES_PER_CLASS; ++j)
 			info_map_write(info_map, mapping_table[i][j],
@@ -9864,7 +9863,7 @@ guc_capture_get_device_reglist(struct intel_guc *guc)
 
 int intel_guc_capture_init(struct intel_guc *guc)
 {
-	guc->capture = (struct intel_guc_state_capture*)IOMalloc(sizeof(*guc->capture));
+	guc->capture = (struct intel_guc_state_capture*)IOMalloc(sizeof(struct intel_guc_state_capture));
 	if (!guc->capture)
 		return -ENOMEM;
 
@@ -9919,30 +9918,20 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	
 	if (!display || !m_accelerator) return 0;
 	
-	int err;
+	u32 dst_offset;
 	struct Firmware fw = {};
 	struct uc_css_header *header = nullptr;
 	uint32_t ucode_size = 0;
 	uint32_t rsa_size = 0;
 	size_t min_expected_size = 0;
-	size_t dma_buffer_size = 0;
-	u32 reg_base;
-	u32 reg_size;
 	void *igtask = nullptr;
 	void* fwBuffer = nullptr;
 	void* vaddr = nullptr;
 	u32 dma_flags;
 	uint64_t gpuAddr = 0;
-	u32 shim_flags = 0;
-	u32 ctx_rsvd;
-	u32 guc_wopcm_base;
-	u32 wopcm_size = 0;
-	u32 guc_wopcm_size;
-	u32 mask = 0;
 	u32 rsa_offset = 0;
 	u32 i = 0;
 	int dmaRetry = 0;
-	u32 huc_agent =0;
 	uint32_t auth;
 	bool success = false;
 	bool done = false;
@@ -9956,33 +9945,26 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	uint32_t* rsa_words;
 	uint32_t rsa_val;
 	
-	
 	fw = getFWByName("tgl_guc_70.1.1.bin");
 	if (!fw.data || fw.size == 0) return 0;
 	if (fw.size < sizeof(uc_css_header)) return 0;
 	
 	header = (struct uc_css_header *)fw.data;
 	
-	if (header->size_dw > header->header_size_dw) {
-		ucode_size = (header->size_dw - header->header_size_dw) * 4;
-	} else {
-		return 0;
-	}
-	if (ucode_size == 0) return 0;
-	
 	guc->fw.private_data_size=header->private_data_size;
+	guc->fw.ucode_size = (header->size_dw - header->header_size_dw) * sizeof(u32);
+	guc->fw.rsa_size = header->key_size_dw * sizeof(u32);
+	ucode_size =guc->fw.ucode_size;
+	rsa_size = guc->fw.rsa_size;
 	
-	rsa_size = header->key_size_dw * 4;
 	if (rsa_size > 256) rsa_size = 256;
 	
 	min_expected_size = sizeof(uc_css_header) + ucode_size + rsa_size;
 	if (fw.size < min_expected_size) return 0;
 	
 	
-	dma_buffer_size = ((sizeof(uc_css_header) + ucode_size) + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
-	
 	igtask = getMember<void*>(m_accelerator, 0x150);
-	fwBuffer = IGSharedMappedBufferwithOptions(igtask, dma_buffer_size, 2, 0);
+	fwBuffer = IGSharedMappedBufferwithOptions(igtask, round_up(fw.size, PAGE_SIZE), 2, 0);
 	if (!fwBuffer) return 0;
 	
 	vaddr = (void*)fgetVirtualAddress(fwBuffer);
@@ -9991,7 +9973,7 @@ unsigned long Gen11::loadGuCBinary(void *that)
 		return 0;
 	}
 	
-	memcpy(vaddr, fw.data , sizeof(uc_css_header) + ucode_size);
+	memcpy(vaddr, fw.data , fw.size);
 	
 	gpuAddr = fgetGPUVirtualAddress(fwBuffer);
 	if (gpuAddr == 0) {
@@ -9999,72 +9981,77 @@ unsigned long Gen11::loadGuCBinary(void *that)
 		return 0;
 	}
 	
-	if (!initSchedControl(that)) return 0;
+	if (!initSchedControl(that)) return 0;//apple guc_init_params
 	
 	SafeForceWake(m_accelerator, true, 7);
 	
-	intel_wopcm_init(gt, sizeof(uc_css_header) + ucode_size);
+	intel_wopcm_init(gt, sizeof(struct uc_css_header) + guc->fw.ucode_size);
 	
 	intel_gt_init_workarounds(gt);
 	wa_list_apply(&gt->wa_list);
 	
 	_guc_log_init_sizes(&guc->log);
 	
-	guc->log.vma=getMember<void*>(that, 0x60);
-	guc->log.vma=(void*)fgetGPUVirtualAddress(guc->log.vma);
-	guc_init_params(guc);
-	guc->params[GUC_CTL_ADS] =((u32)(fgetGPUVirtualAddress(getMember<void *>(that, 0x9e8)) >> PAGE_SHIFT) << GUC_ADS_ADDR_SHIFT);
+	void *t=getMember<void*>(that, 0x60);
+	guc->log.vma=(void*)fgetGPUVirtualAddress(t);
+	guc->log.buf_addr=(void*)fgetVirtualAddress(t);
 	
+	guc_init_params(guc);
+	//t=getMember<void *>(that, 0x9e8);
+	//guc->params[GUC_CTL_ADS] =((u32)(fgetGPUVirtualAddress(t) >> PAGE_SHIFT) << GUC_ADS_ADDR_SHIFT);
+	
+	//if has_guc_tlb_invalidation
 	/*intel_de_write(display, GEN12_GUC_TLB_INV_CR, GEN12_GUC_TLB_INV_CR_INVALIDATE);
 	while ((intel_de_read(display, GEN12_GUC_TLB_INV_CR) & GEN12_GUC_TLB_INV_CR_INVALIDATE) != 0)
 	{
 		// Spinwait
 	}*/
 	
+	//__reset_guc(gt);
+	
+	//intel_guc_ads_reset(guc);
+	
+	intel_guc_write_params(guc);
 
+	guc_prepare_xfer(gt);
+	
+	//guc_xfer_rsa_mmio(guc_fw, uncore);
+	rsa_offset = sizeof(struct uc_css_header) + ucode_size;
+	rsa_bytes = reinterpret_cast<uint8_t*>(fw.data) + rsa_offset;
+	rsa_words = reinterpret_cast<uint32_t*>(rsa_bytes);
+	for ( i = 0; i < UOS_RSA_SCRATCH_COUNT; i++) {
+		rsa_val = rsa_words[i];
+		intel_de_write(display, UOS_RSA_SCRATCH(i), rsa_val);
+	}
+
+	//uc_fw_xfer()
+	dma_flags = UOS_MOVE;
+	dst_offset=0x2000;
+	intel_de_write(display, DMA_ADDR_0_LOW,
+			   lower_32_bits(gpuAddr));
+	intel_de_write(display, DMA_ADDR_0_HIGH,
+			   upper_32_bits(gpuAddr));
+	intel_de_write(display, DMA_ADDR_1_LOW, dst_offset);
+	intel_de_write(display, DMA_ADDR_1_HIGH,
+			   DMA_ADDRESS_SPACE_WOPCM);
+	intel_de_write(display, DMA_COPY_SIZE,
+			   sizeof(struct uc_css_header) + ucode_size);
+	intel_de_write(display, DMA_CTRL,
+			   REG_MASKED_FIELD_ENABLE(dma_flags | START_DMA));
+	dmaRetry = 1000;
+	while (intel_de_read(display, DMA_CTRL) & START_DMA) {
+		IODelay(100);
+		if (--dmaRetry <= 0)
+			goto fail;
+	}
+	intel_de_write(display, DMA_CTRL,
+			   REG_MASKED_FIELD_DISABLE(dma_flags));
+	
+	
 	retryCount = 3;
 	for (count = 0; count < retryCount; count++) {
 		success = false;
 		done    = false;
-
-		__reset_guc(gt);
-		
-		intel_guc_ads_reset(guc);
-		intel_guc_write_params(guc);
-
-		guc_prepare_xfer(gt);
-		
-		//guc_xfer_rsa_mmio(guc_fw, uncore);
-		rsa_offset = sizeof(struct uc_css_header) + ucode_size;
-		rsa_bytes = reinterpret_cast<uint8_t*>(fw.data) + rsa_offset;
-		rsa_words = reinterpret_cast<uint32_t*>(rsa_bytes);
-		for ( i = 0; i < UOS_RSA_SCRATCH_COUNT; i++) {
-			rsa_val = rsa_words[i];
-			intel_de_write(display, UOS_RSA_SCRATCH(i), rsa_val);
-		}
-
-		//uc_fw_xfer()
-		dma_flags = UOS_MOVE;
-		intel_de_write(display, DMA_ADDR_0_LOW,
-				   lower_32_bits(gpuAddr));
-		intel_de_write(display, DMA_ADDR_0_HIGH,
-				   upper_32_bits(gpuAddr) | DMA_ADDRESS_SPACE_GTT);
-		intel_de_write(display, DMA_ADDR_1_LOW, 0x2000);
-		intel_de_write(display, DMA_ADDR_1_HIGH,
-				   DMA_ADDRESS_SPACE_WOPCM);
-		intel_de_write(display, DMA_COPY_SIZE,
-				   sizeof(struct uc_css_header) + ucode_size);
-		intel_de_write(display, DMA_CTRL,
-				   REG_MASKED_FIELD_ENABLE(dma_flags | START_DMA));
-		dmaRetry = 1000;
-		while (intel_de_read(display, DMA_CTRL) & START_DMA) {
-			IODelay(100);
-			if (--dmaRetry <= 0)
-				goto fail;
-		}
-		intel_de_write(display, DMA_CTRL,
-				   REG_MASKED_FIELD_DISABLE(dma_flags));
-
 
 		innerTimeout = 1000;
 		while (innerTimeout > 0) {
@@ -10089,12 +10076,11 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	
 	SafeForceWake(m_accelerator, false, 7);
 	IGSharedMappedBufferfree(fwBuffer);
-	
+
 	auth = status & GS_AUTH_STATUS_MASK;
-	
 	if (!success)
 	panic("auth %x bootrom %x ukernel %x guc_wopcm_base %x guc_wopcm_size %x",auth,bootrom,ukernel,gt->wopcm.guc.base,gt->wopcm.guc.size);
-	
+
 	return success ? 1 : 0;
 
 fail:
@@ -10138,25 +10124,24 @@ uint64_t Gen11::setupAdditionalDataStructs(void *that0) {
 
 	void *acel=getMember<void *>(that0, 0x38);
 	void *field_0x150=getMember<void *>(acel, 0x150);
-	guc->ads_vma = IGSharedMappedBufferwithOptions(field_0x150, size, 2, 0);
-	if (!guc->ads_vma) return 1;
-	getMember<void *>(that0, 0x9e8)= guc->ads_vma;
-	guc->ads_vma= (void *)fgetVirtualAddress(guc->ads_vma);
-	guc->ads_map.vaddr = guc->ads_vma;
+	
+	void* Buffer = nullptr;
+	
+	Buffer = IGSharedMappedBufferwithOptions(field_0x150, round_up(size, PAGE_SIZE), 2, 0);
+	getMember<void *>(that0, 0x9e8)= Buffer;
+	guc->ads_vma= (void *)fgetGPUVirtualAddress(Buffer);
+	guc->ads_map.vaddr = (void *)fgetVirtualAddress(Buffer);
 	guc->ads_map.is_iomem = false;
 	
-	//__guc_ads_init(guc);
-	
-	u32 ads_param_val = ((u32)(fgetGPUVirtualAddress(getMember<void *>(that0, 0x9e8)) >> PAGE_SHIFT) << GUC_ADS_ADDR_SHIFT);
+	u32 ads_param_val = ((u32)(fgetGPUVirtualAddress(Buffer) >> PAGE_SHIFT) << GUC_ADS_ADDR_SHIFT);
 	u32 a0=getMember<u32>(that0, 0xa0);
 	getMember<u32>(that0, 0xa0) = (a0 & 0xFFC00001) | ads_param_val;
 	
-	//intel_guc_ct_init
+	__guc_ads_init(guc);
 	
-	//IGSharedMappedBufferfree(guc->ads_vma);
+	//intel_guc_ct_init(&guc->ct);
+	//intel_guc_submission_init(guc);
 	
-	//if ((that->acel->capabilities & 0x20) != 0) {
-	//	IntelAccelerator::transferOwnership(that->acel, (int)that->field_0x9e8);
-	//}
+	
 	return 0;
 }
