@@ -39,7 +39,7 @@ IOFramebuffer *frame0;
 int hwu=4;
 int setpc=0;
 void *linkp;
-bool dpcdconf=false;;
+bool dpcdconf=false;
 int Report=-1;
 bool seng=false;
 bool host2=false;
@@ -1594,7 +1594,7 @@ gen12_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
 static u32 guc_ctl_debug_flags(struct intel_guc *guc)
 {
 	u32 flags = 0;
-
+	
 	//if (!GUC_LOG_LEVEL_IS_VERBOSE(level))
 		flags |= GUC_LOG_DISABLED;
 	/*else
@@ -1604,10 +1604,11 @@ static u32 guc_ctl_debug_flags(struct intel_guc *guc)
 	return flags;
 }
 
+
 static u32 guc_ctl_feature_flags(struct intel_guc *guc)
 {
 	u32 flags = 0;
-
+	
 	/*
 	 * Enable PXP GuC autoteardown flow.
 	 * NB: MTL does things differently.
@@ -1797,8 +1798,8 @@ static u32 guc_ctl_wa_flags(struct intel_guc *guc)
 	 * Wa_14018913170: Applicable to all platforms supported by i915 so
 	 * don't bother testing for all X/Y/Z platforms explicitly.
 	 */
-	//if (GUC_FIRMWARE_VER(guc) >= MAKE_GUC_VER(70, 7, 0))
-	//	flags |= GUC_WA_ENABLE_TSC_CHECK_ON_RC6;
+	if (GUC_FIRMWARE_VER(guc) >= MAKE_GUC_VER(70, 7, 0))
+		flags |= GUC_WA_ENABLE_TSC_CHECK_ON_RC6;
 
 	return flags;
 }
@@ -2199,6 +2200,9 @@ static void guc_prepare_xfer(struct intel_gt *gt)
 
 	if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 50))
 		intel_de_rmw(display, GUC_SHIM_CONTROL2, 0, GUC_ENABLE_DEBUG_REG);
+	
+	//xe
+	//intel_de_rmw(display, GEN6_PMINTRMSK, ARAT_EXPIRED_INTRMSK, 0);
 }
 
 
@@ -3686,7 +3690,12 @@ void Gen11::engines()
 
 unsigned long  Gen11::startGraphicsEngine(void *that)
 {
-	seng=true;
+	//seng=true;
+	if (!seng)
+	{
+		seng=true;
+		engines();
+	}
 	auto ret= FunctionCast(startGraphicsEngine, callback->ostartGraphicsEngine)( that);
 	
 	//intel_gt_resume
@@ -3698,11 +3707,7 @@ unsigned long  Gen11::startGraphicsEngine(void *that)
 void  Gen11::initHardwareStatusPageRegisters(void *that)
 {
 	FunctionCast(initHardwareStatusPageRegisters, callback->oinitHardwareStatusPageRegisters)( that);
-	if (seng)
-	{
-		seng=false;
-		engines();
-	}
+	
 }
 
 void Gen11::sanitizeCDClockFrequency(void *that) {
@@ -8351,7 +8356,7 @@ void  Gen11::enableDisplayEngine(void *that0)
 		intel_de_rmw(display, SOUTH_DSPCLK_GATE_D, 0, PCH_DPMGUNIT_CLOCK_GATE_DISABLE);
 	
 	
-	cnp_rawclk(display);
+	//cnp_rawclk(display);
 
 	intel_pch_reset_handshake(display, !HAS_PCH_NOP(display));
 	
@@ -8550,9 +8555,9 @@ void  Gen11::AppleIntelPowerWellinit(void *that0, void *param_1)
 	bootPipe = probeBootPipe(that->contr, (bool *)0x0, &active_ddi);
 	
 	
-	//if (bootPipe != 0xffff && that->PG1 == 0 && getMember<u32>(param_1, 0xd5c) /*that->contr->NumFrameBuffers*/ != 0) {
+	if (bootPipe != 0xffff && that->PG1 == 0 && getMember<u32>(param_1, 0xd5c) /*that->contr->NumFrameBuffers*/ != 0) {
 		enableDisplayEngine(that0);
-	//}
+	}
 
 	
 	for (i = 0; i < 9; i++) {
@@ -9610,7 +9615,7 @@ static void guc_policies_init(struct intel_guc *guc)
 	ads_blob_write(guc, policies.max_num_work_items,
 			   GLOBAL_POLICY_MAX_NUM_WI);
 
-	//if (i915->params.reset < 2)
+	//if (i915->params.reset < 2) //2=engine reset [default])
 	//	global_flags |= GLOBAL_POLICY_DISABLE_ENGINE_RESET;
 
 	ads_blob_write(guc, policies.global_flags, global_flags);
@@ -9907,6 +9912,14 @@ void intel_guc_ads_reset(struct intel_guc *guc)
 	guc_ads_private_data_reset(guc);
 }
 
+
+static void uc_unpack_css_version(struct intel_uc_fw_ver *ver, u32 css_value)
+{
+	ver->major = FIELD_GET(CSS_SW_VERSION_UC_MAJOR, css_value);
+	ver->minor = FIELD_GET(CSS_SW_VERSION_UC_MINOR, css_value);
+	ver->patch = FIELD_GET(CSS_SW_VERSION_UC_PATCH, css_value);
+}
+
 unsigned long Gen11::loadGuCBinary(void *that)
 {
 	struct drm_i915_private *i915=NBlue::callback->i915b;
@@ -9957,6 +9970,35 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	ucode_size =guc->fw.ucode_size;
 	rsa_size = guc->fw.rsa_size;
 	
+	uc_unpack_css_version(&guc->fw.file_selected.ver, header->sw_version);
+	
+	if (guc->fw.file_selected.ver.major >= 70) {
+		if (guc->fw.file_selected.ver.minor >= 6) {
+			//uc_unpack_css_version(&guc->submission_version, css->vf_version);
+		} else if (guc->fw.file_selected.ver.minor >= 3) {
+			/* v70.3.0 introduced v1.1.0 */
+			guc->submission_version.major = 1;
+			guc->submission_version.minor = 1;
+			guc->submission_version.patch = 0;
+		} else {
+			/* v70.0.0 introduced v1.0.0 */
+			guc->submission_version.major = 1;
+			guc->submission_version.minor = 0;
+			guc->submission_version.patch = 0;
+		}
+	} else if (guc->fw.file_selected.ver.major >= 69) {
+		/* v69.0.0 introduced v0.10.0 */
+		guc->submission_version.major = 0;
+		guc->submission_version.minor = 10;
+		guc->submission_version.patch = 0;
+	} else {
+		/* Prior versions were v0.1.0 */
+		guc->submission_version.major = 0;
+		guc->submission_version.minor = 1;
+		guc->submission_version.patch = 0;
+	}
+	
+	
 	if (rsa_size > 256) rsa_size = 256;
 	
 	min_expected_size = sizeof(uc_css_header) + ucode_size + rsa_size;
@@ -9997,8 +10039,8 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	guc->log.buf_addr=(void*)fgetVirtualAddress(t);
 	
 	guc_init_params(guc);
-	//t=getMember<void *>(that, 0x9e8);
-	//guc->params[GUC_CTL_ADS] =((u32)(fgetGPUVirtualAddress(t) >> PAGE_SHIFT) << GUC_ADS_ADDR_SHIFT);
+	
+	//getMember<u32*>(that, 0x8c)=guc->params;
 	
 	//if has_guc_tlb_invalidation
 	/*intel_de_write(display, GEN12_GUC_TLB_INV_CR, GEN12_GUC_TLB_INV_CR_INVALIDATE);
@@ -10027,17 +10069,12 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	//uc_fw_xfer()
 	dma_flags = UOS_MOVE;
 	dst_offset=0x2000;
-	intel_de_write(display, DMA_ADDR_0_LOW,
-			   lower_32_bits(gpuAddr));
-	intel_de_write(display, DMA_ADDR_0_HIGH,
-			   upper_32_bits(gpuAddr));
+	intel_de_write(display, DMA_ADDR_0_LOW,lower_32_bits(gpuAddr));
+	intel_de_write(display, DMA_ADDR_0_HIGH,upper_32_bits(gpuAddr));
 	intel_de_write(display, DMA_ADDR_1_LOW, dst_offset);
-	intel_de_write(display, DMA_ADDR_1_HIGH,
-			   DMA_ADDRESS_SPACE_WOPCM);
-	intel_de_write(display, DMA_COPY_SIZE,
-			   sizeof(struct uc_css_header) + ucode_size);
-	intel_de_write(display, DMA_CTRL,
-			   REG_MASKED_FIELD_ENABLE(dma_flags | START_DMA));
+	intel_de_write(display, DMA_ADDR_1_HIGH,DMA_ADDRESS_SPACE_WOPCM);
+	intel_de_write(display, DMA_COPY_SIZE,sizeof(struct uc_css_header) + ucode_size);
+	intel_de_write(display, DMA_CTRL,REG_MASKED_FIELD_ENABLE(dma_flags | START_DMA));
 	dmaRetry = 1000;
 	while (intel_de_read(display, DMA_CTRL) & START_DMA) {
 		IODelay(100);
@@ -10076,7 +10113,8 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	
 	SafeForceWake(m_accelerator, false, 7);
 	IGSharedMappedBufferfree(fwBuffer);
-
+	//IGSharedMappedBufferfree(getMember<void *>(that, 0x9e8));
+	
 	auth = status & GS_AUTH_STATUS_MASK;
 	if (!success)
 	panic("auth %x bootrom %x ukernel %x guc_wopcm_base %x guc_wopcm_size %x",auth,bootrom,ukernel,gt->wopcm.guc.base,gt->wopcm.guc.size);

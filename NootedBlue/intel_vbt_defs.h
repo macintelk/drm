@@ -8640,14 +8640,26 @@ enum intel_uc_fw_status {
 	INTEL_UC_FIRMWARE_RUNNING /* init/auth done */
 };
 
+struct intel_uc_fw_ver {
+	u32 major;
+	u32 minor;
+	u32 patch;
+	u32 build;
+};
+
+struct intel_uc_fw_file {
+	const char *path;
+	struct intel_uc_fw_ver ver;
+};
+
 struct intel_uc_fw {
 	enum intel_uc_fw_type type;
 	union {
 		const enum intel_uc_fw_status status;
 		enum intel_uc_fw_status __status; /* no accidental overwrites */
 	};
-	//struct intel_uc_fw_file file_wanted;
-	//struct intel_uc_fw_file file_selected;
+	struct intel_uc_fw_file file_wanted;
+	struct intel_uc_fw_file file_selected;
 	bool user_overridden;
 	size_t size;
 	//struct drm_i915_gem_object *obj;
@@ -8676,6 +8688,10 @@ struct intel_uc_fw {
 
 	bool has_gsc_headers;
 };
+
+#define CSS_SW_VERSION_UC_MAJOR		(0xFF << 16)
+#define CSS_SW_VERSION_UC_MINOR		(0xFF << 8)
+#define CSS_SW_VERSION_UC_PATCH		(0xFF << 0)
 
 #define GUC_ENGINE_CLASS_SHIFT		0
 #define GUC_ENGINE_CLASS_MASK		(0x7 << GUC_ENGINE_CLASS_SHIFT)
@@ -8803,12 +8819,16 @@ template <typename T>
 		 REG_FIELD_PREP(CMD_CCTL_READ_OVERRIDE_MASK, (read) << 1))
 
 
-struct intel_uc_fw_ver {
-	u32 major;
-	u32 minor;
-	u32 patch;
-	u32 build;
-};
+#define __FIELD_GET(mask, reg, pfx)					\
+	({								\
+		(__typeof(mask))(((reg) & (mask)) >> __bf_shf(mask));	\
+	})
+
+#define FIELD_GET(_mask, _reg)						\
+	({								\
+		__FIELD_GET(_mask, _reg, "FIELD_GET: ");		\
+	})
+
 
 struct iosys_map {
 	union {
@@ -9867,8 +9887,12 @@ static const struct __ext_steer_reg xehpg_extregs[] = {
 	(INTEL_INFO(i915)->has_guc_deprivilege)
 
 
+#define MAKE_GUC_VER(maj, min, pat)	(((maj) << 16) | ((min) << 8) | (pat))
+#define MAKE_GUC_VER_STRUCT(ver)	MAKE_GUC_VER((ver).major, (ver).minor, (ver).patch)
+#define GUC_FIRMWARE_VER(guc)		MAKE_GUC_VER_STRUCT((guc)->fw.file_selected.ver)
 
-
+#define   DMA_ADDR_SPACE_MASK			REG_GENMASK(20, 16)
+#define   DMA_ADDRESS_SPACE_GGTT		REG_FIELD_PREP(DMA_ADDR_SPACE_MASK, 8)
 
 
 #ifdef __cplusplus
