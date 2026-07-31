@@ -2785,6 +2785,14 @@ int NBlue::intel_opregion_setup()
 	struct intel_gt *gt=to_gt(i915);
 	struct intel_guc *guc = gt_to_guc(gt);
 	struct intel_display *display=i915->display;
+	struct intel_guc_ct *ct=&guc->ct;
+	
+	guc->ads_vma=(struct i915_vma*)IOMalloc(sizeof(struct i915_vma));
+	ct->vma=(struct i915_vma*)IOMalloc(sizeof(struct i915_vma));
+	guc->log.vma=(struct i915_vma*)IOMalloc(sizeof(struct i915_vma));
+	guc->stage_desc_pool=(struct i915_vma*)IOMalloc(sizeof(struct i915_vma));
+	
+	
 	guc->gt=gt;
 	i915b->initok=false;
 	
@@ -2808,7 +2816,7 @@ int NBlue::intel_opregion_setup()
 	gt->name = "Primary GT";
 	gt->info.engine_mask = INTEL_INFO(gt->i915)->platform_engine_mask;
 	gt->wopcm.size = GEN11_WOPCM_SIZE;
-	
+	gt->type = GT_PRIMARY;
 	
 	struct intel_opregion *opregion = &display->opregion;
 	display->dmc.dmc->display=display;

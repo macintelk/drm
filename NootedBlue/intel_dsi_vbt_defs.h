@@ -18,6 +18,11 @@ typedef uint32_t u32;
 typedef int32_t s32;
 typedef uint64_t u64;
 typedef uint64_t resource_size_t;
+typedef int64_t s64;
+
+struct atomic_t {
+	alignas(sizeof(int)) int counter;
+};
 
 struct AGDCDPPortConfig_t { /* PlaceHolder Structure */
 	__uint32_t portindex;
@@ -664,6 +669,18 @@ inline void list_add_tail(struct list_head *new2, struct list_head *head)
 #define ICL_DMC_MAX_FW_SIZE		0x6000
 #define DISPLAY_VER13_DMC_MAX_FW_SIZE	0x20000
 #define DISPLAY_VER12_DMC_MAX_FW_SIZE	ICL_DMC_MAX_FW_SIZE
+
+
+struct drm_mm_node {
+	u64 start;
+	u64 size;
+	u64 vadr;
+};
+
+struct i915_vma {
+	struct drm_mm_node node;
+	void *obj;
+};
 
 
 #ifdef __cplusplus

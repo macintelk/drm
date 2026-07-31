@@ -7813,6 +7813,9 @@ enum intel_guc_recv_message {
 	INTEL_GUC_RECV_MSG_CRASH_DUMP_POSTED = BIT(1),
 	INTEL_GUC_RECV_MSG_EXCEPTION = BIT(30),
 };
+
+
+
 struct intel_guc_log {
 	u32 level;
 
@@ -7834,7 +7837,7 @@ struct intel_guc_log {
 	bool sizes_initialised;
 
 	/* Combined buffer allocation */
-	void *vma;
+	struct i915_vma *vma;
 	void *buf_addr;
 
 	/* RelayFS support */
@@ -8678,7 +8681,7 @@ struct intel_uc_fw {
 	 * do the pinning and we instead use this resource to do so.
 	 */
 	//struct i915_vma_resource vma_res;
-	//struct i915_vma *rsa_data;
+	struct i915_vma *rsa_data;
 
 	u32 rsa_size;
 	u32 ucode_size;
@@ -8996,6 +8999,164 @@ struct intel_guc_state_capture {
 	struct list_head outlist;
 };
 
+#define GUC_CTB_STATUS_NO_ERROR				0
+#define GUC_CTB_STATUS_OVERFLOW				BIT(0)
+#define GUC_CTB_STATUS_UNDERFLOW			BIT(1)
+#define GUC_CTB_STATUS_MISMATCH				BIT(2)
+#define GUC_CTB_STATUS_UNUSED				BIT(3)
+
+typedef int (*wait_queue_func_t)(struct wait_queue_entry *wq_entry, unsigned mode, int flags, void *key);
+
+struct spinlock_t {
+	union {
+		atomic_t val;
+
+		struct {
+			u8	locked;
+			u8	pending;
+		};
+		struct {
+			u16	locked_pending;
+			u16	tail;
+		};
+
+	};
+};
+
+struct wait_queue_entry {
+	unsigned int		flags;
+	void			*private0;
+	wait_queue_func_t	func;
+	struct list_head	entry;
+};
+
+struct wait_queue_head {
+	spinlock_t		lock;
+	struct list_head	head;
+};
+typedef struct wait_queue_head wait_queue_head_t;
+typedef s64	ktime_t;
+struct tasklet_struct
+{
+	struct tasklet_struct *next;
+	unsigned long state;
+	atomic_t count;
+	bool use_callback;
+	union {
+		void (*func)(unsigned long data);
+		void (*callback)(struct tasklet_struct *t);
+	};
+	unsigned long data;
+};
+
+typedef void (*work_func_t)(struct work_struct *work);
+typedef struct {
+	s64 counter;
+} atomic64_t;
+typedef atomic64_t atomic_long_t;
+struct work_struct {
+	atomic_long_t data;
+	struct list_head entry;
+	work_func_t func;
+};
+
+struct guc_ct_buffer_desc0 {
+	u32 addr;		/* gfx address */
+	u64 host_private;	/* host private data */
+	u32 size;		/* size in bytes */
+	u32 head;		/* offset updated by GuC*/
+	u32 tail;		/* offset updated by owner */
+	u32 is_in_error;	/* error indicator */
+	u32 fence;		/* fence updated by GuC */
+	u32 status;		/* status updated by GuC */
+	u32 owner;		/* id of the channel owner */
+	u32 owner_sub_id;	/* owner-defined field for extra tracking */
+	u32 reserved[5];
+} __packed;
+struct intel_guc_ct_buffer0 {
+	struct guc_ct_buffer_desc0 *desc;
+	u32 *cmds;
+};
+
+struct intel_guc_ct0 {
+	struct i915_vma *vma;
+	bool enabled;
+
+	/* buffers for sending(0) and receiving(1) commands */
+	struct intel_guc_ct_buffer0 ctbs[2];
+
+	struct {
+		u32 last_fence; /* last fence used to send request */
+
+		spinlock_t lock; /* protects pending requests list */
+		struct list_head pending; /* requests waiting for response */
+
+		struct list_head incoming; /* incoming requests */
+		struct work_struct worker; /* handler for incoming requests */
+	} requests;
+};
+
+
+
+
+
+struct guc_ct_buffer_desc {
+	u32 head;
+	u32 tail;
+	u32 status;
+	u32 reserved[13];
+} __packed;
+
+struct intel_guc_ct_buffer {
+	spinlock_t lock;
+	struct guc_ct_buffer_desc *desc;
+	u32 *cmds;
+	u32 size;
+	u32 resv_space;
+	u32 tail;
+	u32 head;
+	atomic_t space;
+	bool broken;
+};
+
+
+struct intel_guc_ct {
+	struct i915_vma *vma;
+	bool enabled;
+
+	struct {
+		struct intel_guc_ct_buffer send;
+		struct intel_guc_ct_buffer recv;
+	} ctbs;
+
+	struct tasklet_struct receive_tasklet;
+
+	wait_queue_head_t wq;
+
+	struct {
+		u16 last_fence; /* last fence used to send request */
+
+		spinlock_t lock; /* protects pending requests list */
+		struct list_head pending; /* requests waiting for response */
+
+		struct list_head incoming; /* incoming requests */
+		struct work_struct worker; /* handler for incoming requests */
+
+	} requests;
+
+	ktime_t stall_time;
+
+};
+
+typedef unsigned int gfp_t;
+
+struct xarray {
+	void*	xa_lock;
+	gfp_t		xa_flags;
+	void *	xa_head;
+};
+
+
 struct intel_guc {
 	
 	struct intel_gt *gt;
@@ -9005,12 +9166,14 @@ struct intel_guc {
 	/** @log: sub-structure containing GuC log related data and objects */
 	struct intel_guc_log log;
 	/** @ct: the command transport communication channel */
-	//struct intel_guc_ct ct;
+	struct intel_guc_ct ct;
 	/** @slpc: sub-structure containing SLPC related data and objects */
 	//struct intel_guc_slpc slpc;
 	/** @capture: the error-state-capture module's data and objects */
 	struct intel_guc_state_capture *capture;
-
+	
+	struct i915_vma *stage_desc_pool;
+	
 	/** @dbgfs_node: debugfs node */
 	//struct dentry *dbgfs_node;
 
@@ -9159,7 +9322,7 @@ struct intel_guc {
 	bool rc_selected;
 
 	/** @ads_vma: object allocated to hold the GuC ADS */
-	void *ads_vma;
+	struct i915_vma *ads_vma;
 	/** @ads_map: contents of the GuC ADS */
 	struct iosys_map ads_map;
 	/** @ads_regset_size: size of the save/restore regsets in the ADS */
@@ -9179,7 +9342,7 @@ struct intel_guc {
 	u32 ads_capture_size;
 
 	/** @lrc_desc_pool_v69: object allocated to hold the GuC LRC descriptor pool */
-	//struct i915_vma *lrc_desc_pool_v69;
+	struct i915_vma *lrc_desc_pool_v69;
 	/** @lrc_desc_pool_vaddr_v69: contents of the GuC LRC descriptor pool */
 	//void *lrc_desc_pool_vaddr_v69;
 
@@ -9187,18 +9350,18 @@ struct intel_guc {
 	 * @context_lookup: used to resolve intel_context from guc_id, if a
 	 * context is present in this structure it is registered with the GuC
 	 */
-	//struct xarray context_lookup;
+	struct xarray context_lookup;
 
 	/** @params: Control params for fw initialization */
 	u32 params[GUC_CTL_MAX_DWORDS];
 
 	/** @send_regs: GuC's FW specific registers used for sending MMIO H2G */
-	/*struct {
+	struct {
 		u32 base;
 		unsigned int count;
-		enum forcewake_domains fw_domains;
+		//enum forcewake_domains fw_domains;
 	} send_regs;
-*/
+
 	/** @notify_reg: register used to send interrupts to the GuC FW */
 	u32 notify_reg;
 
@@ -9319,7 +9482,7 @@ struct intel_gsc_uc {
 	struct intel_uc_fw_ver release;
 	u32 security_version;
 
-	//struct i915_vma *local; /* private memory for GSC usage */
+	struct i915_vma *local; /* private memory for GSC usage */
 	void *local_vaddr; /* pointer to access the private memory */
 	//struct intel_context *ce; /* for submission to GSC FW via GSC engine */
 
@@ -9333,7 +9496,7 @@ struct intel_gsc_uc {
 	struct {
 		//struct i915_gsc_proxy_component *component;
 		bool component_added;
-		//struct i915_vma *vma;
+		struct i915_vma *vma;
 		void *to_gsc;
 		void *to_csme;
 		//struct mutex mutex; /* protects the tee channel binding */
@@ -9361,7 +9524,7 @@ struct intel_huc {
 
 
 	/* for load via GSCCS */
-	//struct i915_vma *heci_pkt;
+	struct i915_vma *heci_pkt;
 
 	bool loaded_via_gsc;
 };
@@ -9386,6 +9549,7 @@ struct intel_wopcm {
 		u32 size;
 	} guc;
 };
+
 
 struct intel_gt {
 	struct drm_i915_private *i915;
@@ -9433,10 +9597,10 @@ struct intel_gt {
 
 	intel_wakeref_t awake;*/
 
-	/*u32 clock_frequency;
+	u32 clock_frequency;
 	u32 clock_period_ns;
 
-	struct intel_llc llc;
+	/*struct intel_llc llc;
 	struct intel_rc6 rc6;
 	struct intel_rps rps;
 
@@ -9472,11 +9636,11 @@ struct intel_gt {
 	/*struct i915_address_space *vm;
 
 	struct intel_gt_buffer_pool buffer_pool;
-
+*/
 	struct i915_vma *scratch;
 
-	struct intel_migrate migrate;
-*/
+	//struct intel_migrate migrate;
+
 	const struct intel_mmio_range *steering_table[NUM_STEERING_TYPES];
 
 	struct {
@@ -9891,8 +10055,273 @@ static const struct __ext_steer_reg xehpg_extregs[] = {
 #define MAKE_GUC_VER_STRUCT(ver)	MAKE_GUC_VER((ver).major, (ver).minor, (ver).patch)
 #define GUC_FIRMWARE_VER(guc)		MAKE_GUC_VER_STRUCT((guc)->fw.file_selected.ver)
 
+#define GUC_SUBMIT_VER(guc)		MAKE_GUC_VER_STRUCT((guc)->submission_version)
+
+
 #define   DMA_ADDR_SPACE_MASK			REG_GENMASK(20, 16)
 #define   DMA_ADDRESS_SPACE_GGTT		REG_FIELD_PREP(DMA_ADDR_SPACE_MASK, 8)
+
+#define CTB_DESC_SIZE		ALIGN(sizeof(struct guc_ct_buffer_desc), SZ_2K)
+#define CTB_H2G_BUFFER_SIZE	(SZ_4K)
+#define CTB_G2H_BUFFER_SIZE	(4 * CTB_H2G_BUFFER_SIZE)
+#define G2H_ROOM_BUFFER_SIZE	(CTB_G2H_BUFFER_SIZE / 4)
+#define CIRC_CNT(head,tail,size) (((head) - (tail)) & ((size)-1))
+#define CIRC_SPACE(head,tail,size) CIRC_CNT((tail),((head)+1),(size))
+
+#define KTIME_MAX			((s64)~((u64)1 << 63))
+
+#define bitmap_size(nbits)	(ALIGN(nbits, BITS_PER_LONG) / BITS_PER_BYTE)
+
+static void *calloc(size_t size, size_t nmemb)
+{
+	size_t x = size * nmemb;
+
+	return IOMalloc(x);
+}
+
+static inline unsigned long *bitmap_zalloc(int nbits)
+{
+	return (unsigned long *)calloc(1, bitmap_size(nbits));
+}
+
+#define NUMBER_MULTI_LRC_GUC_ID(guc)	\
+	((guc)->submission_state.num_guc_ids / 16)
+#define SCHED_DISABLE_DELAY_MS	34
+#define GUC_MAX_CONTEXT_ID		65535
+
+
+#define NUMBER_MULTI_LRC_GUC_ID(guc)	\
+	((guc)->submission_state.num_guc_ids / 16)
+
+static inline int intel_guc_sched_disable_gucid_threshold_max(struct intel_guc *guc)
+{
+	return guc->submission_state.num_guc_ids - NUMBER_MULTI_LRC_GUC_ID(guc);
+}
+
+#define NUM_SCHED_DISABLE_GUCIDS_DEFAULT_THRESHOLD(__guc) \
+	(((intel_guc_sched_disable_gucid_threshold_max(guc)) * 3) / 4)
+#define WRAP_TIME_CLKS U32_MAX
+#define POLL_TIME_CLKS (WRAP_TIME_CLKS >> 3)
+#define RPM_CONFIG0				_MMIO(0xd00)
+#define   GEN10_RPM_CONFIG0_CTC_SHIFT_PARAMETER_MASK	REG_GENMASK(2, 1)
+
+#define U32_MAX		((u32)~0U)
+
+#define RPM_CONFIG0				_MMIO(0xd00)
+#define   GEN11_RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_MASK	REG_GENMASK(5, 3)
+#define   GEN11_RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_24_MHZ	REG_FIELD_PREP(GEN11_RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_MASK, 0)
+#define   GEN11_RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_19_2_MHZ	REG_FIELD_PREP(GEN11_RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_MASK, 1)
+#define   GEN11_RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_38_4_MHZ	REG_FIELD_PREP(GEN11_RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_MASK, 2)
+#define   GEN11_RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_25_MHZ	REG_FIELD_PREP(GEN11_RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_MASK, 3)
+#define   GEN9_RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_MASK	REG_BIT(3)
+#define   GEN9_RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_19_2_MHZ	REG_FIELD_PREP(GEN9_RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_MASK, 0)
+#define   GEN9_RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_24_MHZ	REG_FIELD_PREP(GEN9_RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_MASK, 1)
+#define   GEN10_RPM_CONFIG0_CTC_SHIFT_PARAMETER_MASK	REG_GENMASK(2, 1)
+#define CTC_MODE				_MMIO(0xa26c)
+#define   CTC_SHIFT_PARAMETER_MASK		REG_GENMASK(2, 1)
+#define   CTC_SOURCE_PARAMETER_MASK		REG_BIT(0)
+#define   CTC_SOURCE_CRYSTAL_CLOCK		REG_FIELD_PREP(CTC_SOURCE_PARAMETER_MASK, 0)
+#define   CTC_SOURCE_DIVIDE_LOGIC		REG_FIELD_PREP(CTC_SOURCE_PARAMETER_MASK, 1)
+#define GEN7_SO_WRITE_OFFSET(n)		_MMIO(0x5280 + (n) * 4)
+
+#define GEN9_TIMESTAMP_OVERRIDE				_MMIO(0x44074)
+#define  GEN9_TIMESTAMP_OVERRIDE_US_COUNTER_DIVIDER_SHIFT	0
+#define  GEN9_TIMESTAMP_OVERRIDE_US_COUNTER_DIVIDER_MASK	0x3ff
+#define  GEN9_TIMESTAMP_OVERRIDE_US_COUNTER_DENOMINATOR_SHIFT	12
+#define  GEN9_TIMESTAMP_OVERRIDE_US_COUNTER_DENOMINATOR_MASK	(0xf << 12)
+
+#define GUC_KLV_SELF_CFG_MEMIRQ_STATUS_ADDR_KEY		0x0900
+#define GUC_KLV_SELF_CFG_MEMIRQ_STATUS_ADDR_LEN		2u
+
+#define GUC_KLV_SELF_CFG_MEMIRQ_SOURCE_ADDR_KEY		0x0901
+#define GUC_KLV_SELF_CFG_MEMIRQ_SOURCE_ADDR_LEN		2u
+
+#define GUC_KLV_SELF_CFG_H2G_CTB_ADDR_KEY		0x0902
+#define GUC_KLV_SELF_CFG_H2G_CTB_ADDR_LEN		2u
+
+#define GUC_KLV_SELF_CFG_H2G_CTB_DESCRIPTOR_ADDR_KEY	0x0903
+#define GUC_KLV_SELF_CFG_H2G_CTB_DESCRIPTOR_ADDR_LEN	2u
+
+#define GUC_KLV_SELF_CFG_H2G_CTB_SIZE_KEY		0x0904
+#define GUC_KLV_SELF_CFG_H2G_CTB_SIZE_LEN		1u
+
+#define GUC_KLV_SELF_CFG_G2H_CTB_ADDR_KEY		0x0905
+#define GUC_KLV_SELF_CFG_G2H_CTB_ADDR_LEN		2u
+
+#define GUC_KLV_SELF_CFG_G2H_CTB_DESCRIPTOR_ADDR_KEY	0x0906
+#define GUC_KLV_SELF_CFG_G2H_CTB_DESCRIPTOR_ADDR_LEN	2u
+
+#define GUC_KLV_SELF_CFG_G2H_CTB_SIZE_KEY		0x0907
+#define GUC_KLV_SELF_CFG_G2H_CTB_SIZE_LEN		1u
+
+#define GUC_HXG_MSG_MIN_LEN			1u
+#define GUC_HXG_MSG_0_ORIGIN			(0x1u << 31)
+#define   GUC_HXG_ORIGIN_HOST			0u
+#define   GUC_HXG_ORIGIN_GUC			1u
+#define GUC_HXG_MSG_0_TYPE			(0x7u << 28)
+#define   GUC_HXG_TYPE_REQUEST			0u
+#define   GUC_HXG_TYPE_EVENT			1u
+#define   GUC_HXG_TYPE_FAST_REQUEST		2u
+#define   GUC_HXG_TYPE_NO_RESPONSE_BUSY		3u
+#define   GUC_HXG_TYPE_NO_RESPONSE_RETRY	5u
+#define   GUC_HXG_TYPE_RESPONSE_FAILURE		6u
+#define   GUC_HXG_TYPE_RESPONSE_SUCCESS		7u
+#define GUC_HXG_MSG_0_AUX			(0xfffffffu << 0)
+#define GUC_HXG_MSG_n_PAYLOAD			(0xffffffffu << 0)
+
+#define GUC_HXG_REQUEST_MSG_MIN_LEN		GUC_HXG_MSG_MIN_LEN
+#define GUC_HXG_REQUEST_MSG_0_DATA0		(0xfffu << 16)
+#define GUC_HXG_REQUEST_MSG_0_ACTION		(0xffffu << 0)
+#define GUC_HXG_REQUEST_MSG_n_DATAn		GUC_HXG_MSG_n_PAYLOAD
+
+#define GUC_ACTION_HOST2GUC_SELF_CFG			0x0508
+
+#define HOST2GUC_SELF_CFG_REQUEST_MSG_LEN		(GUC_HXG_REQUEST_MSG_MIN_LEN + 3u)
+#define HOST2GUC_SELF_CFG_REQUEST_MSG_0_MBZ		GUC_HXG_REQUEST_MSG_0_DATA0
+#define HOST2GUC_SELF_CFG_REQUEST_MSG_1_KLV_KEY		(0xffffu << 16)
+#define HOST2GUC_SELF_CFG_REQUEST_MSG_1_KLV_LEN		(0xffffu << 0)
+#define HOST2GUC_SELF_CFG_REQUEST_MSG_2_VALUE32		GUC_HXG_REQUEST_MSG_n_DATAn
+#define HOST2GUC_SELF_CFG_REQUEST_MSG_3_VALUE64		GUC_HXG_REQUEST_MSG_n_DATAn
+
+#define HOST2GUC_SELF_CFG_RESPONSE_MSG_LEN		GUC_HXG_RESPONSE_MSG_MIN_LEN
+#define HOST2GUC_SELF_CFG_RESPONSE_MSG_0_NUM		GUC_HXG_RESPONSE_MSG_0_DATA0
+#define   GUC_CTB_CONTROL_DISABLE			0u
+#define   GUC_CTB_CONTROL_ENABLE			1u
+
+#define GUC_ACTION_HOST2GUC_CONTROL_CTB			0x4509
+
+#define HOST2GUC_CONTROL_CTB_REQUEST_MSG_LEN		(GUC_HXG_REQUEST_MSG_MIN_LEN + 1u)
+#define HOST2GUC_CONTROL_CTB_REQUEST_MSG_0_MBZ		GUC_HXG_REQUEST_MSG_0_DATA0
+#define HOST2GUC_CONTROL_CTB_REQUEST_MSG_1_CONTROL	GUC_HXG_REQUEST_MSG_n_DATAn
+#define GUC_HXG_RETRY_MSG_LEN			GUC_HXG_MSG_MIN_LEN
+#define GUC_HXG_RETRY_MSG_0_REASON		GUC_HXG_MSG_0_AUX
+#define   GUC_HXG_RETRY_REASON_UNSPECIFIED	0u
+#define GUC_HXG_FAILURE_MSG_LEN			GUC_HXG_MSG_MIN_LEN
+#define GUC_HXG_FAILURE_MSG_0_HINT		(0xfffu << 16)
+#define GUC_HXG_FAILURE_MSG_0_ERROR		(0xffffu << 0)
+#define GUC_HXG_RESPONSE_MSG_MIN_LEN		GUC_HXG_MSG_MIN_LEN
+#define GUC_HXG_RESPONSE_MSG_0_DATA0		GUC_HXG_MSG_0_AUX
+#define GUC_HXG_RESPONSE_MSG_n_DATAn		GUC_HXG_MSG_n_PAYLOAD
+
+#define	ENOKEY		126	/* Required key not available */
+
+static inline void atomic_set(atomic_t *v, int i)
+{
+		v->counter = i;
+}
+
+#define GEN6_GFXPAUSE				_MMIO(0xa000)
+#define GEN6_RPNSWREQ				_MMIO(0xa008)
+#define   GEN6_TURBO_DISABLE			(1 << 31)
+#define   GEN6_FREQUENCY(x)			((x) << 25)
+#define   HSW_FREQUENCY(x)			((x) << 24)
+#define   GEN9_FREQUENCY(x)			((x) << 23)
+#define   GEN6_OFFSET(x)			((x) << 19)
+#define   GEN6_AGGRESSIVE_TURBO			(0 << 15)
+#define   GEN9_SW_REQ_UNSLICE_RATIO_SHIFT	23
+#define   GEN9_IGNORE_SLICE_RATIO		(0 << 0)
+#define   GEN12_MEDIA_FREQ_RATIO		REG_BIT(13)
+
+#define GEN6_RC_VIDEO_FREQ			_MMIO(0xa00c)
+#define   GEN6_RC_CTL_RC6pp_ENABLE		(1 << 16)
+#define   GEN6_RC_CTL_RC6p_ENABLE		(1 << 17)
+#define   GEN6_RC_CTL_RC6_ENABLE		(1 << 18)
+#define   GEN6_RC_CTL_RC1e_ENABLE		(1 << 20)
+#define   GEN6_RC_CTL_RC7_ENABLE		(1 << 22)
+#define   VLV_RC_CTL_CTX_RST_PARALLEL		(1 << 24)
+#define   GEN7_RC_CTL_TO_MODE			(1 << 28)
+#define   GEN6_RC_CTL_EI_MODE(x)		((x) << 27)
+#define   GEN6_RC_CTL_HW_ENABLE			(1 << 31)
+#define GEN6_RP_DOWN_TIMEOUT			_MMIO(0xa010)
+#define GEN6_RP_INTERRUPT_LIMITS		_MMIO(0xa014)
+#define GEN6_RPSTAT1				_MMIO(0xa01c)
+#define   GEN6_CAGF_MASK			REG_GENMASK(14, 8)
+#define   HSW_CAGF_MASK				REG_GENMASK(13, 7)
+#define   GEN9_CAGF_MASK			REG_GENMASK(31, 23)
+#define GEN6_RP_CONTROL				_MMIO(0xa024)
+#define   GEN6_RP_MEDIA_TURBO			(1 << 11)
+#define   GEN6_RP_MEDIA_MODE_MASK		(3 << 9)
+#define   GEN6_RP_MEDIA_HW_TURBO_MODE		(3 << 9)
+#define   GEN6_RP_MEDIA_HW_NORMAL_MODE		(2 << 9)
+#define   GEN6_RP_MEDIA_HW_MODE			(1 << 9)
+#define   GEN6_RP_MEDIA_SW_MODE			(0 << 9)
+#define   GEN6_RP_MEDIA_IS_GFX			(1 << 8)
+#define   GEN6_RP_ENABLE			(1 << 7)
+#define   GEN6_RP_UP_IDLE_MIN			(0x1 << 3)
+#define   GEN6_RP_UP_BUSY_AVG			(0x2 << 3)
+#define   GEN6_RP_UP_BUSY_CONT			(0x4 << 3)
+#define   GEN6_RP_DOWN_IDLE_AVG			(0x2 << 0)
+#define   GEN6_RP_DOWN_IDLE_CONT		(0x1 << 0)
+#define   GEN6_RPSWCTL_SHIFT			9
+#define   GEN9_RPSWCTL_ENABLE			(0x2 << GEN6_RPSWCTL_SHIFT)
+#define   GEN9_RPSWCTL_DISABLE			(0x0 << GEN6_RPSWCTL_SHIFT)
+#define GEN6_RP_UP_THRESHOLD			_MMIO(0xa02c)
+#define GEN6_RP_DOWN_THRESHOLD			_MMIO(0xa030)
+#define GEN6_RP_CUR_UP_EI			_MMIO(0xa050)
+#define   GEN6_RP_EI_MASK			0xffffff
+#define   GEN6_CURICONT_MASK			GEN6_RP_EI_MASK
+#define GEN6_RP_CUR_UP				_MMIO(0xa054)
+#define   GEN6_CURBSYTAVG_MASK			GEN6_RP_EI_MASK
+#define GEN6_RP_PREV_UP				_MMIO(0xa058)
+#define GEN6_RP_CUR_DOWN_EI			_MMIO(0xa05c)
+#define   GEN6_CURIAVG_MASK			GEN6_RP_EI_MASK
+#define GEN6_RP_CUR_DOWN			_MMIO(0xa060)
+#define GEN6_RP_PREV_DOWN			_MMIO(0xa064)
+#define GEN6_RP_UP_EI				_MMIO(0xa068)
+#define GEN6_RP_DOWN_EI				_MMIO(0xa06c)
+#define GEN6_RP_IDLE_HYSTERSIS			_MMIO(0xa070)
+#define GEN6_RPDEUHWTC				_MMIO(0xa080)
+#define GEN6_RPDEUC				_MMIO(0xa084)
+#define GEN6_RPDEUCSW				_MMIO(0xa088)
+#define GEN6_RC_CONTROL				_MMIO(0xa090)
+#define GEN6_RC_STATE				_MMIO(0xa094)
+#define   RC_SW_TARGET_STATE_SHIFT		16
+#define   RC_SW_TARGET_STATE_MASK		(7 << RC_SW_TARGET_STATE_SHIFT)
+#define GEN6_RC1_WAKE_RATE_LIMIT		_MMIO(0xa098)
+#define GEN6_RC6_WAKE_RATE_LIMIT		_MMIO(0xa09c)
+#define GEN6_RC6pp_WAKE_RATE_LIMIT		_MMIO(0xa0a0)
+#define GEN10_MEDIA_WAKE_RATE_LIMIT		_MMIO(0xa0a0)
+#define GEN6_RC_EVALUATION_INTERVAL		_MMIO(0xa0a8)
+#define GEN6_RC_IDLE_HYSTERSIS			_MMIO(0xa0ac)
+#define GEN6_RC_SLEEP				_MMIO(0xa0b0)
+#define GEN6_RCUBMABDTMR			_MMIO(0xa0b0)
+#define GEN6_RC1e_THRESHOLD			_MMIO(0xa0b4)
+#define GEN6_RC6_THRESHOLD			_MMIO(0xa0b8)
+#define GEN6_RC6p_THRESHOLD			_MMIO(0xa0bc)
+#define VLV_RCEDATA				_MMIO(0xa0bc)
+#define GEN6_RC6pp_THRESHOLD			_MMIO(0xa0c0)
+#define GEN9_MEDIA_PG_IDLE_HYSTERESIS		_MMIO(0xa0c4)
+#define GEN9_RENDER_PG_IDLE_HYSTERESIS		_MMIO(0xa0c8)
+#define RING_MAX_IDLE(base)			_MMIO((base) + 0x54)
+#define GEN9_PG_ENABLE				_MMIO(0xa210)
+#define   GEN9_RENDER_PG_ENABLE			REG_BIT(0)
+#define   GEN9_MEDIA_PG_ENABLE			REG_BIT(1)
+#define   GEN11_MEDIA_SAMPLER_PG_ENABLE		REG_BIT(2)
+#define   VDN_HCP_POWERGATE_ENABLE(n)		REG_BIT(3 + 2 * (n))
+#define   VDN_MFX_POWERGATE_ENABLE(n)		REG_BIT(4 + 2 * (n))
+
+#define GUC_CTL_CTXINFO			0
+#define   GUC_CTL_CTXNUM_IN16_SHIFT	0
+#define   GUC_CTL_BASE_ADDR_SHIFT	12
+#define GUC_MAX_STAGE_DESCRIPTORS	1024
+#define	GUC_INVALID_STAGE_ID		GUC_MAX_STAGE_DESCRIPTORS
+#define CRASH_BUFFER_SIZE	SZ_8K
+#define DPC_BUFFER_SIZE		SZ_32K
+#define ISR_BUFFER_SIZE		SZ_32K
+#define   GUC_LOG_DPC_SHIFT		6
+#define   GUC_LOG_ISR_SHIFT		9
+
+#define GFX_FLSH_CNTL_GEN6			_MMIO(0x101008)
+#define   GFX_FLSH_CNTL_EN			(1 << 0)
+#define GEN11_GT_INTR_DW(x)			_MMIO(0x190018 + ((x) * 4))
+#define GEN11_IIR_REG_SELECTOR(x)		_MMIO(0x190070 + ((x) * 4))
+#define GEN11_INTR_IDENTITY_REG(x)		_MMIO(0x190060 + ((x) * 4))
+#define   GEN11_INTR_DATA_VALID			(1 << 31)
+#define   MTL_MGUC				(24)
+#define   GEN11_GUC				(25)
+
+
+
 
 
 #ifdef __cplusplus

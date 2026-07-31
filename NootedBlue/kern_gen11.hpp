@@ -830,8 +830,20 @@ public:
 	static uint64_t finitDeviceMemory(void *that);
 	mach_vm_address_t ofinitDeviceMemory {};
 	
-	static uint64_t  setupAdditionalDataStructs(void *that0);
+	static uint64_t  setupAdditionalDataStructs(void *that);
 	mach_vm_address_t osetupAdditionalDataStructs {};
+	
+	static uint64_t setupContextPool(void *that,int param_1);
+	mach_vm_address_t osetupContextPool {};
+	
+	static uint64_t registerCommandTransportBuffers(void *that);
+	mach_vm_address_t oregisterCommandTransportBuffers {};
+	
+	static void deregisterCommandTransportBuffers(void *that);
+	mach_vm_address_t oderegisterCommandTransportBuffers {};
+	
+	
+	
 	
 public:
 
