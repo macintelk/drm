@@ -2791,7 +2791,7 @@ int NBlue::intel_opregion_setup()
 	ct->vma=(struct i915_vma*)IOMalloc(sizeof(struct i915_vma));
 	guc->log.vma=(struct i915_vma*)IOMalloc(sizeof(struct i915_vma));
 	guc->stage_desc_pool=(struct i915_vma*)IOMalloc(sizeof(struct i915_vma));
-	
+	guc->lrc_desc_pool_v69=(struct i915_vma*)IOMalloc(sizeof(struct i915_vma));
 	
 	guc->gt=gt;
 	i915b->initok=false;
