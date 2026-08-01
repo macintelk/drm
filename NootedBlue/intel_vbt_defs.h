@@ -6619,7 +6619,7 @@ static inline unsigned long count_trailing_zeros(unsigned long x) {
 	return n;
 }
 
-inline unsigned long find_next_bit(const unsigned long *addr,
+static inline unsigned long find_next_bit(const unsigned long *addr,
 								  unsigned long size,
 								  unsigned long offset)
 {
@@ -7817,7 +7817,7 @@ enum intel_bootrom_load_status {
 #define GUC_WOPCM_OFFSET_ALIGNMENT	(1UL << GUC_WOPCM_OFFSET_SHIFT)
 #define __ALIGN_KERNEL_MASK(x, mask)	(((x) + (mask)) & ~(mask))
 #define __ALIGN_KERNEL(x, a)		__ALIGN_KERNEL_MASK(x, (__typeof__(x))(a) - 1)
-#define ALIGN(x, a)		__ALIGN_KERNEL((x), (a))
+#define ALIGN2(x, a)		__ALIGN_KERNEL((x), (a))
 #define ICL_WOPCM_HW_CTX_RESERVED	(SZ_32K + SZ_4K)
 
 #define GUC_LOG_DEFAULT_CRASH_BUFFER_SIZE	SZ_8K
@@ -8195,32 +8195,158 @@ struct intel_engine_tlb_inv {
 #define XEHP_COMPCTX_TLB_INV_CR			MCR_REG(0xcf04)
 #define XELPMP_GSC_TLB_INV_CR			_MMIO(0xcf04)
 
+enum forcewake_domain_id {
+	FW_DOMAIN_ID_RENDER = 0,
+	FW_DOMAIN_ID_GT,        /* also includes blitter engine */
+	FW_DOMAIN_ID_MEDIA,
+	FW_DOMAIN_ID_MEDIA_VDBOX0,
+	FW_DOMAIN_ID_MEDIA_VDBOX1,
+	FW_DOMAIN_ID_MEDIA_VDBOX2,
+	FW_DOMAIN_ID_MEDIA_VDBOX3,
+	FW_DOMAIN_ID_MEDIA_VDBOX4,
+	FW_DOMAIN_ID_MEDIA_VDBOX5,
+	FW_DOMAIN_ID_MEDIA_VDBOX6,
+	FW_DOMAIN_ID_MEDIA_VDBOX7,
+	FW_DOMAIN_ID_MEDIA_VEBOX0,
+	FW_DOMAIN_ID_MEDIA_VEBOX1,
+	FW_DOMAIN_ID_MEDIA_VEBOX2,
+	FW_DOMAIN_ID_MEDIA_VEBOX3,
+	FW_DOMAIN_ID_GSC,
+
+	FW_DOMAIN_ID_COUNT
+};
+
+enum forcewake_domains {
+	FORCEWAKE_RENDER	= BIT(FW_DOMAIN_ID_RENDER),
+	FORCEWAKE_GT		= BIT(FW_DOMAIN_ID_GT),
+	FORCEWAKE_MEDIA		= BIT(FW_DOMAIN_ID_MEDIA),
+	FORCEWAKE_MEDIA_VDBOX0	= BIT(FW_DOMAIN_ID_MEDIA_VDBOX0),
+	FORCEWAKE_MEDIA_VDBOX1	= BIT(FW_DOMAIN_ID_MEDIA_VDBOX1),
+	FORCEWAKE_MEDIA_VDBOX2	= BIT(FW_DOMAIN_ID_MEDIA_VDBOX2),
+	FORCEWAKE_MEDIA_VDBOX3	= BIT(FW_DOMAIN_ID_MEDIA_VDBOX3),
+	FORCEWAKE_MEDIA_VDBOX4	= BIT(FW_DOMAIN_ID_MEDIA_VDBOX4),
+	FORCEWAKE_MEDIA_VDBOX5	= BIT(FW_DOMAIN_ID_MEDIA_VDBOX5),
+	FORCEWAKE_MEDIA_VDBOX6	= BIT(FW_DOMAIN_ID_MEDIA_VDBOX6),
+	FORCEWAKE_MEDIA_VDBOX7	= BIT(FW_DOMAIN_ID_MEDIA_VDBOX7),
+	FORCEWAKE_MEDIA_VEBOX0	= BIT(FW_DOMAIN_ID_MEDIA_VEBOX0),
+	FORCEWAKE_MEDIA_VEBOX1	= BIT(FW_DOMAIN_ID_MEDIA_VEBOX1),
+	FORCEWAKE_MEDIA_VEBOX2	= BIT(FW_DOMAIN_ID_MEDIA_VEBOX2),
+	FORCEWAKE_MEDIA_VEBOX3	= BIT(FW_DOMAIN_ID_MEDIA_VEBOX3),
+	FORCEWAKE_GSC		= BIT(FW_DOMAIN_ID_GSC),
+
+	FORCEWAKE_ALL = BIT(FW_DOMAIN_ID_COUNT) - 1,
+};
+
+struct rb_node {
+	unsigned long  __rb_parent_color;
+	struct rb_node *rb_right;
+	struct rb_node *rb_left;
+} __attribute__((aligned(sizeof(long))));
+/* The alignment might seem pointless, but allegedly CRIS needs it */
+
+struct rb_node_linked {
+	struct rb_node		node;
+	struct rb_node_linked	*prev;
+	struct rb_node_linked	*next;
+};
+
+struct rb_root {
+	struct rb_node *rb_node;
+};
+
+
+struct rb_root_cached {
+	struct rb_root rb_root;
+	struct rb_node *rb_leftmost;
+};
+
+typedef struct refcount_struct {
+	atomic_t refs;
+} refcount_t;
+
+struct kref {
+	refcount_t refcount;
+};
+
+struct i915_sched_engine {
+	/**
+	 * @ref: reference count of schedule engine object
+	 */
+	struct kref ref;
+
+	/**
+	 * @lock: protects requests in priority lists, requests, hold and
+	 * tasklet while running
+	 */
+	spinlock_t lock;
+
+	/**
+	 * @requests: list of requests inflight on this schedule engine
+	 */
+	struct list_head requests;
+
+	/**
+	 * @hold: list of ready requests, but on hold
+	 */
+	struct list_head hold;
+
+	/**
+	 * @tasklet: softirq tasklet for submission
+	 */
+	struct tasklet_struct tasklet;
+
+	/**
+	 * @default_priolist: priority list for I915_PRIORITY_NORMAL
+	 */
+	//struct i915_priolist default_priolist;
+
+
+	int queue_priority_hint;
+
+	/**
+	 * @queue: queue of requests, in priority lists
+	 */
+	struct rb_root_cached queue;
+
+	/**
+	 * @no_priolist: priority lists disabled
+	 */
+	bool no_priolist;
+
+	/**
+	 * @private_data: private data of the submission backend
+	 */
+	void *private_data;
+
+
+};
+
+struct drm_i915_reg_descriptor {
+	u32 addr;
+	u32 mask;
+	u32 value;
+};
+
+struct drm_i915_reg_table {
+	const struct drm_i915_reg_descriptor *regs;
+	int num_regs;
+};
+
+
 struct intel_engine_cs {
-	void    *dev;
 	struct drm_i915_private *i915;
-	bool                 is_dg1;
-	struct i915_wa_list ctx_wa_list;
-	struct i915_wa_list  wa_list;
-	struct i915_wa_list  whitelist;
 	struct intel_gt *gt;
+	struct intel_uncore *uncore;
 	char name[INTEL_ENGINE_CS_MAX_NAME];
 
 	enum intel_engine_id id2;
 	enum intel_engine_id legacy_idx;
 
-	struct {
-		unsigned long heartbeat_interval_ms;
-		unsigned long max_busywait_duration_ns;
-		unsigned long preempt_timeout_ms;
-		unsigned long stop_timeout_ms;
-		unsigned long timeslice_duration_ms;
-	} props, defaults;
-	
 	unsigned int guc_id;
 
 	intel_engine_mask_t mask;
 	u32 reset_domain;
-	
+
 	intel_engine_mask_t logical_mask;
 
 	u8 classb;
@@ -8232,10 +8358,199 @@ struct intel_engine_cs {
 	u32 uabi_capabilities;
 	u32 context_size;
 	u32 mmio_base;
+
 	struct intel_engine_tlb_inv tlb_inv;
+
+
+	enum forcewake_domains fw_domain;
+	unsigned int fw_active;
+
+	unsigned long context_tag;
+
+	union {
+		struct llist_node uabi_llist;
+		struct list_head uabi_list;
+		struct rb_node uabi_node;
+	};
+
 	struct intel_sseu sseu;
+
+	struct i915_sched_engine *sched_engine;
+
+	struct i915_request *request_pool;
+
+	struct intel_context *hung_ce;
+
+	struct llist_head barrier_tasks;
+
+	struct intel_context *kernel_context; /* pinned */
+	struct intel_context *bind_context; /* pinned, only for BCS0 */
+	/* mark the bind context's availability status */
+	bool bind_context_ready;
+
+	/**
+	 * pinned_contexts_list: List of pinned contexts. This list is only
+	 * assumed to be manipulated during driver load- or unload time and
+	 * does therefore not have any additional protection.
+	 */
+	struct list_head pinned_contexts_list;
+
+	intel_engine_mask_t saturated; /* submitting semaphores too late? */
+
+	/*struct {
+		struct delayed_work work;
+		struct i915_request *systole;
+		unsigned long blocked;
+	} heartbeat;*/
+
+	unsigned long serial;
+
+	unsigned long wakeref_serial;
+	//intel_wakeref_t wakeref_track;
+	//struct intel_wakeref wakeref;
+
+	//struct file *default_state;
+
+/*	struct {
+		struct intel_ring *ring;
+		struct intel_timeline *timeline;
+	} legacy;*/
+
+	/*
+	 * We track the average duration of the idle pulse on parking the
+	 * engine to keep an estimate of the how the fast the engine is
+	 * under ideal conditions.
+	 */
+	//struct ewma__engine_latency latency;
+
+	/* Keep track of all the seqno used, a trail of breadcrumbs */
+	//struct intel_breadcrumbs *breadcrumbs;
+
+	/*struct intel_engine_pmu {
+
+		u32 enable;
+
+		unsigned int enable_count[I915_ENGINE_SAMPLE_COUNT];
+
+		struct i915_pmu_sample sample[I915_ENGINE_SAMPLE_COUNT];
+	} pmu;*/
+
+	//struct intel_hw_status_page status_page;
+	//struct i915_ctx_workarounds wa_ctx;
+	struct i915_wa_list ctx_wa_list;
+	struct i915_wa_list wa_list;
+	struct i915_wa_list whitelist;
+
+	u32             irq_keep_mask; /* always keep these interrupts */
+	u32		irq_enable_mask; /* bitmask to enable ring interrupt */
+/*	void		(*irq_enable)(struct intel_engine_cs *engine);
+	void		(*irq_disable)(struct intel_engine_cs *engine);
+	void		(*irq_handler)(struct intel_engine_cs *engine, u16 iir);
+
+	void		(*sanitize)(struct intel_engine_cs *engine);
+	int		(*resume)(struct intel_engine_cs *engine);
+
+	struct {
+		void (*prepare)(struct intel_engine_cs *engine);
+
+		void (*rewind)(struct intel_engine_cs *engine, bool stalled);
+		void (*cancel)(struct intel_engine_cs *engine);
+
+		void (*finish)(struct intel_engine_cs *engine);
+	} reset;
+
+	void		(*park)(struct intel_engine_cs *engine);
+	void		(*unpark)(struct intel_engine_cs *engine);
+
+	void		(*bump_serial)(struct intel_engine_cs *engine);
+
+	void		(*set_default_submission)(struct intel_engine_cs *engine);
+
+	const struct intel_context_ops *cops;
+
+	int		(*request_alloc)(struct i915_request *rq);
+
+	int		(*emit_flush)(struct i915_request *request, u32 mode);
+#define EMIT_INVALIDATE	BIT(0)
+#define EMIT_FLUSH	BIT(1)
+#define EMIT_BARRIER	(EMIT_INVALIDATE | EMIT_FLUSH)
+	int		(*emit_bb_start)(struct i915_request *rq,
+					 u64 offset, u32 length,
+					 unsigned int dispatch_flags);
+#define I915_DISPATCH_SECURE BIT(0)
+#define I915_DISPATCH_PINNED BIT(1)
+	int		 (*emit_init_breadcrumb)(struct i915_request *rq);
+	u32		*(*emit_fini_breadcrumb)(struct i915_request *rq,
+						 u32 *cs);
+	unsigned int	emit_fini_breadcrumb_dw;
+
+
+	void		(*submit_request)(struct i915_request *rq);
+
+	void		(*release)(struct intel_engine_cs *engine);
+
+
+	void		(*add_active_request)(struct i915_request *rq);
+	void		(*remove_active_request)(struct i915_request *rq);
+
+
+	ktime_t		(*busyness)(struct intel_engine_cs *engine,
+					ktime_t *now);
+
+	struct intel_engine_execlists execlists;
+
+	struct intel_timeline *retire;
+	struct work_struct retire_work;
+
+	struct atomic_notifier_head context_status_notifier;
+*/
+#define I915_ENGINE_USING_CMD_PARSER BIT(0)
+#define I915_ENGINE_SUPPORTS_STATS   BIT(1)
+#define I915_ENGINE_HAS_PREEMPTION   BIT(2)
+#define I915_ENGINE_HAS_SEMAPHORES   BIT(3)
+#define I915_ENGINE_HAS_TIMESLICES   BIT(4)
+#define I915_ENGINE_IS_VIRTUAL       BIT(5)
+#define I915_ENGINE_HAS_RELATIVE_MMIO BIT(6)
+#define I915_ENGINE_REQUIRES_CMD_PARSER BIT(7)
+#define I915_ENGINE_WANT_FORCED_PREEMPTION BIT(8)
+#define I915_ENGINE_HAS_RCS_REG_STATE  BIT(9)
+#define I915_ENGINE_HAS_EU_PRIORITY    BIT(10)
+#define I915_ENGINE_FIRST_RENDER_COMPUTE BIT(11)
+#define I915_ENGINE_USES_WA_HOLD_SWITCHOUT BIT(12)
 	unsigned int flags;
-	
+
+
+	DECLARE_HASHTABLE(cmd_hash, 9);
+
+	const struct drm_i915_reg_table *reg_tables;
+	//int reg_table_count;
+
+
+
+	//u32 (*get_cmd_length_mask)(u32 cmd_header);
+
+	/*struct {
+		union {
+			struct intel_engine_execlists_stats execlists;
+			struct intel_engine_guc_stats guc;
+		};
+
+
+		ktime_t rps;
+	} stats;
+*/
+	struct {
+		unsigned long heartbeat_interval_ms;
+		unsigned long max_busywait_duration_ns;
+		unsigned long preempt_timeout_ms;
+		unsigned long stop_timeout_ms;
+		unsigned long timeslice_duration_ms;
+	} props, defaults;
+
+//	I915_SELFTEST_DECLARE(struct fault_attr reset_timeout);
+
+
+	//struct i915_perf_group *oa_group;
 };
 
 enum intel_submission_method {
@@ -8248,7 +8563,7 @@ enum intel_submission_method {
 #define MAX_ENGINE_INSTANCE	8
 
 struct intel_gt_info {
-	unsigned int id;
+	unsigned int id2;
 
 	intel_engine_mask_t engine_mask;
 
@@ -8553,7 +8868,7 @@ inline unsigned long find_next_zero_bit(const unsigned long *addr,
 
 
 
-#define PAGE_ALIGN(addr) ALIGN(addr, PAGE_SIZE)
+#define PAGE_ALIGN(addr) ALIGN2(addr, PAGE_SIZE)
 #define GLOBAL_POLICY_MAX_NUM_WI 15
 #define GLOBAL_POLICY_DISABLE_ENGINE_RESET				BIT(0)
 #define GLOBAL_POLICY_DEFAULT_DPC_PROMOTE_TIME_US 500000
@@ -9121,47 +9436,7 @@ struct intel_guc_ct0 {
 	} requests;
 };
 
-enum forcewake_domain_id {
-	FW_DOMAIN_ID_RENDER = 0,
-	FW_DOMAIN_ID_GT,        /* also includes blitter engine */
-	FW_DOMAIN_ID_MEDIA,
-	FW_DOMAIN_ID_MEDIA_VDBOX0,
-	FW_DOMAIN_ID_MEDIA_VDBOX1,
-	FW_DOMAIN_ID_MEDIA_VDBOX2,
-	FW_DOMAIN_ID_MEDIA_VDBOX3,
-	FW_DOMAIN_ID_MEDIA_VDBOX4,
-	FW_DOMAIN_ID_MEDIA_VDBOX5,
-	FW_DOMAIN_ID_MEDIA_VDBOX6,
-	FW_DOMAIN_ID_MEDIA_VDBOX7,
-	FW_DOMAIN_ID_MEDIA_VEBOX0,
-	FW_DOMAIN_ID_MEDIA_VEBOX1,
-	FW_DOMAIN_ID_MEDIA_VEBOX2,
-	FW_DOMAIN_ID_MEDIA_VEBOX3,
-	FW_DOMAIN_ID_GSC,
 
-	FW_DOMAIN_ID_COUNT
-};
-
-enum forcewake_domains {
-	FORCEWAKE_RENDER	= BIT(FW_DOMAIN_ID_RENDER),
-	FORCEWAKE_GT		= BIT(FW_DOMAIN_ID_GT),
-	FORCEWAKE_MEDIA		= BIT(FW_DOMAIN_ID_MEDIA),
-	FORCEWAKE_MEDIA_VDBOX0	= BIT(FW_DOMAIN_ID_MEDIA_VDBOX0),
-	FORCEWAKE_MEDIA_VDBOX1	= BIT(FW_DOMAIN_ID_MEDIA_VDBOX1),
-	FORCEWAKE_MEDIA_VDBOX2	= BIT(FW_DOMAIN_ID_MEDIA_VDBOX2),
-	FORCEWAKE_MEDIA_VDBOX3	= BIT(FW_DOMAIN_ID_MEDIA_VDBOX3),
-	FORCEWAKE_MEDIA_VDBOX4	= BIT(FW_DOMAIN_ID_MEDIA_VDBOX4),
-	FORCEWAKE_MEDIA_VDBOX5	= BIT(FW_DOMAIN_ID_MEDIA_VDBOX5),
-	FORCEWAKE_MEDIA_VDBOX6	= BIT(FW_DOMAIN_ID_MEDIA_VDBOX6),
-	FORCEWAKE_MEDIA_VDBOX7	= BIT(FW_DOMAIN_ID_MEDIA_VDBOX7),
-	FORCEWAKE_MEDIA_VEBOX0	= BIT(FW_DOMAIN_ID_MEDIA_VEBOX0),
-	FORCEWAKE_MEDIA_VEBOX1	= BIT(FW_DOMAIN_ID_MEDIA_VEBOX1),
-	FORCEWAKE_MEDIA_VEBOX2	= BIT(FW_DOMAIN_ID_MEDIA_VEBOX2),
-	FORCEWAKE_MEDIA_VEBOX3	= BIT(FW_DOMAIN_ID_MEDIA_VEBOX3),
-	FORCEWAKE_GSC		= BIT(FW_DOMAIN_ID_GSC),
-
-	FORCEWAKE_ALL = BIT(FW_DOMAIN_ID_COUNT) - 1,
-};
 
 struct guc_ct_buffer_desc {
 	u32 head;
@@ -9230,6 +9505,281 @@ struct ida {
 		STALL_ADD_REQUEST,
 	} submission_stall_reason;
 
+struct callback_head {
+	struct callback_head *next;
+	void (*func)(struct callback_head *head);
+} __attribute__((aligned(sizeof(void *))));
+#define rcu_head callback_head
+
+
+
+#define __intel_context_inflight(engine) ptr_mask_bits(engine, 3)
+#define __intel_context_inflight_count(engine) ptr_unmask_bits(engine, 3)
+#define intel_context_inflight(ce) \
+	__intel_context_inflight(READ_ONCE((ce)->inflight))
+#define intel_context_inflight_count(ce) \
+	__intel_context_inflight_count(READ_ONCE((ce)->inflight))
+#define CONTEXT_BARRIER_BIT		0
+#define CONTEXT_ALLOC_BIT		1
+#define CONTEXT_INIT_BIT		2
+#define CONTEXT_VALID_BIT		3
+#define CONTEXT_CLOSED_BIT		4
+#define CONTEXT_USE_SEMAPHORES		5
+#define CONTEXT_BANNED			6
+#define CONTEXT_FORCE_SINGLE_SUBMISSION	7
+#define CONTEXT_NOPREEMPT		8
+#define CONTEXT_LRCA_DIRTY		9
+#define CONTEXT_GUC_INIT		10
+#define CONTEXT_PERMA_PIN		11
+#define CONTEXT_IS_PARKING		12
+#define CONTEXT_EXITING			13
+#define CONTEXT_LOW_LATENCY		14
+#define CONTEXT_OWN_STATE		15
+#define GUC_CLIENT_PRIORITY_KMD_HIGH	0
+#define GUC_CLIENT_PRIORITY_HIGH	1
+#define GUC_CLIENT_PRIORITY_KMD_NORMAL	2
+#define GUC_CLIENT_PRIORITY_NORMAL	3
+#define GUC_CLIENT_PRIORITY_NUM		4
+
+
+
+#define SCHED_STATE_POLICY_REQUIRED			BIT(7)
+#define SLPC_CTX_FREQ_REQ_IS_COMPUTE		REG_BIT(28)
+#define SLPC_OPTIMIZED_STRATEGY_COMPUTE		REG_BIT(0)
+
+
+static inline void atomic_inc(atomic_t *v)
+{
+	v->counter++;
+	//__asm__ __volatile__("lock incl %0"							   : "+m" (v->counter) :: "memory");
+}
+
+static inline void atomic_dec(atomic_t *v)
+{
+	v->counter--;
+//	__asm__ __volatile__("lock decl %0"							   : "+m" (v->counter) :: "memory");
+}
+
+static inline void atomic_set(atomic_t *v, int i)
+{
+		v->counter = i;
+}
+
+struct intel_context {
+
+	union {
+		struct kref ref; /* no kref_get_unless_zero()! */
+		struct rcu_head rcu;
+	};
+
+	struct intel_engine_cs *engine;
+	struct intel_engine_cs *inflight;
+
+
+	//struct i915_address_space *vm;
+	//struct i915_gem_context __rcu *gem_context;
+
+	//struct file *default_state;
+
+	struct list_head signal_link; /* Accessed under RCU */
+	struct list_head signals; /* Guarded by signal_lock */
+	spinlock_t signal_lock; /* protects signals, the list of requests */
+
+	struct i915_vma *state;
+	u32 ring_size;
+	//struct intel_ring *ring;
+	//struct intel_timeline *timeline;
+	//intel_wakeref_t wakeref;
+
+	unsigned long flags;
+
+
+	struct {
+		u64 timeout_us;
+	} watchdog;
+
+	u32 *lrc_reg_state;
+	union {
+		struct {
+			u32 lrca;
+			u32 ccid;
+		};
+		u64 desc;
+	} lrc;
+	u32 tag; /* cookie passed to HW to track this context on submission */
+
+	/** stats: Context GPU engine busyness tracking. */
+	/*struct intel_context_stats {
+		u64 active;
+
+		struct {
+			struct ewma_runtime avg;
+			u64 total;
+			u32 last;
+			I915_SELFTEST_DECLARE(u32 num_underflow);
+			I915_SELFTEST_DECLARE(u32 max_underflow);
+		} runtime;
+	} stats;*/
+
+	unsigned int active_count; /* protected by timeline->mutex */
+
+	atomic_t pin_count;
+	//struct mutex pin_mutex; /* guards pinning and associated on-gpuing */
+
+	/**
+	 * active: Active tracker for the rq activity (inc. external) on this
+	 * intel_context object.
+	 */
+	//struct i915_active active;
+
+	//const struct intel_context_ops *ops;
+
+	/** sseu: Control eu/slice partitioning */
+	struct intel_sseu sseu;
+
+	/**
+	 * pinned_contexts_link: List link for the engine's pinned contexts.
+	 * This is only used if this is a perma-pinned kernel context and
+	 * the list is assumed to only be manipulated during driver load
+	 * or unload time so no mutex protection currently.
+	 */
+	struct list_head pinned_contexts_link;
+
+	u8 wa_bb_page; /* if set, page num reserved for context workarounds */
+
+	struct {
+		/** @lock: protects everything in guc_state */
+		spinlock_t lock;
+		/**
+		 * @sched_state: scheduling state of this context using GuC
+		 * submission
+		 */
+		u32 sched_state;
+		/*
+		 * @fences: maintains a list of requests that are currently
+		 * being fenced until a GuC operation completes
+		 */
+		struct list_head fences;
+		/**
+		 * @blocked: fence used to signal when the blocking of a
+		 * context's submissions is complete.
+		 */
+		//struct i915_sw_fence blocked;
+		/** @requests: list of active requests on this context */
+		struct list_head requests;
+		/** @prio: the context's current guc priority */
+		u8 prio;
+		/**
+		 * @prio_count: a counter of the number requests in flight in
+		 * each priority bucket
+		 */
+		u32 prio_count[GUC_CLIENT_PRIORITY_NUM];
+		/**
+		 * @sched_disable_delay_work: worker to disable scheduling on this
+		 * context
+		 */
+		//struct delayed_work sched_disable_delay_work;
+	} guc_state;
+
+	struct {
+		/**
+		 * @id: handle which is used to uniquely identify this context
+		 * with the GuC, protected by guc->submission_state.lock
+		 */
+		u16 id2;
+		/**
+		 * @ref: the number of references to the guc_id, when
+		 * transitioning in and out of zero protected by
+		 * guc->submission_state.lock
+		 */
+		atomic_t ref;
+		/**
+		 * @link: in guc->guc_id_list when the guc_id has no refs but is
+		 * still valid, protected by guc->submission_state.lock
+		 */
+		struct list_head link;
+	} guc_id;
+
+	/**
+	 * @destroyed_link: link in guc->submission_state.destroyed_contexts, in
+	 * list when context is pending to be destroyed (deregistered with the
+	 * GuC), protected by guc->submission_state.lock
+	 */
+	struct list_head destroyed_link;
+
+	/** @parallel: sub-structure for parallel submission members */
+	struct {
+		union {
+			/**
+			 * @child_list: parent's list of children
+			 * contexts, no protection as immutable after context
+			 * creation
+			 */
+			struct list_head child_list;
+			/**
+			 * @child_link: child's link into parent's list of
+			 * children
+			 */
+			struct list_head child_link;
+		};
+		/** @parent: pointer to parent if child */
+		struct intel_context *parent;
+		/**
+		 * @last_rq: last request submitted on a parallel context, used
+		 * to insert submit fences between requests in the parallel
+		 * context
+		 */
+		//struct i915_request *last_rq;
+		void *last_rq;
+		/**
+		 * @fence_context: fence context composite fence when doing
+		 * parallel submission
+		 */
+		u64 fence_context;
+		/**
+		 * @seqno: seqno for composite fence when doing parallel
+		 * submission
+		 */
+		u32 seqno;
+		/** @number_children: number of children if parent */
+		u8 number_children;
+		/** @child_index: index into child_list if child */
+		u8 child_index;
+		/** @guc: GuC specific members for parallel submission */
+		struct {
+			/** @wqi_head: cached head pointer in work queue */
+			u16 wqi_head;
+			/** @wqi_tail: cached tail pointer in work queue */
+			u16 wqi_tail;
+			/** @wq_head: pointer to the actual head in work queue */
+			u32 *wq_head;
+			/** @wq_tail: pointer to the actual head in work queue */
+			u32 *wq_tail;
+			/** @wq_status: pointer to the status in work queue */
+			u32 *wq_status;
+
+			/**
+			 * @parent_page: page in context state (ce->state) used
+			 * by parent for work queue, process descriptor
+			 */
+			u8 parent_page;
+		} guc;
+	} parallel;
+
+
+};
+
+
+
+struct i915_priolist {
+	struct list_head requests;
+	struct rb_node node;
+	int priority;
+};
+
+
+
+
 struct intel_guc {
 	
 	struct intel_gt *gt;
@@ -9251,17 +9801,23 @@ struct intel_guc {
 	//struct dentry *dbgfs_node;
 
 	/** @sched_engine: Global engine used to submit requests to GuC */
-	//struct i915_sched_engine *sched_engine;
+	struct i915_sched_engine *sched_engine;
 	/**
 	 * @stalled_request: if GuC can't process a request for any reason, we
 	 * save it until GuC restarts processing. No other request can be
 	 * submitted until the stalled request is processed.
 	 */
-//	struct i915_request *stalled_request;
+	struct i915_request *stalled_request;
 	/**
 	 * @submission_stall_reason: reason why submission is stalled
 	 */
-
+	enum {
+		STALL_NONE,
+		STALL_REGISTER_CONTEXT,
+		STALL_MOVE_LRC_TAIL,
+		STALL_ADD_REQUEST,
+	} submission_stall_reason;
+	
 	/* intel_guc_recv interrupt related state */
 	/** @irq_lock: protects GuC irq state */
 	spinlock_t irq_lock;
@@ -10128,7 +10684,7 @@ static const struct __ext_steer_reg xehpg_extregs[] = {
 #define   DMA_ADDR_SPACE_MASK			REG_GENMASK(20, 16)
 #define   DMA_ADDRESS_SPACE_GGTT		REG_FIELD_PREP(DMA_ADDR_SPACE_MASK, 8)
 
-#define CTB_DESC_SIZE		ALIGN(sizeof(struct guc_ct_buffer_desc), SZ_2K)
+#define CTB_DESC_SIZE		ALIGN2(sizeof(struct guc_ct_buffer_desc), SZ_2K)
 #define CTB_H2G_BUFFER_SIZE	(SZ_4K)
 #define CTB_G2H_BUFFER_SIZE	(4 * CTB_H2G_BUFFER_SIZE)
 #define G2H_ROOM_BUFFER_SIZE	(CTB_G2H_BUFFER_SIZE / 4)
@@ -10137,9 +10693,9 @@ static const struct __ext_steer_reg xehpg_extregs[] = {
 
 #define KTIME_MAX			((s64)~((u64)1 << 63))
 
-#define bitmap_size(nbits)	(ALIGN(nbits, BITS_PER_LONG) / BITS_PER_BYTE)
+#define bitmap_size(nbits)	(ALIGN2(nbits, BITS_PER_LONG) / BITS_PER_BYTE)
 
-static void *calloc(size_t size, size_t nmemb)
+static inline void *calloc(size_t size, size_t nmemb)
 {
 	size_t x = size * nmemb;
 
@@ -10272,10 +10828,7 @@ static inline int intel_guc_sched_disable_gucid_threshold_max(struct intel_guc *
 
 #define	ENOKEY		126	/* Required key not available */
 
-static inline void atomic_set(atomic_t *v, int i)
-{
-		v->counter = i;
-}
+
 
 #define GEN6_GFXPAUSE				_MMIO(0xa000)
 #define GEN6_RPNSWREQ				_MMIO(0xa008)
@@ -10455,266 +11008,7 @@ static const union intel_engine_tlb_inv_reg xehp_regs[] = {
 };
 
 
-struct callback_head {
-	struct callback_head *next;
-	void (*func)(struct callback_head *head);
-} __attribute__((aligned(sizeof(void *))));
-#define rcu_head callback_head
 
-typedef struct refcount_struct {
-	atomic_t refs;
-} refcount_t;
-
-struct kref {
-	refcount_t refcount;
-};
-
-#define __intel_context_inflight(engine) ptr_mask_bits(engine, 3)
-#define __intel_context_inflight_count(engine) ptr_unmask_bits(engine, 3)
-#define intel_context_inflight(ce) \
-	__intel_context_inflight(READ_ONCE((ce)->inflight))
-#define intel_context_inflight_count(ce) \
-	__intel_context_inflight_count(READ_ONCE((ce)->inflight))
-#define CONTEXT_BARRIER_BIT		0
-#define CONTEXT_ALLOC_BIT		1
-#define CONTEXT_INIT_BIT		2
-#define CONTEXT_VALID_BIT		3
-#define CONTEXT_CLOSED_BIT		4
-#define CONTEXT_USE_SEMAPHORES		5
-#define CONTEXT_BANNED			6
-#define CONTEXT_FORCE_SINGLE_SUBMISSION	7
-#define CONTEXT_NOPREEMPT		8
-#define CONTEXT_LRCA_DIRTY		9
-#define CONTEXT_GUC_INIT		10
-#define CONTEXT_PERMA_PIN		11
-#define CONTEXT_IS_PARKING		12
-#define CONTEXT_EXITING			13
-#define CONTEXT_LOW_LATENCY		14
-#define CONTEXT_OWN_STATE		15
-#define GUC_CLIENT_PRIORITY_KMD_HIGH	0
-#define GUC_CLIENT_PRIORITY_HIGH	1
-#define GUC_CLIENT_PRIORITY_KMD_NORMAL	2
-#define GUC_CLIENT_PRIORITY_NORMAL	3
-#define GUC_CLIENT_PRIORITY_NUM		4
-
-struct intel_context {
-
-	union {
-		struct kref ref; /* no kref_get_unless_zero()! */
-		struct rcu_head rcu;
-	};
-
-	struct intel_engine_cs *engine;
-	struct intel_engine_cs *inflight;
-
-
-	//struct i915_address_space *vm;
-	//struct i915_gem_context __rcu *gem_context;
-
-	//struct file *default_state;
-
-	struct list_head signal_link; /* Accessed under RCU */
-	struct list_head signals; /* Guarded by signal_lock */
-	spinlock_t signal_lock; /* protects signals, the list of requests */
-
-	struct i915_vma *state;
-	u32 ring_size;
-	//struct intel_ring *ring;
-	//struct intel_timeline *timeline;
-	//intel_wakeref_t wakeref;
-
-	unsigned long flags;
-
-
-	struct {
-		u64 timeout_us;
-	} watchdog;
-
-	u32 *lrc_reg_state;
-	union {
-		struct {
-			u32 lrca;
-			u32 ccid;
-		};
-		u64 desc;
-	} lrc;
-	u32 tag; /* cookie passed to HW to track this context on submission */
-
-	/** stats: Context GPU engine busyness tracking. */
-	/*struct intel_context_stats {
-		u64 active;
-
-		struct {
-			struct ewma_runtime avg;
-			u64 total;
-			u32 last;
-			I915_SELFTEST_DECLARE(u32 num_underflow);
-			I915_SELFTEST_DECLARE(u32 max_underflow);
-		} runtime;
-	} stats;*/
-
-	unsigned int active_count; /* protected by timeline->mutex */
-
-	atomic_t pin_count;
-	//struct mutex pin_mutex; /* guards pinning and associated on-gpuing */
-
-	/**
-	 * active: Active tracker for the rq activity (inc. external) on this
-	 * intel_context object.
-	 */
-	//struct i915_active active;
-
-	//const struct intel_context_ops *ops;
-
-	/** sseu: Control eu/slice partitioning */
-	struct intel_sseu sseu;
-
-	/**
-	 * pinned_contexts_link: List link for the engine's pinned contexts.
-	 * This is only used if this is a perma-pinned kernel context and
-	 * the list is assumed to only be manipulated during driver load
-	 * or unload time so no mutex protection currently.
-	 */
-	struct list_head pinned_contexts_link;
-
-	u8 wa_bb_page; /* if set, page num reserved for context workarounds */
-
-	struct {
-		/** @lock: protects everything in guc_state */
-		spinlock_t lock;
-		/**
-		 * @sched_state: scheduling state of this context using GuC
-		 * submission
-		 */
-		u32 sched_state;
-		/*
-		 * @fences: maintains a list of requests that are currently
-		 * being fenced until a GuC operation completes
-		 */
-		struct list_head fences;
-		/**
-		 * @blocked: fence used to signal when the blocking of a
-		 * context's submissions is complete.
-		 */
-		//struct i915_sw_fence blocked;
-		/** @requests: list of active requests on this context */
-		struct list_head requests;
-		/** @prio: the context's current guc priority */
-		u8 prio;
-		/**
-		 * @prio_count: a counter of the number requests in flight in
-		 * each priority bucket
-		 */
-		u32 prio_count[GUC_CLIENT_PRIORITY_NUM];
-		/**
-		 * @sched_disable_delay_work: worker to disable scheduling on this
-		 * context
-		 */
-		//struct delayed_work sched_disable_delay_work;
-	} guc_state;
-
-	struct {
-		/**
-		 * @id: handle which is used to uniquely identify this context
-		 * with the GuC, protected by guc->submission_state.lock
-		 */
-		u16 id;
-		/**
-		 * @ref: the number of references to the guc_id, when
-		 * transitioning in and out of zero protected by
-		 * guc->submission_state.lock
-		 */
-		atomic_t ref;
-		/**
-		 * @link: in guc->guc_id_list when the guc_id has no refs but is
-		 * still valid, protected by guc->submission_state.lock
-		 */
-		struct list_head link;
-	} guc_id;
-
-	/**
-	 * @destroyed_link: link in guc->submission_state.destroyed_contexts, in
-	 * list when context is pending to be destroyed (deregistered with the
-	 * GuC), protected by guc->submission_state.lock
-	 */
-	struct list_head destroyed_link;
-
-	/** @parallel: sub-structure for parallel submission members */
-	struct {
-		union {
-			/**
-			 * @child_list: parent's list of children
-			 * contexts, no protection as immutable after context
-			 * creation
-			 */
-			struct list_head child_list;
-			/**
-			 * @child_link: child's link into parent's list of
-			 * children
-			 */
-			struct list_head child_link;
-		};
-		/** @parent: pointer to parent if child */
-		struct intel_context *parent;
-		/**
-		 * @last_rq: last request submitted on a parallel context, used
-		 * to insert submit fences between requests in the parallel
-		 * context
-		 */
-		//struct i915_request *last_rq;
-		void *last_rq;
-		/**
-		 * @fence_context: fence context composite fence when doing
-		 * parallel submission
-		 */
-		u64 fence_context;
-		/**
-		 * @seqno: seqno for composite fence when doing parallel
-		 * submission
-		 */
-		u32 seqno;
-		/** @number_children: number of children if parent */
-		u8 number_children;
-		/** @child_index: index into child_list if child */
-		u8 child_index;
-		/** @guc: GuC specific members for parallel submission */
-		struct {
-			/** @wqi_head: cached head pointer in work queue */
-			u16 wqi_head;
-			/** @wqi_tail: cached tail pointer in work queue */
-			u16 wqi_tail;
-			/** @wq_head: pointer to the actual head in work queue */
-			u32 *wq_head;
-			/** @wq_tail: pointer to the actual head in work queue */
-			u32 *wq_tail;
-			/** @wq_status: pointer to the status in work queue */
-			u32 *wq_status;
-
-			/**
-			 * @parent_page: page in context state (ce->state) used
-			 * by parent for work queue, process descriptor
-			 */
-			u8 parent_page;
-		} guc;
-	} parallel;
-
-
-};
-
-#define SCHED_STATE_POLICY_REQUIRED			BIT(7)
-#define SLPC_CTX_FREQ_REQ_IS_COMPUTE		REG_BIT(28)
-#define SLPC_OPTIMIZED_STRATEGY_COMPUTE		REG_BIT(0)
-
-
-static void atomic_inc(atomic_t *v)
-{
-	v++;
-}
-
-static void atomic_dec(atomic_t *v)
-{
-	v--;
-}
 
 #define GEN12_CTX_PRIORITY_MASK			GENMASK(10, 9)
 #define GEN12_CTX_PRIORITY_HIGH			FIELD_PREP(GEN12_CTX_PRIORITY_MASK, 2)
@@ -10791,7 +11085,9 @@ struct parent_scratch {
 #define SCHED_STATE_REGISTERED				BIT(6)
 
 
-
+#define RB_ROOT (struct rb_root) { NULL, }
+#define RB_ROOT_CACHED (struct rb_root_cached) { {NULL, }, NULL }
+#define RB_ROOT_LINKED (struct rb_root_linked) { {NULL, }, NULL }
 
 
 

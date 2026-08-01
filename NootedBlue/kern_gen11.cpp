@@ -506,8 +506,8 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			 {"__ZN13IGHardwareGuC13initDoorbellsEv",dovoid},
 			 {"__ZN5IGGuC16ringAllDoorbellsEv",dovoid},
 			 {"__ZN5IGGuC12ringDoorbellE10IGHwCsType",dovoid},
-			 {"__ZN13IGHardwareGuC17reacquireDoorbellEj",dozero},
-			 {"__ZN20IGHardwareRingBuffer12submitToRingEv.cold.1",dovoid},
+			 {"__ZN13IGHardwareGuC17reacquireDoorbellEj",reacquireDoorbell},
+			 //{"__ZN20IGHardwareRingBuffer12submitToRingEv.cold.1",dovoid},
 			 
 			 
 			 //{"__ZN5IGGuC15canLoadFirmwareEP22IOGraphicsAccelerator2",dotrue},
@@ -1320,7 +1320,7 @@ static void _wa_add(struct i915_wa_list *wal, const struct i915_wa *wa)
 
 	if (IS_ALIGNED(wal->count, grow)) { /* Either uninitialized or full. */
 		struct i915_wa *list;
-		size_t new_size = ALIGN(wal->count + 1, grow) * sizeof(struct i915_wa);
+		size_t new_size = ALIGN2(wal->count + 1, grow) * sizeof(struct i915_wa);
 		size_t old_size = wal->count * sizeof(struct i915_wa);
 
 		list = (struct i915_wa *)IOMalloc(new_size);
@@ -1535,9 +1535,9 @@ static void
 wa_14011060649(struct intel_gt *gt, struct i915_wa_list *wal)
 {
 	struct intel_engine_cs *engine;
-	int id;
+	int id2;
 
-	for_each_engine(engine, gt, id) {
+	for_each_engine(engine, gt, id2) {
 		if (engine->classb != VIDEO_DECODE_CLASS ||
 			(engine->instance % 2))
 			continue;
@@ -2243,7 +2243,7 @@ void intel_wopcm_init(struct intel_gt *gt, u32 guc_fw_size)
 	}
 
 	guc_wopcm_base = huc_fw_size + WOPCM_RESERVED_SIZE;
-	guc_wopcm_base = ALIGN(guc_wopcm_base, GUC_WOPCM_OFFSET_ALIGNMENT);
+	guc_wopcm_base = ALIGN2(guc_wopcm_base, GUC_WOPCM_OFFSET_ALIGNMENT);
 
 	guc_wopcm_base = min(guc_wopcm_base, wopcm_size - ctx_rsvd);
 
@@ -2390,6 +2390,11 @@ long  Gen11::fgetVirtualAddress(void *that)
 {
 	//return *((uint64_t *)that + 7);
 	return FunctionCast(fgetVirtualAddress, callback->ofgetVirtualAddress)( that);
+}
+
+short Gen11::reacquireDoorbell(void *that,uint param_1)
+{
+	return 0x100;
 }
 
 uint64_t  Gen11::IGHashTablecontains(void *that,uint *param_1)
@@ -3285,7 +3290,7 @@ static void __sprint_engine_name(struct intel_engine_cs *engine)
 
 
 
-static u32 get_reset_domain(u8 ver, enum intel_engine_id id)
+static u32 get_reset_domain(u8 ver, enum intel_engine_id id2)
 {
 	u32 reset_domain;
 
@@ -3321,7 +3326,7 @@ static u32 get_reset_domain(u8 ver, enum intel_engine_id id)
 		};
 		//GEM_BUG_ON(id >= ARRAY_SIZE(engine_reset_domains) ||
 			 //  !engine_reset_domains[id]);
-		reset_domain = engine_reset_domains[id];
+		reset_domain = engine_reset_domains[id2];
 	} else {
 		static const u32 engine_reset_domains[] = {
 			[RCS0]  = GEN6_GRDOM_RENDER,
@@ -3332,7 +3337,7 @@ static u32 get_reset_domain(u8 ver, enum intel_engine_id id)
 		};
 		//GEM_BUG_ON(id >= ARRAY_SIZE(engine_reset_domains) ||
 			//   !engine_reset_domains[id]);
-		reset_domain = engine_reset_domains[id];
+		reset_domain = engine_reset_domains[id2];
 	}
 
 	return reset_domain;
@@ -3561,9 +3566,9 @@ static void __setup_engine_capabilities(struct intel_engine_cs *engine)
 static void intel_setup_engine_capabilities(struct intel_gt *gt)
 {
 	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
+	enum intel_engine_id id2;
 
-	for_each_engine(engine, gt, id)
+	for_each_engine(engine, gt, id2)
 		__setup_engine_capabilities(engine);
 }
 
@@ -3847,13 +3852,40 @@ static int intel_engine_init_tlb_invalidation(struct intel_engine_cs *engine)
 	return 0;
 }
 
+struct i915_sched_engine *
+i915_sched_engine_create(unsigned int subclass)
+{
+	struct i915_sched_engine *sched_engine;
+
+	sched_engine = (struct i915_sched_engine *)IOMalloc(sizeof(*sched_engine));
+	if (!sched_engine)
+		return NULL;
+
+	//kref_init(&sched_engine->ref);
+	atomic_set(&sched_engine->ref.refcount.refs, 1);
+
+	sched_engine->queue = RB_ROOT_CACHED;
+	sched_engine->queue_priority_hint = INT_MIN;
+	//sched_engine->destroy = default_destroy;
+	//sched_engine->disabled = default_disabled;
+
+	INIT_LIST_HEAD(&sched_engine->requests);
+	INIT_LIST_HEAD(&sched_engine->hold);
+
+	//spin_lock_init(&sched_engine->lock);
+	//lockdep_set_subclass(&sched_engine->lock, subclass);
+
+
+	return sched_engine;
+}
+
 void Gen11::engines()
 {
 	struct drm_i915_private *i915 = NBlue::callback->i915b;
 	struct intel_gt *gt=to_gt(i915);
 	struct intel_display *display=i915->display;
 	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
+	enum intel_engine_id id2;
 	struct intel_guc *guc = gt_to_guc(gt);
 	struct intel_guc_ct *ct=&guc->ct;
 	
@@ -3874,10 +3906,13 @@ void Gen11::engines()
 	intel_gt_init_workarounds(gt);
 	
 	//engine_setup_common
-	for_each_engine(engine, gt, id) {
+	for_each_engine(engine, gt, id2) {
 		
 		intel_engine_init_tlb_invalidation(engine);
 		engine->sseu =	intel_sseu_from_device_info(&engine->gt->info.sseu);
+		
+		engine->sched_engine = i915_sched_engine_create(0);
+		engine->sched_engine->private_data = engine;
 		
 		intel_engine_init_workarounds(engine);
 		intel_engine_init_whitelist(engine);
@@ -3910,6 +3945,7 @@ void Gen11::engines()
 	guc->submission_selected = true;
 	
 	
+	
 }
 
 
@@ -3923,7 +3959,7 @@ static void gen11_rc6_enable(void *that)
 	struct intel_guc *guc = gt_to_guc(gt);
 	struct intel_engine_cs *engine;
 	
-	enum intel_engine_id id;
+	enum intel_engine_id id2;
 	u32 pg_enable;
 	int i;
 
@@ -3937,7 +3973,7 @@ static void gen11_rc6_enable(void *that)
 
 		intel_de_write(display, GEN6_RC_EVALUATION_INTERVAL, 125000);
 		intel_de_write(display, GEN6_RC_IDLE_HYSTERSIS, 25);
-		for_each_engine(engine, gt, id)
+		for_each_engine(engine, gt, id2)
 		intel_de_write(display, RING_MAX_IDLE(engine->mmio_base), 10);
 
 		intel_de_write(display, GUC_MAX_IDLE_COUNT, 0xA);
@@ -3977,13 +4013,15 @@ static void gen11_rc6_enable(void *that)
 	Gen11::callback->SafeForceWake(that, false, 7);
 }
 
+
+
 unsigned long  Gen11::startGraphicsEngine(void *that)
 {
 	struct drm_i915_private *i915 = NBlue::callback->i915b;
 	struct intel_gt *gt=to_gt(i915);
 	struct intel_display *display=i915->display;
 	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
+	enum intel_engine_id id2;
 	
 	if (!seng)
 	{
@@ -3995,11 +4033,13 @@ unsigned long  Gen11::startGraphicsEngine(void *that)
 	//intel_gt_resume
 	wa_list_apply(&gt->wa_list);
 	
-	for_each_engine(engine, gt, id) {
+	for_each_engine(engine, gt, id2) {
+		
 		intel_engine_apply_workarounds(engine);
 		intel_engine_apply_whitelist(engine);
 		//intel_engine_emit_ctx_wa
 		wa_list_apply(&engine->ctx_wa_list); //???
+		
 	}
 	
 	gen11_rc6_enable(that);
@@ -8949,7 +8989,7 @@ __mmio_reg_add(struct temp_regset *regset, struct guc_mmio_reg *reg)
 	struct guc_mmio_reg *slot;
 
 	if (pos >= regset->storage_max) {
-		size_t new_size  = ALIGN((pos + 1) * sizeof(struct guc_mmio_reg), PAGE_SIZE);
+		size_t new_size  = ALIGN2((pos + 1) * sizeof(struct guc_mmio_reg), PAGE_SIZE);
 		size_t old_bytes = regset->storage_max * sizeof(*slot);
 
 		struct guc_mmio_reg *r =
@@ -9219,20 +9259,20 @@ static long guc_mmio_reg_state_create(struct intel_guc *guc)
 {
 	struct intel_gt *gt = guc->gt;
 	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
+	enum intel_engine_id id2;
 	struct temp_regset temp_set = {};
 	long total = 0;
 	long ret;
 
-	for_each_engine(engine, gt, id) {
+	for_each_engine(engine, gt, id2) {
 		u32 used = temp_set.storage_used;
 
 		ret = guc_mmio_regset_init(&temp_set, engine);
 		if (ret < 0)
 			goto fail_regset_init;
 
-		guc->ads_regset_count[id] = temp_set.storage_used - used;
-		total += guc->ads_regset_count[id];
+		guc->ads_regset_count[id2] = temp_set.storage_used - used;
+		total += guc->ads_regset_count[id2];
 	}
 
 	guc->ads_regset = temp_set.storage;
@@ -9931,14 +9971,14 @@ static void guc_mapping_table_init(struct intel_gt *gt,
 {
 	unsigned int i, j;
 	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
+	enum intel_engine_id id2;
 
 	for (i = 0; i < GUC_MAX_ENGINE_CLASSES; ++i)
 		for (j = 0; j < GUC_MAX_INSTANCES_PER_CLASS; ++j)
 			info_map_write(info_map, mapping_table[i][j],
 					   GUC_MAX_INSTANCES_PER_CLASS);
 
-	for_each_engine(engine, gt, id) {
+	for_each_engine(engine, gt, id2) {
 		u8 guc_class = engine_class_to_guc_class(engine->classb);
 
 		info_map_write(info_map, mapping_table[guc_class][ilog2(engine->logical_mask)],
@@ -9950,7 +9990,7 @@ static void guc_mmio_reg_state_init(struct intel_guc *guc)
 {
 	struct intel_gt *gt = guc->gt;
 	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
+	enum intel_engine_id id2;
 	u32 addr_ggtt, offset;
 
 	offset = guc_ads_regset_offset(guc);
@@ -9959,8 +9999,8 @@ static void guc_mmio_reg_state_init(struct intel_guc *guc)
 	iosys_map_memcpy_to(&guc->ads_map, offset, guc->ads_regset,
 				guc->ads_regset_size);
 
-	for_each_engine(engine, gt, id) {
-		u32 count = guc->ads_regset_count[id];
+	for_each_engine(engine, gt, id2) {
+		u32 count = guc->ads_regset_count[id2];
 		u8 guc_class;
 
 		//GEM_BUG_ON(engine->instance >= GUC_MAX_INSTANCES_PER_CLASS);
@@ -11116,7 +11156,7 @@ void Gen11::deregisterCommandTransportBuffers(void *that)
 
 
 
-uint64_t Gen11::allocContextId(void *that, uint64_t reserved, bool clearContext)
+uint64_t Gen11::allocContextId(void *that, uint64_t res, bool clearContext)
 {
 	uint32_t contextId = GUCCtx_INVALID_ID;
 	uint32_t maxCount = getMember<uint32_t>(that, 0x80);
@@ -11213,7 +11253,7 @@ static void prepare_context_registration_info_v70(struct intel_context *ce,
 {
 	struct intel_engine_cs *engine = ce->engine;
 	struct intel_guc *guc = gt_to_guc(engine->gt);
-	u32 ctx_id = ce->guc_id.id;
+	u32 ctx_id = ce->guc_id.id2;
 
 	//GEM_BUG_ON(!engine->mask);
 
@@ -11448,7 +11488,7 @@ static int guc_context_policy_init_v70(struct intel_context *ce, bool loop)
 	if (ce->flags & BIT(CONTEXT_LOW_LATENCY))
 		slpc_ctx_freq_req |= SLPC_CTX_FREQ_REQ_IS_COMPUTE;
 
-	__guc_context_policy_start_klv(&policy, ce->guc_id.id);
+	__guc_context_policy_start_klv(&policy, ce->guc_id.id2);
 
 	__guc_context_policy_add_priority(&policy, ce->guc_state.prio);
 	__guc_context_policy_add_execution_quantum(&policy, execution_quantum);
@@ -11567,7 +11607,7 @@ uint64_t Gen11::AttachContextDescToGucContext(void *that, void *desc)
 	return apple_result;
 }
 
-uint64_t Gen11::DetachContextDescFromGucContext(void *that, void *desc)
+void Gen11::DetachContextDescFromGucContext(void *that, void *desc)
 {
 	void* hashTable = getMember<void*>(that, 0xA30);
 	uint32_t gpu_address = getMember<uint32_t>(desc, 0x00);
@@ -11597,7 +11637,7 @@ uint64_t Gen11::DetachContextDescFromGucContext(void *that, void *desc)
 
 	}
 
-	return FunctionCast(DetachContextDescFromGucContext, callback->oDetachContextDescFromGucContext)(that, desc);
+	FunctionCast(DetachContextDescFromGucContext, callback->oDetachContextDescFromGucContext)(that, desc);
 }
 
 

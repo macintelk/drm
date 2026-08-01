@@ -111,6 +111,15 @@ struct list_head {
 	struct list_head *next, *prev;
 };
 
+struct llist_head {
+	struct llist_node *first;
+};
+
+struct llist_node {
+	struct llist_node *next;
+};
+
+
 inline unsigned int REG_MASKED_FIELD(unsigned int mask, unsigned int value)
 {
 	// We add '& 0xFFFF' to the value as a runtime safety net
@@ -681,6 +690,30 @@ struct i915_vma {
 	struct drm_mm_node node;
 	void *obj;
 };
+
+struct hlist_head {
+	struct hlist_node *first;
+};
+
+struct hlist_node {
+	struct hlist_node *next, **pprev;
+};
+
+
+#define DEFINE_HASHTABLE(name, bits)						\
+	struct hlist_head name[1 << (bits)] =					\
+			{ [0 ... ((1 << (bits)) - 1)] = HLIST_HEAD_INIT }
+
+#define DEFINE_READ_MOSTLY_HASHTABLE(name, bits)				\
+	struct hlist_head name[1 << (bits)] __read_mostly =			\
+			{ [0 ... ((1 << (bits)) - 1)] = HLIST_HEAD_INIT }
+
+#define DECLARE_HASHTABLE(name, bits)                                   	\
+	struct hlist_head name[1 << (bits)]
+
+#define HASH_SIZE(name) (ARRAY_SIZE(name))
+#define HASH_BITS(name) ilog2(HASH_SIZE(name))
+
 
 
 #ifdef __cplusplus

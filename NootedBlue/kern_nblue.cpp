@@ -1558,11 +1558,11 @@ static const struct subplatform_desc *
 find_subplatform_desc( const struct platform_desc *desc)
 {
 	const struct subplatform_desc *sp;
-	const u16 *id;
+	const u16 *id2;
 
 	for (sp = desc->subplatforms; sp && sp->pciidlist; sp++)
-		for (id = sp->pciidlist; *id; id++)
-			if (*id == NBlue::callback->deviceId)
+		for (id2 = sp->pciidlist; *id2; id2++)
+			if (*id2 == NBlue::callback->deviceId)
 				return sp;
 
 	return NULL;
