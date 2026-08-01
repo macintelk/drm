@@ -842,7 +842,23 @@ public:
 	static void deregisterCommandTransportBuffers(void *that);
 	mach_vm_address_t oderegisterCommandTransportBuffers {};
 	
+	static uint64_t allocContextId(void *that, uint64_t reserved, bool clearContext);
+	mach_vm_address_t oallocContextId {};
 	
+	static uint64_t AttachContextDescToGucContext(void *that, void *desc);
+	mach_vm_address_t oAttachContextDescToGucContext {};
+	
+	static void releaseUkContext(void *that, uint32_t context_id);
+	mach_vm_address_t oreleaseUkContext {};
+	
+	static uint64_t DetachContextDescFromGucContext(void *that, void *desc);
+	mach_vm_address_t oDetachContextDescFromGucContext {};
+	
+	static uint64_t  IGHashTablecontains(void *that,uint *param_1);
+	mach_vm_address_t oIGHashTablecontains {};
+	
+	static long  IGHashTableoperator(void *that,uint *param_1);
+	mach_vm_address_t oIGHashTableoperator {};
 	
 	
 public:

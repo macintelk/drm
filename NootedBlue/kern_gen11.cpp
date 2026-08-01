@@ -502,13 +502,13 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			 {"__ZN13IGHardwareGuC15acquireDoorbellEP35UK_GEN11_GUC_CONTEXT_DESCRIPTOR_RECb",acquireDoorbell, this->oacquireDoorbell},
 			 {"__ZN13IGHardwareGuC15releaseDoorbellEP35UK_GEN11_GUC_CONTEXT_DESCRIPTOR_REC",releaseDoorbell, this->oreleaseDoorbell},
 			 */
-			 /*
+			 
 			 {"__ZN13IGHardwareGuC13initDoorbellsEv",dovoid},
 			 {"__ZN5IGGuC16ringAllDoorbellsEv",dovoid},
 			 {"__ZN5IGGuC12ringDoorbellE10IGHwCsType",dovoid},
 			 {"__ZN13IGHardwareGuC17reacquireDoorbellEj",dozero},
 			 {"__ZN20IGHardwareRingBuffer12submitToRingEv.cold.1",dovoid},
-			 */
+			 
 			 
 			 //{"__ZN5IGGuC15canLoadFirmwareEP22IOGraphicsAccelerator2",dotrue},
 			 
@@ -527,6 +527,19 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			 {"__ZN13IGHardwareGuC13loadGuCBinaryEv",setupContextPool, this->osetupContextPool},
 			 {"__ZN13IGHardwareGuC31registerCommandTransportBuffersEv",registerCommandTransportBuffers, this->oregisterCommandTransportBuffers},
 			 {"__ZN13IGHardwareGuC33deregisterCommandTransportBuffersEv",deregisterCommandTransportBuffers, this->oderegisterCommandTransportBuffers},
+			 
+			 {"__ZNK11IGHashTableIjj12IGHashTraitsIjE25IGIOMallocAllocatorPolicyE8containsERKj",IGHashTablecontains, this->oIGHashTablecontains},
+			 {"__ZN11IGHashTableIjj12IGHashTraitsIjE25IGIOMallocAllocatorPolicyEixERKj",IGHashTableoperator, this->oIGHashTableoperator},
+			 
+			 {"__ZN13IGHardwareGuC31DetachContextDescFromGucContextERK21SGfxContextDescriptor",DetachContextDescFromGucContext, this->oDetachContextDescFromGucContext},
+			 {"__ZN13IGHardwareGuC16releaseUkContextEj",releaseUkContext, this->oreleaseUkContext},
+			 {"__ZN13IGHardwareGuC29AttachContextDescToGucContextERK21SGfxContextDescriptor",AttachContextDescToGucContext, this->oAttachContextDescToGucContext},
+			 {"__ZN13IGHardwareGuC14allocContextIdEyb",allocContextId, this->oallocContextId},
+			 
+			 
+			 
+			 
+			 
 			 
 			 
 		 };
@@ -2384,6 +2397,16 @@ long  Gen11::fgetVirtualAddress(void *that)
 	//return *((uint64_t *)that + 7);
 	return FunctionCast(fgetVirtualAddress, callback->ofgetVirtualAddress)( that);
 }
+
+uint64_t  Gen11::IGHashTablecontains(void *that,uint *param_1)
+{
+	return FunctionCast(IGHashTablecontains, callback->oIGHashTablecontains)( that,param_1);
+}
+long  Gen11::IGHashTableoperator(void *that,uint *param_1)
+{
+	return FunctionCast(IGHashTableoperator, callback->oIGHashTableoperator)( that,param_1);
+}
+
 uint64_t Gen11::fgetGPUVirtualAddress(void *that)
 {
 	return FunctionCast(fgetGPUVirtualAddress, callback->ofgetGPUVirtualAddress)( that);
@@ -3773,6 +3796,78 @@ static void gen11_sseu_device_status(struct intel_gt *gt,
 }
 
 
+
+
+static int intel_engine_init_tlb_invalidation(struct intel_engine_cs *engine)
+{
+
+	static const union intel_engine_tlb_inv_reg gen12_regs[] = {
+		[RENDER_CLASS].reg		= GEN12_GFX_TLB_INV_CR,
+		[VIDEO_DECODE_CLASS].reg	= GEN12_VD_TLB_INV_CR,
+		[VIDEO_ENHANCEMENT_CLASS].reg	= GEN12_VE_TLB_INV_CR,
+		[COPY_ENGINE_CLASS].reg		= GEN12_BLT_TLB_INV_CR,
+		[COMPUTE_CLASS].reg		= GEN12_COMPCTX_TLB_INV_CR,
+	};
+	static const union intel_engine_tlb_inv_reg xehp_regs[] = {
+		[RENDER_CLASS].mcr_reg		  = XEHP_GFX_TLB_INV_CR,
+		[VIDEO_DECODE_CLASS].mcr_reg	  = XEHP_VD_TLB_INV_CR,
+		[VIDEO_ENHANCEMENT_CLASS].mcr_reg = XEHP_VE_TLB_INV_CR,
+		[COPY_ENGINE_CLASS].mcr_reg	  = XEHP_BLT_TLB_INV_CR,
+		[COMPUTE_CLASS].mcr_reg		  = XEHP_COMPCTX_TLB_INV_CR,
+	};
+	
+	struct drm_i915_private *i915 = engine->i915;
+	const unsigned int instance = engine->instance;
+	const unsigned int classb = engine->classb;
+	const union intel_engine_tlb_inv_reg *regs;
+	union intel_engine_tlb_inv_reg reg;
+	unsigned int num = 0;
+	u32 val;
+
+
+	if (engine->gt->type == GT_MEDIA) {
+
+	} else {
+		if (GRAPHICS_VER_FULL(i915) == IP_VER(12, 0) ||
+			   GRAPHICS_VER_FULL(i915) == IP_VER(12, 10)) {
+			regs = gen12_regs;
+			num = ARRAY_SIZE(gen12_regs);
+		}
+	}
+
+	if (!num)
+		return -ENODEV;
+
+	if (
+				classb >= num ||
+				(!regs[classb].reg &&
+				 !regs[classb].mcr_reg))
+		return -ERANGE;
+
+	reg = regs[classb];
+
+
+		val = instance;
+
+
+	val = BIT(val);
+
+	engine->tlb_inv.mcr = regs == xehp_regs;
+	engine->tlb_inv.reg = reg;
+	engine->tlb_inv.done = val;
+
+	if (GRAPHICS_VER(i915) >= 12 &&
+		(engine->classb == VIDEO_DECODE_CLASS ||
+		 engine->classb == VIDEO_ENHANCEMENT_CLASS ||
+		 engine->classb == COMPUTE_CLASS ||
+		 engine->classb == OTHER_CLASS))
+		engine->tlb_inv.request = REG_MASKED_FIELD_ENABLE(val);
+	else
+		engine->tlb_inv.request = val;
+
+	return 0;
+}
+
 void Gen11::engines()
 {
 	struct drm_i915_private *i915 = NBlue::callback->i915b;
@@ -3799,8 +3894,10 @@ void Gen11::engines()
 	
 	intel_gt_init_workarounds(gt);
 	
+	//engine_setup_common
 	for_each_engine(engine, gt, id) {
 		
+		intel_engine_init_tlb_invalidation(engine);
 		engine->sseu =	intel_sseu_from_device_info(&engine->gt->info.sseu);
 		
 		intel_engine_init_workarounds(engine);
@@ -10270,6 +10367,7 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	__reset_guc(gt);
 	
 	//fw = getFWByName("tgl_guc_35.2.0.bin");
+	//fw = getFWByName("tgl_guc_69.0.3.bin");
 	fw = getFWByName("tgl_guc_70.1.1.bin");
 	
 	if (!fw.data || fw.size == 0) return 0;
@@ -10674,7 +10772,6 @@ uint64_t Gen11::setupContextPool(void *that,int param_1)
 	
 	//intel_guc_ct_init
 	blob_size = 2 * CTB_DESC_SIZE + CTB_H2G_BUFFER_SIZE + CTB_G2H_BUFFER_SIZE;
-	//blob_size = param_1 * 0x5b00 + 0xfffU & 0xfffff000;
 	//err = intel_guc_allocate_and_map_vma(guc, blob_size, &ct->vma, &blob);
 	void *t = IGSharedMappedBufferwithOptions(field_0x150, round_up(blob_size, PAGE_SIZE), 2, 0);
 	blob =(void *)fgetVirtualAddress(t);
@@ -11040,54 +11137,6 @@ void Gen11::deregisterCommandTransportBuffers(void *that)
 
 
 
-
-
-
-#define INTEL_GUC_ACTION_REGISTER_CTB               0x4505
-#define INTEL_GUC_ACTION_REGISTER_CONTEXT            0x4504
-#define INTEL_GUC_ACTION_REGISTER_CONTEXT_MULTI_LRC  0x450E
-#define INTEL_GUC_ACTION_DEREGISTER_CONTEXT          0x4506
-
-#define CONTEXT_REGISTRATION_FLAG_KMD    0x01
-#define WQ_STATUS_ACTIVE                 1
-#define WQ_SIZE              (PAGE_SIZE / 2)
-#define WQ_OFFSET            (PAGE_SIZE - WQ_SIZE)
-
-#define GUCCtx_INVALID_ID    0x400
-#define GUCCtx_ENTRY_STRIDE  0x5B00
-
-
-#define INTEL_GUC_ACTION_UPDATE_CONTEXT_POLICIES 0x4508
-
-// KLV Format: Upper 16 bits = Key ID, Lower 16 bits = Length in DWORDs
-#define MAKE_CTX_POLICY_KLV(key, len) (((key) << 16) | ((len) & 0xFFFF))
-
-// Standard Linux GuC Policy Key IDs
-#define CONTEXT_POLICY_ID_PRIORITY              1
-#define CONTEXT_POLICY_ID_EXECUTION_QUANTUM     2
-#define CONTEXT_POLICY_ID_PREEMPTION_TIMEOUT    3
-#define CONTEXT_POLICY_ID_PREEMPT_TO_IDLE       6
-
-
-struct guc_ctxt_registration_info {
-	u32 flags;
-	u32 context_idx;
-	u32 engine_class;
-	u32 engine_submit_mask;
-	u32 wq_desc_lo;
-	u32 wq_desc_hi;
-	u32 wq_base_lo;
-	u32 wq_base_hi;
-	u32 wq_size;
-	u32 hwlrca_lo;
-	u32 hwlrca_hi;
-};
-
-static const uint32_t AppleToGuC_EngineClassMap[6] = {
-	0, 1, 2, 3, 5, 4
-};
-
-
 uint64_t Gen11::allocContextId(void *that, uint64_t reserved, bool clearContext)
 {
 	uint32_t contextId = GUCCtx_INVALID_ID;
@@ -11113,18 +11162,27 @@ uint64_t Gen11::allocContextId(void *that, uint64_t reserved, bool clearContext)
 
 
 
-
 uint64_t Gen11::AttachContextDescToGucContext(void *that, void *desc)
 {
 
-	uint64_t apple_result = FunctionCast(AttachContextDescToGucContext, callback->oAttachContextDescToGucContext)(that, desc);
+	uint64_t apple_result = FunctionCast(AttachContextDescToGucContext, callback->oAttachContextDescToGucContext)(that,desc );
 	if (apple_result == 0) return 0;
 
-	void* hash_table_ptr = getMember<void*>(that, 0xA30);
-	uint32_t gpu_address = getMember<uint32_t>(desc, 0x00);
-	uint32_t hashKey = gpu_address >> 0xC;
-	uint32_t* queueDw1Ptr = IGHashTable<>::get(hash_table_ptr, &hashKey);
+	IOLock* contextLock= (IOLock*)getMember<void*>(that, 0x40);
 
+	void* hashTable = getMember<void*>(that, 0xA30);
+		uint32_t gpu_address = getMember<uint32_t>(desc, 0x00);
+		uint32_t hashKey = gpu_address >> 0xC;
+		
+		uint32_t* queueDw1Ptr = nullptr;
+		if (IGHashTablecontains(hashTable, &hashKey)) {
+			queueDw1Ptr = (uint32_t*)IGHashTableoperator(hashTable, &hashKey);
+		}
+		
+		if (queueDw1Ptr == nullptr) {
+			return apple_result;
+		}
+	
 	struct drm_i915_private *i915 = NBlue::callback->i915b;
 	struct intel_gt *gt = to_gt(i915);
 	struct intel_guc *guc = gt_to_guc(gt);
@@ -11201,9 +11259,7 @@ uint64_t Gen11::AttachContextDescToGucContext(void *that, void *desc)
 	__sync_synchronize();
 	send_ctb->desc->tail = send_ctb->tail;
 
-	void* acel = getMember<void*>(that, 0x38);
-	volatile uint32_t* ctb_notify = reinterpret_cast<volatile uint32_t*>((uint64_t)acel->mmio + 0x1901f0);
-	*ctb_notify = GUC_SEND_TRIGGER;
+	intel_guc_notify(guc);
 
 
 	uint32_t apple_priority = getMember<uint32_t>(contextBase, 0x5A70);
@@ -11240,11 +11296,60 @@ uint64_t Gen11::AttachContextDescToGucContext(void *that, void *desc)
 	__sync_synchronize();
 	send_ctb->desc->tail = send_ctb->tail;
 
-	*ctb_notify = GUC_SEND_TRIGGER;
+	intel_guc_notify(guc);
 
 	IOLockUnlock(contextLock);
 
 	return apple_result;
+}
+
+uint64_t Gen11::DetachContextDescFromGucContext(void *that, void *desc)
+{
+	void* hashTable = getMember<void*>(that, 0xA30);
+	uint32_t gpu_address = getMember<uint32_t>(desc, 0x00);
+	uint32_t hashKey = gpu_address >> 0xC;
+	
+	uint32_t* queueDw1Ptr = nullptr;
+	if (IGHashTablecontains(hashTable, &hashKey)) {
+		queueDw1Ptr = (uint32_t*)IGHashTableoperator(hashTable, &hashKey);
+	}
+	
+	if (queueDw1Ptr != nullptr) {
+		struct drm_i915_private *i915 = NBlue::callback->i915b;
+		struct intel_gt *gt = to_gt(i915);
+		struct intel_guc *guc = gt_to_guc(gt);
+		struct intel_guc_ct *ct = &guc->ct;
+		struct intel_guc_ct_buffer *send_ctb = &ct->ctbs.send;
+
+		uint8_t* poolBase = (uint8_t*)fgetVirtualAddress(getMember<void*>(that, 0x68));
+		uint64_t offset = (uint8_t*)queueDw1Ptr - poolBase;
+		
+		uint32_t contextId = (uint32_t)(offset / GUCCtx_ENTRY_STRIDE);
+
+		u32 action[2];
+		int len = 0;
+		
+		action[len++] = INTEL_GUC_ACTION_DEREGISTER_CONTEXT;
+		action[len++] = contextId;
+
+		IOLock* contextLock = (IOLock*)getMember<void*>(that, 0x40);
+		IOLockLock(contextLock);
+		
+		u32 tail = send_ctb->tail;
+		u32* cmds = send_ctb->cmds;
+		for (int i = 0; i < len; i++) {
+			cmds[(tail / 4) + i] = action[i];
+		}
+		send_ctb->tail += (len * 4);
+		__sync_synchronize();
+		send_ctb->desc->tail = send_ctb->tail;
+
+		intel_guc_notify(guc);
+
+		IOLockUnlock(contextLock);
+	}
+
+	return FunctionCast(DetachContextDescFromGucContext, callback->oDetachContextDescFromGucContext)(that, desc);
 }
 
 
@@ -11256,7 +11361,7 @@ void Gen11::releaseUkContext(void *that, uint32_t context_id)
 	struct intel_guc *guc = gt_to_guc(gt);
 	struct intel_guc_ct *ct = &guc->ct;
 	struct intel_guc_ct_buffer *send_ctb = &ct->ctbs.send;
-
+	IOLock* contextLock= (IOLock*)getMember<void*>(that, 0x40);
 
 	u32 action[2] = { INTEL_GUC_ACTION_DEREGISTER_CONTEXT, context_id };
 	
@@ -11271,9 +11376,7 @@ void Gen11::releaseUkContext(void *that, uint32_t context_id)
 	__sync_synchronize();
 	send_ctb->desc->tail = send_ctb->tail;
 
-	void* acel = getMember<void*>(that, 0x38);
-	volatile uint32_t* ctb_notify = reinterpret_cast<volatile uint32_t*>((uint64_t)acel->mmio + 0x1901f0);
-	*ctb_notify = GUC_SEND_TRIGGER;
+	intel_guc_notify(guc);
 	
 	IOLockUnlock(contextLock);
 

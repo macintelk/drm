@@ -43,7 +43,60 @@
 
 
 
+typedef int (*wait_queue_func_t)(struct wait_queue_entry *wq_entry, unsigned mode, int flags, void *key);
 
+struct spinlock_t {
+	union {
+		atomic_t val;
+
+		struct {
+			u8	locked;
+			u8	pending;
+		};
+		struct {
+			u16	locked_pending;
+			u16	tail;
+		};
+
+	};
+};
+
+struct wait_queue_entry {
+	unsigned int		flags;
+	void			*private0;
+	wait_queue_func_t	func;
+	struct list_head	entry;
+};
+
+struct wait_queue_head {
+	spinlock_t		lock;
+	struct list_head	head;
+};
+typedef struct wait_queue_head wait_queue_head_t;
+typedef s64	ktime_t;
+struct tasklet_struct
+{
+	struct tasklet_struct *next;
+	unsigned long state;
+	atomic_t count;
+	bool use_callback;
+	union {
+		void (*func)(unsigned long data);
+		void (*callback)(struct tasklet_struct *t);
+	};
+	unsigned long data;
+};
+
+typedef void (*work_func_t)(struct work_struct *work);
+typedef struct {
+	s64 counter;
+} atomic64_t;
+typedef atomic64_t atomic_long_t;
+struct work_struct {
+	atomic_long_t data;
+	struct list_head entry;
+	work_func_t func;
+};
 
 /* EDID derived structures */
 struct bdb_edid_pnp_id {
@@ -8117,6 +8170,31 @@ struct sseu_dev_info {
 };
 
 
+union intel_engine_tlb_inv_reg {
+	u32	reg;
+	u32	mcr_reg;
+};
+
+struct intel_engine_tlb_inv {
+	bool mcr;
+	union intel_engine_tlb_inv_reg reg;
+	u32 request;
+	u32 done;
+};
+
+
+#define GEN12_GFX_TLB_INV_CR			_MMIO(0xced8)
+#define XEHP_GFX_TLB_INV_CR			MCR_REG(0xced8)
+#define GEN12_VD_TLB_INV_CR			_MMIO(0xcedc)
+#define XEHP_VD_TLB_INV_CR			MCR_REG(0xcedc)
+#define GEN12_VE_TLB_INV_CR			_MMIO(0xcee0)
+#define XEHP_VE_TLB_INV_CR			MCR_REG(0xcee0)
+#define GEN12_BLT_TLB_INV_CR			_MMIO(0xcee4)
+#define XEHP_BLT_TLB_INV_CR			MCR_REG(0xcee4)
+#define GEN12_COMPCTX_TLB_INV_CR		_MMIO(0xcf04)
+#define XEHP_COMPCTX_TLB_INV_CR			MCR_REG(0xcf04)
+#define XELPMP_GSC_TLB_INV_CR			_MMIO(0xcf04)
+
 struct intel_engine_cs {
 	void    *dev;
 	struct drm_i915_private *i915;
@@ -8154,7 +8232,7 @@ struct intel_engine_cs {
 	u32 uabi_capabilities;
 	u32 context_size;
 	u32 mmio_base;
-	
+	struct intel_engine_tlb_inv tlb_inv;
 	struct intel_sseu sseu;
 	unsigned int flags;
 	
@@ -9005,60 +9083,7 @@ struct intel_guc_state_capture {
 #define GUC_CTB_STATUS_MISMATCH				BIT(2)
 #define GUC_CTB_STATUS_UNUSED				BIT(3)
 
-typedef int (*wait_queue_func_t)(struct wait_queue_entry *wq_entry, unsigned mode, int flags, void *key);
 
-struct spinlock_t {
-	union {
-		atomic_t val;
-
-		struct {
-			u8	locked;
-			u8	pending;
-		};
-		struct {
-			u16	locked_pending;
-			u16	tail;
-		};
-
-	};
-};
-
-struct wait_queue_entry {
-	unsigned int		flags;
-	void			*private0;
-	wait_queue_func_t	func;
-	struct list_head	entry;
-};
-
-struct wait_queue_head {
-	spinlock_t		lock;
-	struct list_head	head;
-};
-typedef struct wait_queue_head wait_queue_head_t;
-typedef s64	ktime_t;
-struct tasklet_struct
-{
-	struct tasklet_struct *next;
-	unsigned long state;
-	atomic_t count;
-	bool use_callback;
-	union {
-		void (*func)(unsigned long data);
-		void (*callback)(struct tasklet_struct *t);
-	};
-	unsigned long data;
-};
-
-typedef void (*work_func_t)(struct work_struct *work);
-typedef struct {
-	s64 counter;
-} atomic64_t;
-typedef atomic64_t atomic_long_t;
-struct work_struct {
-	atomic_long_t data;
-	struct list_head entry;
-	work_func_t func;
-};
 
 struct guc_ct_buffer_desc0 {
 	u32 addr;		/* gfx address */
@@ -9151,7 +9176,7 @@ struct intel_guc_ct {
 typedef unsigned int gfp_t;
 
 struct xarray {
-	void*	xa_lock;
+	spinlock_t	xa_lock;
 	gfp_t		xa_flags;
 	void *	xa_head;
 };
@@ -9212,7 +9237,7 @@ struct intel_guc {
 //	atomic_t outstanding_submission_g2h;
 
 	/** @tlb_lookup: xarray to store all pending TLB invalidation requests */
-//	struct xarray tlb_lookup;
+	struct xarray tlb_lookup;
 
 	/**
 	 * @serial_slot: id to the initial waiter created in tlb_lookup,
@@ -10319,6 +10344,73 @@ static inline void atomic_set(atomic_t *v, int i)
 #define   GEN11_INTR_DATA_VALID			(1 << 31)
 #define   MTL_MGUC				(24)
 #define   GEN11_GUC				(25)
+
+enum  {
+	GUC_CONTEXT_POLICIES_KLV_ID_EXECUTION_QUANTUM			= 0x2001,
+	GUC_CONTEXT_POLICIES_KLV_ID_PREEMPTION_TIMEOUT			= 0x2002,
+	GUC_CONTEXT_POLICIES_KLV_ID_SCHEDULING_PRIORITY			= 0x2003,
+	GUC_CONTEXT_POLICIES_KLV_ID_PREEMPT_TO_IDLE_ON_QUANTUM_EXPIRY	= 0x2004,
+	GUC_CONTEXT_POLICIES_KLV_ID_SLPM_GT_FREQUENCY			= 0x2005,
+
+	GUC_CONTEXT_POLICIES_KLV_NUM_IDS = 5,
+};
+struct guc_klv_generic_dw_t {
+	u32 kl;
+	u32 value;
+} __packed;
+struct guc_update_context_policy_header {
+	u32 action;
+	u32 ctx_id;
+} __packed;
+struct guc_update_context_policy {
+	struct guc_update_context_policy_header header;
+	struct guc_klv_generic_dw_t klv[GUC_CONTEXT_POLICIES_KLV_NUM_IDS];
+} __packed;
+
+
+#define INTEL_GUC_ACTION_REGISTER_CTB               0x4505
+#define INTEL_GUC_ACTION_REGISTER_CONTEXT            0x4504
+#define INTEL_GUC_ACTION_REGISTER_CONTEXT_MULTI_LRC  0x450E
+#define INTEL_GUC_ACTION_DEREGISTER_CONTEXT          0x4506
+
+#define CONTEXT_REGISTRATION_FLAG_KMD    0x01
+#define WQ_STATUS_ACTIVE                 1
+#define WQ_SIZE              (PAGE_SIZE / 2)
+#define WQ_OFFSET            (PAGE_SIZE - WQ_SIZE)
+
+#define GUCCtx_INVALID_ID    0x400
+#define GUCCtx_ENTRY_STRIDE  0x5B00
+
+
+#define INTEL_GUC_ACTION_UPDATE_CONTEXT_POLICIES 0x4508
+
+// KLV Format: Upper 16 bits = Key ID, Lower 16 bits = Length in DWORDs
+#define MAKE_CTX_POLICY_KLV(key, len) (((key) << 16) | ((len) & 0xFFFF))
+
+// Standard Linux GuC Policy Key IDs
+#define CONTEXT_POLICY_ID_PRIORITY              1
+#define CONTEXT_POLICY_ID_EXECUTION_QUANTUM     2
+#define CONTEXT_POLICY_ID_PREEMPTION_TIMEOUT    3
+#define CONTEXT_POLICY_ID_PREEMPT_TO_IDLE       6
+
+
+struct guc_ctxt_registration_info {
+	u32 flags;
+	u32 context_idx;
+	u32 engine_class;
+	u32 engine_submit_mask;
+	u32 wq_desc_lo;
+	u32 wq_desc_hi;
+	u32 wq_base_lo;
+	u32 wq_base_hi;
+	u32 wq_size;
+	u32 hwlrca_lo;
+	u32 hwlrca_hi;
+};
+
+static const uint32_t AppleToGuC_EngineClassMap[6] = {
+	0, 1, 2, 3, 5, 4
+};
 
 
 
