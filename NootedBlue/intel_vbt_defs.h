@@ -9779,6 +9779,27 @@ struct i915_priolist {
 
 
 
+struct guc_lrc_desc_v69 {
+	u32 hw_context_desc;
+	u32 slpm_perf_mode_hint;	/* SPLC v1 only */
+	u32 slpm_freq_hint;
+	u32 engine_submit_mask;		/* In logical space */
+	u8 engine_class;
+	u8 reserved0[3];
+	u32 priority;
+	u32 process_desc;
+	u32 wq_addr;
+	u32 wq_size;
+	u32 context_flags;		/* CONTEXT_REGISTRATION_* */
+	/* Time for one workload to execute. (in micro seconds) */
+	u32 execution_quantum;
+	/* Time to wait for a preemption request to complete before issuing a
+	 * reset. (in micro seconds).
+	 */
+	u32 preemption_timeout;
+	u32 policy_flags;		/* CONTEXT_POLICY_* */
+	u32 reserved1[19];
+} __packed;
 
 struct intel_guc {
 	
@@ -10926,6 +10947,8 @@ static inline int intel_guc_sched_disable_gucid_threshold_max(struct intel_guc *
 #define GUC_MAX_STAGE_DESCRIPTORS	1024
 #define	GUC_INVALID_STAGE_ID		GUC_MAX_STAGE_DESCRIPTORS
 #define CRASH_BUFFER_SIZE	SZ_8K
+#define DEBUG_BUFFER_SIZE	SZ_64K
+#define CAPTURE_BUFFER_SIZE	SZ_16K
 #define DPC_BUFFER_SIZE		SZ_32K
 #define ISR_BUFFER_SIZE		SZ_32K
 #define   GUC_LOG_DPC_SHIFT		6
@@ -10945,7 +10968,10 @@ static inline int intel_guc_sched_disable_gucid_threshold_max(struct intel_guc *
 #define GUC_KLV_0_LEN				(0xffffu << 0)
 #define GUC_KLV_n_VALUE				(0xffffffffu << 0)
 
-
+#define   ENGINE1_MASK				REG_GENMASK(31, 16)
+#define   ENGINE0_MASK				REG_GENMASK(15, 0)
+#define GEN11_GUC_SG_INTR_ENABLE		_MMIO(0x190038)
+#define GEN11_GUC_SG_INTR_MASK			_MMIO(0x1900e8)
 
 
 
