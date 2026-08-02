@@ -503,10 +503,10 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			 {"__ZN13IGHardwareGuC15releaseDoorbellEP35UK_GEN11_GUC_CONTEXT_DESCRIPTOR_REC",releaseDoorbell, this->oreleaseDoorbell},
 			 */
 			 
-			 {"__ZN13IGHardwareGuC13initDoorbellsEv",dovoid},
-			 {"__ZN5IGGuC16ringAllDoorbellsEv",dovoid},
-			 {"__ZN5IGGuC12ringDoorbellE10IGHwCsType",dovoid},
-			 {"__ZN13IGHardwareGuC17reacquireDoorbellEj",reacquireDoorbell},
+			 //{"__ZN13IGHardwareGuC13initDoorbellsEv",dovoid},
+			 //{"__ZN5IGGuC16ringAllDoorbellsEv",dovoid},
+			// {"__ZN5IGGuC12ringDoorbellE10IGHwCsType",dovoid},
+			 //{"__ZN13IGHardwareGuC17reacquireDoorbellEj",reacquireDoorbell},
 			 //{"__ZN20IGHardwareRingBuffer12submitToRingEv.cold.1",dovoid},
 			 
 			 
@@ -524,15 +524,15 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			 //{"__ZN15IGMemoryManager16initDeviceMemoryEv",finitDeviceMemory, this->ofinitDeviceMemory},
 			 {"__ZN13IGHardwareGuC13loadGuCBinaryEv",loadGuCBinary, this->oloadGuCBinary},
 			 {"__ZN13IGHardwareGuC26setupAdditionalDataStructsEv",setupAdditionalDataStructs, this->osetupAdditionalDataStructs},
-			 {"__ZN13IGHardwareGuC13loadGuCBinaryEv",setupContextPool, this->osetupContextPool},
-			 {"__ZN13IGHardwareGuC31registerCommandTransportBuffersEv",registerCommandTransportBuffers, this->oregisterCommandTransportBuffers},
-			 {"__ZN13IGHardwareGuC33deregisterCommandTransportBuffersEv",deregisterCommandTransportBuffers, this->oderegisterCommandTransportBuffers},
-			 {"__ZNK11IGHashTableIjj12IGHashTraitsIjE25IGIOMallocAllocatorPolicyE8containsERKj",IGHashTablecontains, this->oIGHashTablecontains},
-			 {"__ZN11IGHashTableIjj12IGHashTraitsIjE25IGIOMallocAllocatorPolicyEixERKj",IGHashTableoperator, this->oIGHashTableoperator},
-			 {"__ZN13IGHardwareGuC31DetachContextDescFromGucContextERK21SGfxContextDescriptor",DetachContextDescFromGucContext, this->oDetachContextDescFromGucContext},
-			 {"__ZN13IGHardwareGuC16releaseUkContextEj",releaseUkContext, this->oreleaseUkContext},
-			 {"__ZN13IGHardwareGuC29AttachContextDescToGucContextERK21SGfxContextDescriptor",AttachContextDescToGucContext, this->oAttachContextDescToGucContext},
-			 {"__ZN13IGHardwareGuC14allocContextIdEyb",allocContextId, this->oallocContextId},
+			 //{"__ZN13IGHardwareGuC13loadGuCBinaryEv",setupContextPool, this->osetupContextPool},
+			 //{"__ZN13IGHardwareGuC31registerCommandTransportBuffersEv",registerCommandTransportBuffers, this->oregisterCommandTransportBuffers},
+			 //{"__ZN13IGHardwareGuC33deregisterCommandTransportBuffersEv",deregisterCommandTransportBuffers, this->oderegisterCommandTransportBuffers},
+			 //{"__ZNK11IGHashTableIjj12IGHashTraitsIjE25IGIOMallocAllocatorPolicyE8containsERKj",IGHashTablecontains, this->oIGHashTablecontains},
+			 //{"__ZN11IGHashTableIjj12IGHashTraitsIjE25IGIOMallocAllocatorPolicyEixERKj",IGHashTableoperator, this->oIGHashTableoperator},
+			 //{"__ZN13IGHardwareGuC31DetachContextDescFromGucContextERK21SGfxContextDescriptor",DetachContextDescFromGucContext, this->oDetachContextDescFromGucContext},
+			 //{"__ZN13IGHardwareGuC16releaseUkContextEj",releaseUkContext, this->oreleaseUkContext},
+			 //{"__ZN13IGHardwareGuC29AttachContextDescToGucContextERK21SGfxContextDescriptor",AttachContextDescToGucContext, this->oAttachContextDescToGucContext},
+			 //{"__ZN13IGHardwareGuC14allocContextIdEyb",allocContextId, this->oallocContextId},
 			 
 
 			 
@@ -10483,7 +10483,6 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	
 	guc_ggtt_invalidate(gt);
 	
-	//guc_init_params(guc); //35.2
 	intel_guc_write_params(guc);
 
 	//guc_prepare_xfer0(gt);
@@ -10793,6 +10792,7 @@ uint64_t Gen11::setupContextPool(void *that,int param_1)
 	blob_size = 2 * CTB_DESC_SIZE + CTB_H2G_BUFFER_SIZE + CTB_G2H_BUFFER_SIZE;
 	//err = intel_guc_allocate_and_map_vma(guc, blob_size, &ct->vma, &blob);
 	void *t = IGSharedMappedBufferwithOptions(field_0x150, round_up(blob_size, PAGE_SIZE), 2, 0);
+	
 	blob =(void *)fgetVirtualAddress(t);
 	
 	ct->vma->obj=t;
@@ -10810,14 +10810,6 @@ uint64_t Gen11::setupContextPool(void *that,int param_1)
 	cmds_size = CTB_G2H_BUFFER_SIZE;
 	resv_space = G2H_ROOM_BUFFER_SIZE;
 	guc_ct_buffer_init(&ct->ctbs.recv, desc, cmds, cmds_size, resv_space);
-	
-	/*
-	getMember<void*>(that, 0x50)= &ct;
-	getMember<void *>(that, 0x68)= blob;
-	getMember<u32>(that, 0x48)= blob_size;
-	getMember<int>(that, 0x80)= param_1;
-	getMember<u32>(that, 0x84)= 0;
-	*/
 	
 	if (guc->submission_selected)
 		intel_guc_submission_init(guc);
@@ -11567,7 +11559,10 @@ uint64_t Gen11::AttachContextDescToGucContext(void *that, void *desc)
 	IOLock* contextLock= (IOLock*)getMember<void*>(that, 0x40);
 
 	void* hashTable = getMember<void*>(that, 0xA30);
-		uint32_t gpu_address = getMember<uint32_t>(desc, 0x00);
+	if (hashTable == nullptr) {
+		return apple_result;
+	}
+		uint32_t gpu_address = *(uint32_t*)desc;
 		uint32_t hashKey = gpu_address >> 0xC;
 		
 		uint32_t* queueDw1Ptr = nullptr;
@@ -11610,10 +11605,12 @@ uint64_t Gen11::AttachContextDescToGucContext(void *that, void *desc)
 void Gen11::DetachContextDescFromGucContext(void *that, void *desc)
 {
 	void* hashTable = getMember<void*>(that, 0xA30);
-	uint32_t gpu_address = getMember<uint32_t>(desc, 0x00);
+	uint32_t gpu_address = *(uint32_t*)desc;
 	uint32_t hashKey = gpu_address >> 0xC;
 	
 	uint32_t* queueDw1Ptr = nullptr;
+	
+	if (hashTable != nullptr)
 	if (IGHashTablecontains(hashTable, &hashKey)) {
 		queueDw1Ptr = (uint32_t*)IGHashTableoperator(hashTable, &hashKey);
 	}
