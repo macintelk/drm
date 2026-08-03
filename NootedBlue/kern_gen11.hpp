@@ -772,6 +772,9 @@ public:
 	static void  disablePowerWellPG(void *that,uint param_1);
 	mach_vm_address_t odisablePowerWellPG {};
 	
+	static bool  loadGuCBinary0(void *that);
+	mach_vm_address_t oloadGuCBinary0 {};
+	
 	static unsigned long  loadGuCBinary(void *that);
 	mach_vm_address_t oloadGuCBinary {};
 	
@@ -802,9 +805,11 @@ public:
 	static void  releaseDoorbellId(void *that,unsigned short param_1);
 	mach_vm_address_t oreleaseDoorbellId {};
 	
-	
 	static bool  initSchedControl(void *that);
 	mach_vm_address_t oinitSchedControl {};
+	
+	static uint32_t  initSchedControl0(void *that);
+	mach_vm_address_t oinitSchedControl0 {};
 	
 	static  void* IGSharedMappedBufferwithOptions(void *param_1,unsigned long param_2,uint param_3,uint param_4);
 	mach_vm_address_t oIGSharedMappedBufferwithOptions {};
@@ -829,6 +834,10 @@ public:
 	
 	static uint64_t finitDeviceMemory(void *that);
 	mach_vm_address_t ofinitDeviceMemory {};
+	
+	static bool  setupAdditionalDataStructs0(void *that);
+	mach_vm_address_t osetupAdditionalDataStructs0 {};
+	
 	
 	static uint64_t  setupAdditionalDataStructs(void *that);
 	mach_vm_address_t osetupAdditionalDataStructs {};

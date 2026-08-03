@@ -429,14 +429,22 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		 RouteRequestPlus requests[] = {
 			 
 			 {"__ZN16IntelAccelerator19PAVPCommandCallbackE22PAVPSessionCommandID_tjPjb", wrapPavpSessionCallback, this->orgPavpSessionCallback},
-			 //{"__ZL27ContextStatusBufferValidateRK15IGHwCsExecList5PK28SGfxContextStatusBufferEntry.cold.2", dovoid},
 			 {"__ZN16IntelAccelerator18setAsyncSliceCountE13IGSliceConfig",setAsyncSliceCount2, this->osetAsyncSliceCount2},
 			 {"__ZN16IntelAccelerator14setSliceConfigE13IGSliceConfig",setSliceConfig, this->osetSliceConfig},
-			 
-			// {"__ZN20IGHardwareRingBuffer11waitTimeoutEU13block_pointerFbvE.cold.1", dovoid},
-			// {"__ZN20IGHardwareRingBuffer12waitForSpaceEj",waitForSpace, this->owaitForSpace},
 			 {"__ZN16IntelAccelerator19startGraphicsEngineEv",startGraphicsEngine, this->ostartGraphicsEngine},
-			 {"__ZN16IntelAccelerator31initHardwareStatusPageRegistersEv",initHardwareStatusPageRegisters, this->oinitHardwareStatusPageRegisters},
+			 {"__ZN13IGHardwareGuC16initSchedControlEv",initSchedControl0, this->oinitSchedControl0},
+			 {"__ZN20IGSharedMappedBuffer11withOptionsEP11IGAccelTaskmjj",IGSharedMappedBufferwithOptions, this->oIGSharedMappedBufferwithOptions},
+			 {"__ZNK20IGSharedMappedBuffer17getVirtualAddressEv",fgetVirtualAddress, this->ofgetVirtualAddress},
+			 {"__ZNK14IGMappedBuffer20getGPUVirtualAddressEv",fgetGPUVirtualAddress, this->ofgetGPUVirtualAddress},
+			 {"__ZN16IntelAccelerator13SafeForceWakeEbj",SafeForceWake, this->oSafeForceWake},
+			 {"__ZN20IGSharedMappedBuffer4freeEv",IGSharedMappedBufferfree, this->oIGSharedMappedBufferfree},
+			 {"__ZN13IGHardwareGuC13loadGuCBinaryEv",loadGuCBinary0, this->oloadGuCBinary0},
+			 {"__ZN13IGHardwareGuC26setupAdditionalDataStructsEv",setupAdditionalDataStructs0, this->osetupAdditionalDataStructs0},
+			 {"__ZN13IGHardwareGuC15hostToGuCActionEPKjjiPj",hostToGuCAction, this->ohostToGuCAction},
+
+			// {"__ZN20IGHardwareRingBuffer12waitForSpaceEj",waitForSpace, this->owaitForSpace},
+			 //{"__ZN16IntelAccelerator31initHardwareStatusPageRegistersEv",initHardwareStatusPageRegisters, this->oinitHardwareStatusPageRegisters},
+			 
 			 
 		 };
 		PANIC_COND(!RouteRequestPlus::routeAll(patcher, index, requests, address, size), "nblue","Failed to route symbols");
@@ -491,8 +499,19 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			 {"__ZN16IntelAccelerator19PAVPCommandCallbackE22PAVPSessionCommandID_tjPjb", wrapPavpSessionCallback, this->orgPavpSessionCallback},
 			 {"__ZN16IntelAccelerator18setAsyncSliceCountE13IGSliceConfig",setAsyncSliceCount2, this->osetAsyncSliceCount2},
 			 {"__ZN16IntelAccelerator14setSliceConfigE13IGSliceConfig",setSliceConfig, this->osetSliceConfig},
-			 {"__ZN20IGHardwareRingBuffer12waitForSpaceEj",waitForSpace, this->owaitForSpace},
 			 {"__ZN16IntelAccelerator19startGraphicsEngineEv",startGraphicsEngine, this->ostartGraphicsEngine},
+			 {"__ZN13IGHardwareGuC16initSchedControlEv",initSchedControl, this->oinitSchedControl},
+			 {"__ZN20IGSharedMappedBuffer11withOptionsEP11IGAccelTaskmjj",IGSharedMappedBufferwithOptions, this->oIGSharedMappedBufferwithOptions},
+			 {"__ZNK20IGSharedMappedBuffer17getVirtualAddressEv",fgetVirtualAddress, this->ofgetVirtualAddress},
+			 {"__ZNK14IGMappedBuffer20getGPUVirtualAddressEv",fgetGPUVirtualAddress, this->ofgetGPUVirtualAddress},
+			 {"__ZN16IntelAccelerator13SafeForceWakeEbj",SafeForceWake, this->oSafeForceWake},
+			 {"__ZN20IGSharedMappedBuffer4freeEv",IGSharedMappedBufferfree, this->oIGSharedMappedBufferfree},
+			 {"__ZN13IGHardwareGuC13loadGuCBinaryEv",loadGuCBinary, this->oloadGuCBinary},
+			 {"__ZN13IGHardwareGuC26setupAdditionalDataStructsEv",setupAdditionalDataStructs, this->osetupAdditionalDataStructs},
+			 {"__ZN13IGHardwareGuC15hostToGuCActionEPKjjiPj",hostToGuCAction, this->ohostToGuCAction},
+			 //{"__ZN13IGHardwareGuC13loadGuCBinaryEv",setupContextPool, this->osetupContextPool},
+			 //{"__ZN20IGHardwareRingBuffer12waitForSpaceEj",waitForSpace, this->owaitForSpace},
+			
 			 //{"__ZN16IntelAccelerator31initHardwareStatusPageRegistersEv",initHardwareStatusPageRegisters, this->oinitHardwareStatusPageRegisters},
 			 
 			/* {"__ZN13IGHardwareGuC15allocDoorbellIdE25UK_GEN11_CONTEXT_PRIORITY",allocDoorbellId, this->oallocDoorbellId},
@@ -502,9 +521,8 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			 {"__ZN13IGHardwareGuC17releaseDoorbellIdEt",releaseDoorbellId, this->oreleaseDoorbellId},
 			 {"__ZN13IGHardwareGuC15acquireDoorbellEP35UK_GEN11_GUC_CONTEXT_DESCRIPTOR_RECb",acquireDoorbell, this->oacquireDoorbell},
 			 {"__ZN13IGHardwareGuC15releaseDoorbellEP35UK_GEN11_GUC_CONTEXT_DESCRIPTOR_REC",releaseDoorbell, this->oreleaseDoorbell},*/
-			 //{"__ZN13IGHardwareGuC15hostToGuCActionEPKjjiPj",hostToGuCAction, this->ohostToGuCAction},
-			// {"__ZN21IGHardwareGuCCTBuffer15hostToGuCActionEPKjjiPjb",hostToGuCAction2, this->ohostToGuCAction2},
 			 
+			// {"__ZN21IGHardwareGuCCTBuffer15hostToGuCActionEPKjjiPjb",hostToGuCAction2, this->ohostToGuCAction2},
 			 
 			 //{"__ZN13IGHardwareGuC13initDoorbellsEv",dovoid},
 			 //{"__ZN5IGGuC16ringAllDoorbellsEv",dovoid},
@@ -512,22 +530,11 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			 //{"__ZN13IGHardwareGuC17reacquireDoorbellEj",reacquireDoorbell},
 			 //{"__ZN20IGHardwareRingBuffer12submitToRingEv.cold.1",dovoid},
 			 
-			 
-			 //{"__ZN5IGGuC15canLoadFirmwareEP22IOGraphicsAccelerator2",dotrue},
-			 
-			 
-			 {"__ZN13IGHardwareGuC16initSchedControlEv",initSchedControl, this->oinitSchedControl},
-			 {"__ZN20IGSharedMappedBuffer11withOptionsEP11IGAccelTaskmjj",IGSharedMappedBufferwithOptions, this->oIGSharedMappedBufferwithOptions},
-			 {"__ZNK20IGSharedMappedBuffer17getVirtualAddressEv",fgetVirtualAddress, this->ofgetVirtualAddress},
-			 {"__ZNK14IGMappedBuffer20getGPUVirtualAddressEv",fgetGPUVirtualAddress, this->ofgetGPUVirtualAddress},
-			 //{"__ZN5IGGuC18checkWOPCMSettingsEmR14IOVirtualRange",checkWOPCMSettings, this->ocheckWOPCMSettings},
-			 {"__ZN16IntelAccelerator13SafeForceWakeEbj",SafeForceWake, this->oSafeForceWake},
-			 {"__ZN20IGSharedMappedBuffer4freeEv",IGSharedMappedBufferfree, this->oIGSharedMappedBufferfree},
 			 //{"__ZN16IntelAccelerator15configureDeviceEP11IOPCIDevice",fconfigureDevice, this->ofconfigureDevice},
 			 //{"__ZN15IGMemoryManager16initDeviceMemoryEv",finitDeviceMemory, this->ofinitDeviceMemory},
-			 {"__ZN13IGHardwareGuC13loadGuCBinaryEv",loadGuCBinary, this->oloadGuCBinary},
-			 {"__ZN13IGHardwareGuC26setupAdditionalDataStructsEv",setupAdditionalDataStructs, this->osetupAdditionalDataStructs},
-			 //{"__ZN13IGHardwareGuC13loadGuCBinaryEv",setupContextPool, this->osetupContextPool},
+			 //{"__ZN5IGGuC15canLoadFirmwareEP22IOGraphicsAccelerator2",dotrue},
+			 //{"__ZN5IGGuC18checkWOPCMSettingsEmR14IOVirtualRange",checkWOPCMSettings, this->ocheckWOPCMSettings},
+			 
 			//{"__ZN13IGHardwareGuC31registerCommandTransportBuffersEv",registerCommandTransportBuffers, this->oregisterCommandTransportBuffers},
 			 //{"__ZN13IGHardwareGuC33deregisterCommandTransportBuffersEv",deregisterCommandTransportBuffers, this->oderegisterCommandTransportBuffers},
 			 //{"__ZNK11IGHashTableIjj12IGHashTraitsIjE25IGIOMallocAllocatorPolicyE8containsERKj",IGHashTablecontains, this->oIGHashTablecontains},
@@ -2415,6 +2422,11 @@ void Gen11::hostToGuCAction(void *that,unsigned int *param_1,unsigned int param_
 void  Gen11::releaseDoorbellId(void *that,unsigned short param_1)
 {
 	FunctionCast(releaseDoorbellId, callback->oreleaseDoorbellId)( that,param_1);
+}
+
+uint32_t  Gen11::initSchedControl0(void *that)
+{
+	return FunctionCast(initSchedControl0, callback->oinitSchedControl0)( that);
 }
 
 bool  Gen11::initSchedControl(void *that)
@@ -10391,7 +10403,27 @@ static void gen11_disable_guc_interrupts(struct intel_gt *gt)
 	gen11_reset_guc_interrupts(gt);
 }
 
+bool  Gen11::loadGuCBinary0(void *that)
+{
+	loadGuCBinary(that);
+	return true;
+}
 
+int intel_guc_sample_forcewake(void *that)
+{
+	
+	u32 action[2];
+	
+#define GUC_FORCEWAKE_RENDER	(1 << 0)
+#define GUC_FORCEWAKE_MEDIA	(1 << 1)
+
+	action[0] = 0x3005;
+	action[1] = GUC_FORCEWAKE_RENDER | GUC_FORCEWAKE_MEDIA;
+
+	Gen11::callback->hostToGuCAction(that,action,2,0xf,(uint *)0x0);
+	//return intel_guc_send(guc, action, ARRAY_SIZE(action));
+	return 0;
+}
 
 unsigned long Gen11::loadGuCBinary(void *that)
 {
@@ -10500,12 +10532,31 @@ unsigned long Gen11::loadGuCBinary(void *that)
 		return 0;
 	}
 	
-	gen11_reset_guc_interrupts(gt);
+	gen11_disable_guc_interrupts(gt);
 	__reset_guc(gt);
 	
-	if (!initSchedControl(that)) return 0;//apple guc_init_params
-	
+	if (kexticl)
+	{
+		if (!initSchedControl0(that)) return 0;
+	}
+	else
+	{
+		if (!initSchedControl(that)) return 0;//apple guc_init_params
+	}
 	SafeForceWake(m_accelerator, true, 7);
+	
+	enum intel_engine_id id2;
+	struct intel_engine_cs *engine;
+	
+	wa_list_apply(&gt->wa_list);
+	
+	for_each_engine(engine, gt, id2) {
+		
+		intel_engine_apply_workarounds(engine);
+		intel_engine_apply_whitelist(engine);
+		//intel_engine_emit_ctx_wa
+		wa_list_apply(&engine->ctx_wa_list); //???
+	}
 	
 	intel_wopcm_init(gt, sizeof(struct uc_css_header) + guc->fw.ucode_size);
 	
@@ -10521,7 +10572,7 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	guc->stage_desc_pool->obj=t; //35.2
 	guc->stage_desc_pool->node.vadr=fgetVirtualAddress(guc->stage_desc_pool->obj);
 	guc->stage_desc_pool->node.start=fgetGPUVirtualAddress(guc->stage_desc_pool->obj);
-	t=getMember<void *>(that, 0x9e8);
+	t=getMember<void *>(that, kexticl ? 0x930: 0x9e8);
 	guc->ads_vma->obj=t;
 	guc->ads_vma->node.vadr=fgetVirtualAddress(guc->ads_vma->obj);
 	guc->ads_vma->node.start=fgetGPUVirtualAddress(guc->ads_vma->obj);
@@ -10604,6 +10655,10 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	if (!success)
 	panic("auth %x bootrom %x ukernel %x guc_wopcm_base %x guc_wopcm_size %x",auth,bootrom,ukernel,gt->wopcm.guc.base,gt->wopcm.guc.size);
 
+	
+	gen11_enable_guc_interrupts(gt);
+	intel_guc_sample_forcewake(that);
+	
 	return success ? 1 : 0;
 
 fail:
@@ -10860,7 +10915,7 @@ int intel_guc_ads_create(void *that)
 	
 	
 	void* t = Gen11::callback->IGSharedMappedBufferwithOptions(field_0x150, round_up(size, PAGE_SIZE), 2, 0);
-	getMember<void *>(that, 0x9e8)= t;
+	getMember<void *>(that, kexticl ? 0x930 : 0x9e8)= t;
 	
 	guc->ads_vma->obj=t;
 	guc->ads_vma->node.vadr=Gen11::callback->fgetVirtualAddress(guc->ads_vma->obj);
@@ -10885,6 +10940,20 @@ int intel_guc_ads_create(void *that)
 	return 1;
 }
 
+bool Gen11::setupAdditionalDataStructs0(void *that)
+{
+	struct drm_i915_private *i915= NBlue::callback->i915b;
+	struct intel_gt *gt=to_gt(i915);
+	struct intel_guc *guc = gt_to_guc(gt);
+	
+	if (guc->fw.file_selected.ver.major < 69)
+		return FunctionCast(setupAdditionalDataStructs0, callback->osetupAdditionalDataStructs0)(that );
+		
+	intel_guc_ads_create(that);
+	
+	return true;
+}
+
 uint64_t Gen11::setupAdditionalDataStructs(void *that) {
 	struct drm_i915_private *i915= NBlue::callback->i915b;
 	struct intel_gt *gt=to_gt(i915);
@@ -10895,7 +10964,7 @@ uint64_t Gen11::setupAdditionalDataStructs(void *that) {
 		
 	intel_guc_ads_create(that);
 	
-	return 0;
+	return 1;
 }
 
 
@@ -11260,21 +11329,7 @@ static struct intel_engine_cs *find_engine_state(struct intel_gt *gt, u8 engine_
 	return NULL;
 }
 
-int intel_guc_sample_forcewake(void *that)
-{
-	
-	u32 action[2];
-	
-#define GUC_FORCEWAKE_RENDER	(1 << 0)
-#define GUC_FORCEWAKE_MEDIA	(1 << 1)
 
-	action[0] = 0x3005;
-	action[1] = GUC_FORCEWAKE_RENDER | GUC_FORCEWAKE_MEDIA;
-
-	Gen11::callback->hostToGuCAction(that,action,2,0xf,(uint *)0x0);
-	//return intel_guc_send(guc, action, ARRAY_SIZE(action));
-	return 0;
-}
 
 unsigned long  Gen11::startGraphicsEngine(void *that)
 {
@@ -11290,19 +11345,20 @@ unsigned long  Gen11::startGraphicsEngine(void *that)
 		seng=true;
 		engines();
 	}
+	
+	//wa_list_apply(&gt->wa_list);
+	
 	auto ret= FunctionCast(startGraphicsEngine, callback->ostartGraphicsEngine)( that);
 	
-	//intel_gt_resume
-	wa_list_apply(&gt->wa_list);
-	
-	for_each_engine(engine, gt, id2) {
+	/*for_each_engine(engine, gt, id2) {
 		
 		intel_engine_apply_workarounds(engine);
 		intel_engine_apply_whitelist(engine);
 		//intel_engine_emit_ctx_wa
 		wa_list_apply(&engine->ctx_wa_list); //???
-	}
+	}*/
 	
+	//intel_gt_resume
 	/*gen11_rc6_enable(that);
 	//intel_guc_ct_enable(guc);
 	gen11_enable_guc_interrupts(gt);
