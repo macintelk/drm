@@ -8332,6 +8332,17 @@ struct drm_i915_reg_table {
 	int num_regs;
 };
 
+struct file {
+	spinlock_t			f_lock;
+	//fmode_t				f_mode;
+	//const struct file_operations	*f_op;
+//	struct address_space		*f_mapping;
+	void				*private_data;
+//	struct inode			*f_inode;
+	unsigned int			f_flags;
+	unsigned int			f_iocb_flags;
+
+};
 
 struct intel_engine_cs {
 	struct drm_i915_private *i915;
@@ -8409,7 +8420,7 @@ struct intel_engine_cs {
 	//intel_wakeref_t wakeref_track;
 	//struct intel_wakeref wakeref;
 
-	//struct file *default_state;
+	struct file *default_state;
 
 /*	struct {
 		struct intel_ring *ring;
@@ -9007,6 +9018,9 @@ struct guc_engine_usage_record {
 struct guc_engine_usage {
 	struct guc_engine_usage_record engines[16][32]; // 16 * 32 * 0x20 = 0x4000 bytes
 } __packed; // Total Size: 0x4000 bytes
+
+
+
 
 struct __guc_ads_blob {
 	struct guc_ads ads;                  // 0x0000 to 0x11DB (Size: 0x11DC)
@@ -9800,6 +9814,10 @@ struct guc_lrc_desc_v69 {
 	u32 policy_flags;		/* CONTEXT_POLICY_* */
 	u32 reserved1[19];
 } __packed;
+
+
+
+
 
 struct intel_guc {
 	
