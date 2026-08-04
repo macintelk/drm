@@ -784,7 +784,7 @@ public:
 	static void releaseDoorbell(void *that,void *param_1);
 	mach_vm_address_t oreleaseDoorbell {};
 	
-	static void engines();
+	static void engines(void *that);
 
 	static unsigned int allocDoorbellId(void *param_1);
 	mach_vm_address_t oallocDoorbellId {};

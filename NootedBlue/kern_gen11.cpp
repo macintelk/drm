@@ -3930,7 +3930,12 @@ i915_sched_engine_create(unsigned int subclass)
 	return sched_engine;
 }
 
-void Gen11::engines()
+void intel_gt_apply_workarounds(struct intel_gt *gt)
+{
+	wa_list_apply(&gt->wa_list);
+}
+
+void Gen11::engines(void *that)
 {
 	struct drm_i915_private *i915 = NBlue::callback->i915b;
 	struct intel_gt *gt=to_gt(i915);
@@ -3955,6 +3960,10 @@ void Gen11::engines()
 	intel_engines_init_mmio(gt);
 	
 	intel_gt_init_workarounds(gt);
+	
+	SafeForceWake(that, true, 7);
+	intel_gt_apply_workarounds(gt);
+	SafeForceWake(that, false, 7);
 	
 	//engine_setup_common
 	for_each_engine(engine, gt, id2) {
@@ -8752,7 +8761,7 @@ void  Gen11::enableDisplayEngine(void *that0)
 	
 	gen9_wait_for_power_well_fuses(display, SKL_PG2);
 	
-	callback->orgSetCDClockFrequency(that->contr, getMember<u64>(that->contr, 0xea8)/*that->contr->fPendingCDClockFrequency*/);
+	callback->orgSetCDClockFrequency(that->contr, getMember<u64>(that->contr, kexttglp ? 0xea0 : 0xea8)/*that->contr->fPendingCDClockFrequency*/);
 	
 	if (DISPLAY_VER(display) == 12 || display->platform.dg2)
 		gen12_dbuf_slices_config(display);
@@ -8919,9 +8928,9 @@ void  Gen11::AppleIntelPowerWellinit(void *that0, void *param_1)
 	bootPipe = probeBootPipe(that->contr, (bool *)0x0, &active_ddi);
 	
 	
-	if (bootPipe != 0xffff && that->PG1 == 0 && getMember<u32>(param_1, 0xd5c) /*that->contr->NumFrameBuffers*/ != 0) {
+	//if (bootPipe != 0xffff && that->PG1 == 0 && getMember<u32>(param_1, 0xd5c) /*that->contr->NumFrameBuffers*/ != 0) {
 		enableDisplayEngine(that0);
-	}
+	//}
 
 	
 	for (i = 0; i < 9; i++) {
@@ -10409,6 +10418,23 @@ bool  Gen11::loadGuCBinary0(void *that)
 	return true;
 }
 
+int intel_guc_resume0(void *that)
+{
+#define GUC_POWER_D0		1
+	
+	u32 action[] = {
+		INTEL_GUC_ACTION_EXIT_S_STATE,
+		GUC_POWER_D0,
+	};
+
+	//if (!intel_guc_submission_is_used(guc) || !intel_guc_is_ready(guc))
+	//	return 0;
+
+	Gen11::callback->hostToGuCAction(that,action,2,0xf,(uint *)0x0);
+	//return intel_guc_send(guc, action, ARRAY_SIZE(action));
+	return 1;
+}
+
 int intel_guc_sample_forcewake(void *that)
 {
 	
@@ -10417,16 +10443,18 @@ int intel_guc_sample_forcewake(void *that)
 #define GUC_FORCEWAKE_RENDER	(1 << 0)
 #define GUC_FORCEWAKE_MEDIA	(1 << 1)
 
-	action[0] = 0x3005;
+	action[0] = INTEL_GUC_ACTION_SAMPLE_FORCEWAKE;
 	action[1] = GUC_FORCEWAKE_RENDER | GUC_FORCEWAKE_MEDIA;
 
 	Gen11::callback->hostToGuCAction(that,action,2,0xf,(uint *)0x0);
 	//return intel_guc_send(guc, action, ARRAY_SIZE(action));
-	return 0;
+	return 1;
 }
 
 unsigned long Gen11::loadGuCBinary(void *that)
 {
+	if (gucp!=nullptr) return 1;
+	
 	struct drm_i915_private *i915=NBlue::callback->i915b;
 	struct intel_gt *gt=to_gt(i915);
 	struct intel_display *display = i915->display;
@@ -10548,8 +10576,6 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	enum intel_engine_id id2;
 	struct intel_engine_cs *engine;
 	
-	wa_list_apply(&gt->wa_list);
-	
 	for_each_engine(engine, gt, id2) {
 		
 		intel_engine_apply_workarounds(engine);
@@ -10602,6 +10628,7 @@ unsigned long Gen11::loadGuCBinary(void *that)
 		intel_de_write(display, UOS_RSA_SCRATCH(i), rsa_val);
 	}
 
+	
 	//uc_fw_xfer()
 	dma_flags = UOS_MOVE;
 	dst_offset=0x2000;
@@ -10655,10 +10682,6 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	if (!success)
 	panic("auth %x bootrom %x ukernel %x guc_wopcm_base %x guc_wopcm_size %x",auth,bootrom,ukernel,gt->wopcm.guc.base,gt->wopcm.guc.size);
 
-	
-	gen11_enable_guc_interrupts(gt);
-	intel_guc_sample_forcewake(that);
-	
 	return success ? 1 : 0;
 
 fail:
@@ -11343,28 +11366,10 @@ unsigned long  Gen11::startGraphicsEngine(void *that)
 	if (!seng)
 	{
 		seng=true;
-		engines();
+		engines(that);
 	}
 	
-	//wa_list_apply(&gt->wa_list);
-	
 	auto ret= FunctionCast(startGraphicsEngine, callback->ostartGraphicsEngine)( that);
-	
-	/*for_each_engine(engine, gt, id2) {
-		
-		intel_engine_apply_workarounds(engine);
-		intel_engine_apply_whitelist(engine);
-		//intel_engine_emit_ctx_wa
-		wa_list_apply(&engine->ctx_wa_list); //???
-	}*/
-	
-	//intel_gt_resume
-	/*gen11_rc6_enable(that);
-	//intel_guc_ct_enable(guc);
-	gen11_enable_guc_interrupts(gt);
-	intel_guc_sample_forcewake(gucp);
-	*/
-	//guc_init_golden_context(gt->uc.guc);
 	
 	return ret;
 }
@@ -11888,3 +11893,7 @@ void Gen11::releaseUkContext(void *that, uint32_t context_id)
 
 	FunctionCast(releaseUkContext, callback->oreleaseUkContext)(that, context_id);
 }
+
+
+
+
