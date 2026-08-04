@@ -778,15 +778,15 @@ public:
 	static unsigned long  loadGuCBinary(void *that);
 	mach_vm_address_t oloadGuCBinary {};
 	
+	static void engines(void *that);
+	
 	static unsigned short acquireDoorbell(void *that,void *param_1,bool param_2);
 	mach_vm_address_t oacquireDoorbell {};
 	
 	static void releaseDoorbell(void *that,void *param_1);
 	mach_vm_address_t oreleaseDoorbell {};
-	
-	static void engines(void *that);
 
-	static unsigned int allocDoorbellId(void *param_1);
+	static unsigned int allocDoorbellId(void* param_1);
 	mach_vm_address_t oallocDoorbellId {};
 
 	static unsigned int stealDoorbellId(void *that);
@@ -795,15 +795,15 @@ public:
 	static void setDoorbellPinning(void *that,unsigned short param_1,bool param_2);
 	mach_vm_address_t osetDoorbellPinning {};
 
+	static void  releaseDoorbellId(void *that,unsigned short param_1);
+	mach_vm_address_t oreleaseDoorbellId {};
 	
-	static bool hostToGuCAction2(void *that,uint *param_1,uint param_2,int param_3,uint *param_4,bool param_5);
-	mach_vm_address_t ohostToGuCAction2 {};
+	static short reacquireDoorbell(void *that,uint param_1);
+	mach_vm_address_t oreacquireDoorbell {};
 	
 	static void hostToGuCAction(void *that,unsigned int *param_1,unsigned int param_2,int param_3,unsigned int *param_4);
 	mach_vm_address_t ohostToGuCAction {};
 
-	static void  releaseDoorbellId(void *that,unsigned short param_1);
-	mach_vm_address_t oreleaseDoorbellId {};
 	
 	static bool  initSchedControl(void *that);
 	mach_vm_address_t oinitSchedControl {};
@@ -869,8 +869,7 @@ public:
 	static long  IGHashTableoperator(void *that,uint *param_1);
 	mach_vm_address_t oIGHashTableoperator {};
 	
-	static short reacquireDoorbell(void *that,uint param_1);
-	mach_vm_address_t oreacquireDoorbell {};
+	
 	
 	
 	

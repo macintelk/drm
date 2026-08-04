@@ -42,7 +42,6 @@ void *linkp;
 bool dpcdconf=false;
 int Report=-1;
 bool seng=false;
-bool host2=false;
 void *gucp;
 
 Gen11 *Gen11::callback = nullptr;
@@ -513,17 +512,14 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			 //{"__ZN20IGHardwareRingBuffer12waitForSpaceEj",waitForSpace, this->owaitForSpace},
 			
 			 //{"__ZN16IntelAccelerator31initHardwareStatusPageRegistersEv",initHardwareStatusPageRegisters, this->oinitHardwareStatusPageRegisters},
-			 
-			/* {"__ZN13IGHardwareGuC15allocDoorbellIdE25UK_GEN11_CONTEXT_PRIORITY",allocDoorbellId, this->oallocDoorbellId},
+			 /*
+			 {"__ZN13IGHardwareGuC15allocDoorbellIdE25UK_GEN11_CONTEXT_PRIORITY",allocDoorbellId, this->oallocDoorbellId},
 			 {"__ZN13IGHardwareGuC15stealDoorbellIdEv",stealDoorbellId, this->ostealDoorbellId},
 			 {"__ZN13IGHardwareGuC18setDoorbellPinningEtb",setDoorbellPinning, this->osetDoorbellPinning},
-			 
 			 {"__ZN13IGHardwareGuC17releaseDoorbellIdEt",releaseDoorbellId, this->oreleaseDoorbellId},
 			 {"__ZN13IGHardwareGuC15acquireDoorbellEP35UK_GEN11_GUC_CONTEXT_DESCRIPTOR_RECb",acquireDoorbell, this->oacquireDoorbell},
-			 {"__ZN13IGHardwareGuC15releaseDoorbellEP35UK_GEN11_GUC_CONTEXT_DESCRIPTOR_REC",releaseDoorbell, this->oreleaseDoorbell},*/
-			 
-			// {"__ZN21IGHardwareGuCCTBuffer15hostToGuCActionEPKjjiPjb",hostToGuCAction2, this->ohostToGuCAction2},
-			 
+			 {"__ZN13IGHardwareGuC15releaseDoorbellEP35UK_GEN11_GUC_CONTEXT_DESCRIPTOR_REC",releaseDoorbell, this->oreleaseDoorbell},
+			 */
 			 //{"__ZN13IGHardwareGuC13initDoorbellsEv",dovoid},
 			 //{"__ZN5IGGuC16ringAllDoorbellsEv",dovoid},
 			 //{"__ZN5IGGuC12ringDoorbellE10IGHwCsType",dovoid},
@@ -2393,36 +2389,14 @@ static void guc_prepare_xfer(struct intel_gt *gt)
 
 
 		
-	
 
-unsigned int Gen11::allocDoorbellId(void *param_1)
-{
-	return FunctionCast(allocDoorbellId, callback->oallocDoorbellId)( param_1);
-}
-unsigned int Gen11::stealDoorbellId(void *that)
-{
-	return FunctionCast(stealDoorbellId, callback->ostealDoorbellId)( that);
-}
-void Gen11::setDoorbellPinning(void *that,unsigned short param_1,bool param_2)
-{
-	FunctionCast(setDoorbellPinning, callback->osetDoorbellPinning)( that,param_1,param_2);
-}
-
-
-bool Gen11::hostToGuCAction2(void *that,uint *param_1,uint param_2,int param_3,uint *param_4,bool param_5)
-{
-	host2= FunctionCast(hostToGuCAction2, callback->ohostToGuCAction2)( that,param_1,param_2,param_3,param_4,param_5);
-	return host2;
-}
 
 void Gen11::hostToGuCAction(void *that,unsigned int *param_1,unsigned int param_2,int param_3,unsigned int *param_4)
 {
 	FunctionCast(hostToGuCAction, callback->ohostToGuCAction)( that,param_1,param_2,param_3,param_4);
 }
-void  Gen11::releaseDoorbellId(void *that,unsigned short param_1)
-{
-	FunctionCast(releaseDoorbellId, callback->oreleaseDoorbellId)( that,param_1);
-}
+
+
 
 uint32_t  Gen11::initSchedControl0(void *that)
 {
@@ -2443,10 +2417,7 @@ long  Gen11::fgetVirtualAddress(void *that)
 	return FunctionCast(fgetVirtualAddress, callback->ofgetVirtualAddress)( that);
 }
 
-short Gen11::reacquireDoorbell(void *that,uint param_1)
-{
-	return 0x100;
-}
+
 
 uint64_t  Gen11::IGHashTablecontains(void *that,uint *param_1)
 {
@@ -2476,10 +2447,31 @@ void Gen11::IGSharedMappedBufferfree(void *param_1)
 	FunctionCast(IGSharedMappedBufferfree, callback->oIGSharedMappedBufferfree)( param_1);
 }
 
+short Gen11::reacquireDoorbell(void *that,uint param_1)
+{
+	return FunctionCast(reacquireDoorbell, callback->oreacquireDoorbell)( that,param_1);
+}
+
+unsigned int Gen11::allocDoorbellId(void* param_1)
+{
+	return FunctionCast(allocDoorbellId, callback->oallocDoorbellId)( param_1);
+}
+unsigned int Gen11::stealDoorbellId(void *that)
+{
+	return FunctionCast(stealDoorbellId, callback->ostealDoorbellId)( that);
+}
+void Gen11::setDoorbellPinning(void *that,unsigned short param_1,bool param_2)
+{
+	FunctionCast(setDoorbellPinning, callback->osetDoorbellPinning)( that,param_1,param_2);
+}
+
+void  Gen11::releaseDoorbellId(void *that,unsigned short param_1)
+{
+	FunctionCast(releaseDoorbellId, callback->oreleaseDoorbellId)( that,param_1);
+}
 
 unsigned short Gen11::acquireDoorbell(void *that, void *param_1, bool param_2)
 {
-	struct intel_display *display = NBlue::callback->i915b->display;
 	
 	uint64_t array_base_addr = getMember<uint64_t>(that, 0x50);
 	uintptr_t array_base = static_cast<uintptr_t>(array_base_addr);
@@ -2487,9 +2479,9 @@ unsigned short Gen11::acquireDoorbell(void *that, void *param_1, bool param_2)
 	uint32_t context_id = getMember<uint32_t>(param_1, 0x8);
 	uint64_t ctx_offset = static_cast<uint64_t>(context_id) * 0x20;
 	uint32_t* ctx_desc = *reinterpret_cast<uint32_t**>(array_base + 0x10 + ctx_offset);
-	
+
 	if (ctx_desc[0] == 0) {
-		uint16_t db_id = allocDoorbellId(that);
+		uint32_t db_id = allocDoorbellId(that);
 				
 		if (db_id == 0x100) {
 			db_id = stealDoorbellId(that);
@@ -2542,11 +2534,7 @@ unsigned short Gen11::acquireDoorbell(void *that, void *param_1, bool param_2)
 		uint32_t response = 0;
 		
 		hostToGuCAction(that, payload, 2, 0xf, &response);
-		
-		if (!host2) {
-			ctx_desc[0] = 0;
-		}
-		
+
 		if ((response >> 22 & 1) == 0) {
 			ctx_desc[0] = 0;
 		} else {
@@ -10390,6 +10378,8 @@ static void gen11_enable_guc_interrupts(struct intel_gt *gt)
 
 	//spin_lock_irq(&gt->irq_lock);
 	//WARN_ON_ONCE(gen11_gt_reset_one_iir(gt, 0, GEN11_GUC));
+	
+	gen11_gt_reset_one_iir(gt, 0, GEN11_GUC);
 	intel_de_write(display,
 			   GEN11_GUC_SG_INTR_ENABLE, events);
 	intel_de_write(display,
@@ -10560,7 +10550,7 @@ unsigned long Gen11::loadGuCBinary(void *that)
 		return 0;
 	}
 	
-	gen11_disable_guc_interrupts(gt);
+	gen11_reset_guc_interrupts(gt);
 	__reset_guc(gt);
 	
 	if (kexticl)
@@ -10581,7 +10571,7 @@ unsigned long Gen11::loadGuCBinary(void *that)
 		intel_engine_apply_workarounds(engine);
 		intel_engine_apply_whitelist(engine);
 		//intel_engine_emit_ctx_wa
-		wa_list_apply(&engine->ctx_wa_list); //???
+		//wa_list_apply(&engine->ctx_wa_list); //???
 	}
 	
 	intel_wopcm_init(gt, sizeof(struct uc_css_header) + guc->fw.ucode_size);
@@ -11307,7 +11297,7 @@ uint64_t Gen11::registerCommandTransportBuffers(void *that)
 	struct intel_guc *guc = gt_to_guc(gt);
 	
 	intel_guc_ct_enable(guc);
-	
+
 return 1;
 
 }
@@ -11872,24 +11862,6 @@ void Gen11::releaseUkContext(void *that, uint32_t context_id)
 	struct intel_guc *guc = gt_to_guc(gt);
 	struct intel_guc_ct *ct = &guc->ct;
 	struct intel_guc_ct_buffer *send_ctb = &ct->ctbs.send;
-	IOLock* contextLock= (IOLock*)getMember<void*>(that, 0x40);
-
-	u32 action[2] = { INTEL_GUC_ACTION_DEREGISTER_CONTEXT, context_id };
-	
-	IOLockLock(contextLock);
-	
-	u32 tail = send_ctb->tail;
-	u32* cmds = send_ctb->cmds;
-	cmds[tail / 4] = action[0];
-	cmds[(tail / 4) + 1] = action[1];
-	
-	send_ctb->tail += 8;
-	__sync_synchronize();
-	send_ctb->desc->tail = send_ctb->tail;
-
-	intel_guc_notify(guc);
-	
-	IOLockUnlock(contextLock);
 
 	FunctionCast(releaseUkContext, callback->oreleaseUkContext)(that, context_id);
 }

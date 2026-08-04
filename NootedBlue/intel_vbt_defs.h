@@ -9072,7 +9072,7 @@ struct intel_uc_fw {
 	struct intel_uc_fw_file file_selected;
 	bool user_overridden;
 	size_t size;
-	//struct drm_i915_gem_object *obj;
+	void *obj;
 
 	/**
 	 * @needs_ggtt_mapping: indicates whether the fw object needs to be
