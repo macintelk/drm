@@ -9835,7 +9835,7 @@ struct intel_guc {
 	struct intel_guc_state_capture *capture;
 	
 	struct i915_vma *stage_desc_pool;
-	
+	void *stage_desc_pool_vaddr;
 	/** @dbgfs_node: debugfs node */
 	//struct dentry *dbgfs_node;
 

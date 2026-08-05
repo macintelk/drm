@@ -780,13 +780,13 @@ public:
 	
 	static void engines(void *that);
 	
-	static unsigned short acquireDoorbell(void *that,void *param_1,bool param_2);
+	static unsigned short acquireDoorbell(void *self,void *param_1,bool param_2);
 	mach_vm_address_t oacquireDoorbell {};
 	
-	static void releaseDoorbell(void *that,void *param_1);
+	static void releaseDoorbell(void *self,void *ctxDesc);
 	mach_vm_address_t oreleaseDoorbell {};
 
-	static unsigned int allocDoorbellId(void* param_1);
+	static unsigned int allocDoorbellId(u32 param_1);
 	mach_vm_address_t oallocDoorbellId {};
 
 	static unsigned int stealDoorbellId(void *that);
@@ -869,8 +869,8 @@ public:
 	static long  IGHashTableoperator(void *that,uint *param_1);
 	mach_vm_address_t oIGHashTableoperator {};
 	
-	
-	
+	static uint64_t loadFirmware(void *that);
+	mach_vm_address_t oloadFirmware {};
 	
 	
 public:

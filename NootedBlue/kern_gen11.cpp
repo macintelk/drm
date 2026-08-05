@@ -440,7 +440,8 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			 {"__ZN13IGHardwareGuC13loadGuCBinaryEv",loadGuCBinary0, this->oloadGuCBinary0},
 			 {"__ZN13IGHardwareGuC26setupAdditionalDataStructsEv",setupAdditionalDataStructs0, this->osetupAdditionalDataStructs0},
 			 {"__ZN13IGHardwareGuC15hostToGuCActionEPKjjiPj",hostToGuCAction, this->ohostToGuCAction},
-
+			 {"__ZN12IGScheduler412loadFirmwareEv",loadFirmware, this->oloadFirmware},
+			 
 			// {"__ZN20IGHardwareRingBuffer12waitForSpaceEj",waitForSpace, this->owaitForSpace},
 			 //{"__ZN16IntelAccelerator31initHardwareStatusPageRegistersEv",initHardwareStatusPageRegisters, this->oinitHardwareStatusPageRegisters},
 			 
@@ -508,11 +509,17 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			 {"__ZN13IGHardwareGuC13loadGuCBinaryEv",loadGuCBinary, this->oloadGuCBinary},
 			 {"__ZN13IGHardwareGuC26setupAdditionalDataStructsEv",setupAdditionalDataStructs, this->osetupAdditionalDataStructs},
 			 {"__ZN13IGHardwareGuC15hostToGuCActionEPKjjiPj",hostToGuCAction, this->ohostToGuCAction},
+			 {"__ZN12IGScheduler412loadFirmwareEv",loadFirmware, this->oloadFirmware},
+			 
+			 
+			 
+			 
 			 //{"__ZN13IGHardwareGuC13loadGuCBinaryEv",setupContextPool, this->osetupContextPool},
 			 //{"__ZN20IGHardwareRingBuffer12waitForSpaceEj",waitForSpace, this->owaitForSpace},
 			
 			 //{"__ZN16IntelAccelerator31initHardwareStatusPageRegistersEv",initHardwareStatusPageRegisters, this->oinitHardwareStatusPageRegisters},
 			 /*
+			  https://elixir.bootlin.com/linux/v5.5.19/source/drivers/gpu/drm/i915/gt/uc/intel_guc_submission.c
 			 {"__ZN13IGHardwareGuC15allocDoorbellIdE25UK_GEN11_CONTEXT_PRIORITY",allocDoorbellId, this->oallocDoorbellId},
 			 {"__ZN13IGHardwareGuC15stealDoorbellIdEv",stealDoorbellId, this->ostealDoorbellId},
 			 {"__ZN13IGHardwareGuC18setDoorbellPinningEtb",setDoorbellPinning, this->osetDoorbellPinning},
@@ -520,11 +527,13 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			 {"__ZN13IGHardwareGuC15acquireDoorbellEP35UK_GEN11_GUC_CONTEXT_DESCRIPTOR_RECb",acquireDoorbell, this->oacquireDoorbell},
 			 {"__ZN13IGHardwareGuC15releaseDoorbellEP35UK_GEN11_GUC_CONTEXT_DESCRIPTOR_REC",releaseDoorbell, this->oreleaseDoorbell},
 			 */
-			 //{"__ZN13IGHardwareGuC13initDoorbellsEv",dovoid},
-			 //{"__ZN5IGGuC16ringAllDoorbellsEv",dovoid},
-			 //{"__ZN5IGGuC12ringDoorbellE10IGHwCsType",dovoid},
-			 //{"__ZN13IGHardwareGuC17reacquireDoorbellEj",reacquireDoorbell},
-			 //{"__ZN20IGHardwareRingBuffer12submitToRingEv.cold.1",dovoid},
+			 /*
+			 {"__ZN13IGHardwareGuC13initDoorbellsEv",dovoid},
+			 {"__ZN5IGGuC16ringAllDoorbellsEv",dovoid},
+			 {"__ZN5IGGuC12ringDoorbellE10IGHwCsType",dovoid},
+			 {"__ZN13IGHardwareGuC17reacquireDoorbellEj",reacquireDoorbell},
+			 {"__ZN20IGHardwareRingBuffer12submitToRingEv.cold.1",dovoid},
+			 */
 			 
 			 //{"__ZN16IntelAccelerator15configureDeviceEP11IOPCIDevice",fconfigureDevice, this->ofconfigureDevice},
 			 //{"__ZN15IGMemoryManager16initDeviceMemoryEv",finitDeviceMemory, this->ofinitDeviceMemory},
@@ -570,6 +579,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		static const uint8_t f5[] = {0x40, 0xd2, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 		static const uint8_t r5[] = {0x00, 0xe0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 		
+
 		
 			LookupPatchPlus const patches[] = {
 				{&kext, f2, r2, arrsize(f2),	1},
@@ -1936,6 +1946,7 @@ static u32 guc_ctl_feature_flags0(struct intel_guc *guc)
 
 	if (!intel_guc_submission_is_used(guc))
 		flags |= GUC_CTL_DISABLE_SCHEDULER;
+	
 
 	return flags;
 }
@@ -2347,7 +2358,8 @@ static void guc_prepare_xfer0(struct intel_gt *gt)
 
 	intel_de_write(display, GEN9_GT_PM_CONFIG, GT_DOORBELL_ENABLE);
 
-
+	//xe
+	intel_de_rmw(display, GEN6_PMINTRMSK, ARAT_EXPIRED_INTRMSK, 0);
 }
 
 static void guc_prepare_xfer(struct intel_gt *gt)
@@ -2384,7 +2396,7 @@ static void guc_prepare_xfer(struct intel_gt *gt)
 		intel_de_rmw(display, GUC_SHIM_CONTROL2, 0, GUC_ENABLE_DEBUG_REG);
 	
 	//xe
-	//intel_de_rmw(display, GEN6_PMINTRMSK, ARAT_EXPIRED_INTRMSK, 0);
+	intel_de_rmw(display, GEN6_PMINTRMSK, ARAT_EXPIRED_INTRMSK, 0);
 }
 
 
@@ -2452,7 +2464,7 @@ short Gen11::reacquireDoorbell(void *that,uint param_1)
 	return FunctionCast(reacquireDoorbell, callback->oreacquireDoorbell)( that,param_1);
 }
 
-unsigned int Gen11::allocDoorbellId(void* param_1)
+unsigned int Gen11::allocDoorbellId(u32 param_1)
 {
 	return FunctionCast(allocDoorbellId, callback->oallocDoorbellId)( param_1);
 }
@@ -2470,152 +2482,16 @@ void  Gen11::releaseDoorbellId(void *that,unsigned short param_1)
 	FunctionCast(releaseDoorbellId, callback->oreleaseDoorbellId)( that,param_1);
 }
 
-unsigned short Gen11::acquireDoorbell(void *that, void *param_1, bool param_2)
+unsigned short Gen11::acquireDoorbell(void* self, void* param_1, bool param_2)
 {
-	
-	uint64_t array_base_addr = getMember<uint64_t>(that, 0x50);
-	uintptr_t array_base = static_cast<uintptr_t>(array_base_addr);
-	
-	uint32_t context_id = getMember<uint32_t>(param_1, 0x8);
-	uint64_t ctx_offset = static_cast<uint64_t>(context_id) * 0x20;
-	uint32_t* ctx_desc = *reinterpret_cast<uint32_t**>(array_base + 0x10 + ctx_offset);
-
-	if (ctx_desc[0] == 0) {
-		uint32_t db_id = allocDoorbellId(that);
-				
-		if (db_id == 0x100) {
-			db_id = stealDoorbellId(that);
-			
-			void* db_entry_val = getMember<void*>(that, 0x1e0 + static_cast<uint64_t>(db_id) * 8);
-			
-			if (!db_entry_val) {
-				uint16_t db_per_client = getMember<uint16_t>(that, 0x9e0);
-				uint16_t local_db_idx = db_id % db_per_client;
-				uint32_t client_idx = db_id / db_per_client;
-				uint32_t word_off = (local_db_idx >> 5) * 4;
-				uint32_t client_off = client_idx * 0x20;
-				
-				uint32_t& bitmap_val = getMember<uint32_t>(that, 0xdc + word_off + client_off);
-				bitmap_val &= ~(1 << (local_db_idx & 0x1f));
-				
-				return 0x100;
-			}
-			
-			releaseDoorbell(that, db_entry_val);
-
-			uint16_t db_per_client = getMember<uint16_t>(that, 0x9e0);
-			uint16_t local_db_idx = db_id % db_per_client;
-			uint32_t client_idx = db_id / db_per_client;
-			
-			uint32_t word_off = (local_db_idx >> 5) * 4;
-			uint32_t client_off = client_idx * 0x20;
-			
-			uint32_t& bitmap_val = getMember<uint32_t>(that, 0xdc + word_off + client_off);
-			bitmap_val |= (1 << (local_db_idx & 0x1f));
-			
-			if (db_id == 0x100) return 0x100;
-		}
-
-		setDoorbellPinning(that, db_id, param_2);
-		getMember<uint32_t>(param_1, 0x24) = db_id;
-		
-		ctx_desc[0] = 1;
-		ctx_desc[1] = 0;
-		
-		/*intel_de_write(display, 0xcee8, 1);
-		while ((intel_de_read(display, 0xcee8) & 1) != 0) {
-			// Spinwait
-		}*/
-		
-		// acel->capabilities & 0x20)
-		// intel_de_read(display, 0x2030);
-		
-		uint32_t payload[2] = { 0x10, context_id };
-		uint32_t response = 0;
-		
-		hostToGuCAction(that, payload, 2, 0xf, &response);
-
-		if ((response >> 22 & 1) == 0) {
-			ctx_desc[0] = 0;
-		} else {
-			getMember<void*>(that, 0x1e0 + static_cast<uint64_t>(db_id) * 8) = param_1;
-			
-			uint32_t wq_offset = (response >> 10) & 0xFC0;
-			
-			uint64_t& ctx_ptr_val = *reinterpret_cast<uint64_t*>(reinterpret_cast<uintptr_t>(array_base) + 0x10 + ctx_offset);
-																 
-			ctx_ptr_val += wq_offset;
-			uint64_t new_ctx_ptr = ctx_ptr_val;
-			
-			getMember<uint32_t>(param_1, 0x18) += wq_offset;
-			getMember<uint64_t>(param_1, 0x1c) += wq_offset;
-			
-			uint32_t* desc_ptr = *reinterpret_cast<uint32_t**>(array_base + 0x18 + ctx_offset);
-			
-			desc_ptr[0] = context_id;
-			*reinterpret_cast<uint64_t*>(&desc_ptr[1]) = new_ctx_ptr;
-			desc_ptr[10] = getMember<uint32_t>(param_1, 0x5a70);
-		}
-		return db_id;
-	}
-	
-	return getMember<uint16_t>(param_1, 0x24);
+	return FunctionCast(acquireDoorbell, callback->oacquireDoorbell)( self,param_1,param_2);
 }
 
-void Gen11::releaseDoorbell(void *that, void *param_1)
-{
-	
-	uint64_t array_base_addr = getMember<uint64_t>(that, 0x50);
-	uintptr_t array_base = static_cast<uintptr_t>(array_base_addr);
-	
-	uint32_t db_id = getMember<uint32_t>(param_1, 0x24);
-	uint32_t context_id = getMember<uint32_t>(param_1, 0x8);
-	uint16_t num_doorbells = getMember<uint16_t>(that, 0x9e0);
-	
-	uint64_t ctx_offset = static_cast<uint64_t>(context_id) * 0x20;
-	uint32_t* desc_ptr = *reinterpret_cast<uint32_t**>(array_base + 0x10 + ctx_offset);
-	*desc_ptr = 0;
-	
-	uint32_t db_index = (db_id & 0xFFFF) % num_doorbells;
-	uint32_t db_instance = ((db_id & 0xFF) / num_doorbells) & 7;
-	uint32_t instance_select = db_instance << 24;
-	
-	#define GEN11_DOORBELL_INSTANCE_SELECT 0xfd4
-	volatile uint32_t *mmio_base=NBlue::callback->rmmioPtr;
-	uint32_t db_reg_offset = GEN8_DRBREGL(db_index);
-	uint32_t db_reg_hi_offset = GEN8_DRBREGU(db_index);
-	volatile uint32_t* fd4_reg = reinterpret_cast<volatile uint32_t*>(mmio_base + GEN11_DOORBELL_INSTANCE_SELECT);
-	volatile uint32_t* db_reg = reinterpret_cast<volatile uint32_t*>(mmio_base + db_reg_offset);
-	volatile uint32_t* db_reg_hi = reinterpret_cast<volatile uint32_t*>(mmio_base + db_reg_hi_offset);
-		
-	uint32_t saved_select = *fd4_reg;
-		
-	*fd4_reg = instance_select;
-	uint32_t db_val = *db_reg;
-	*fd4_reg = saved_select;
-		
-	*db_reg = db_val & 0xFFFFFFFE;
-	saved_select = *fd4_reg;
-		
-	*fd4_reg = instance_select;
-	*db_reg_hi = 0;
-	*fd4_reg = saved_select;
-		
-	saved_select = *fd4_reg;
-	*fd4_reg = instance_select;
-	*db_reg = 0;
-	*fd4_reg = saved_select;
-	
-	uint32_t payload[2] = { 0x20, context_id };
-	hostToGuCAction(that, payload, 2, 0xF, nullptr);
-	
-	releaseDoorbellId(that, static_cast<uint16_t>(db_id));
-	
-	getMember<uint64_t>(that, 0x1E0 + (db_id & 0xFFFF) * 8) = 0;
-	
-	getMember<uint32_t>(param_1, 0x24) = 0x100; // GUC_INVALID_DOORBELL_ID
-}
 
+void Gen11::releaseDoorbell(void* self, void* ctxDesc)
+{
+	FunctionCast(releaseDoorbell, callback->oreleaseDoorbell)( self,ctxDesc);
+}
 
 
 
@@ -10378,8 +10254,8 @@ static void gen11_enable_guc_interrupts(struct intel_gt *gt)
 
 	//spin_lock_irq(&gt->irq_lock);
 	//WARN_ON_ONCE(gen11_gt_reset_one_iir(gt, 0, GEN11_GUC));
-	
 	gen11_gt_reset_one_iir(gt, 0, GEN11_GUC);
+	
 	intel_de_write(display,
 			   GEN11_GUC_SG_INTR_ENABLE, events);
 	intel_de_write(display,
@@ -10550,9 +10426,6 @@ unsigned long Gen11::loadGuCBinary(void *that)
 		return 0;
 	}
 	
-	gen11_reset_guc_interrupts(gt);
-	__reset_guc(gt);
-	
 	if (kexticl)
 	{
 		if (!initSchedControl0(that)) return 0;
@@ -10574,7 +10447,11 @@ unsigned long Gen11::loadGuCBinary(void *that)
 		//wa_list_apply(&engine->ctx_wa_list); //???
 	}
 	
+	
 	intel_wopcm_init(gt, sizeof(struct uc_css_header) + guc->fw.ucode_size);
+	
+	gen11_reset_guc_interrupts(gt);
+	__reset_guc(gt);
 	
 	_guc_log_init_sizes(&guc->log);
 	void *t=getMember<void*>(that, 0x60);
@@ -10588,6 +10465,7 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	guc->stage_desc_pool->obj=t; //35.2
 	guc->stage_desc_pool->node.vadr=fgetVirtualAddress(guc->stage_desc_pool->obj);
 	guc->stage_desc_pool->node.start=fgetGPUVirtualAddress(guc->stage_desc_pool->obj);
+	guc->stage_desc_pool_vaddr=(void *)guc->stage_desc_pool->node.vadr;
 	t=getMember<void *>(that, kexticl ? 0x930: 0x9e8);
 	guc->ads_vma->obj=t;
 	guc->ads_vma->node.vadr=fgetVirtualAddress(guc->ads_vma->obj);
@@ -10672,6 +10550,7 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	if (!success)
 	panic("auth %x bootrom %x ukernel %x guc_wopcm_base %x guc_wopcm_size %x",auth,bootrom,ukernel,gt->wopcm.guc.base,gt->wopcm.guc.size);
 
+	
 	return success ? 1 : 0;
 
 fail:
@@ -11292,11 +11171,14 @@ err_out:
 
 uint64_t Gen11::registerCommandTransportBuffers(void *that)
 {
+	
 	struct drm_i915_private *i915= NBlue::callback->i915b;
 	struct intel_gt *gt=to_gt(i915);
 	struct intel_guc *guc = gt_to_guc(gt);
 	
-	intel_guc_ct_enable(guc);
+	//intel_guc_ct_enable(guc);
+	
+	
 
 return 1;
 
@@ -11867,5 +11749,43 @@ void Gen11::releaseUkContext(void *that, uint32_t context_id)
 }
 
 
+
+uint64_t Gen11::loadFirmware(void *that)
+{
+	struct drm_i915_private *i915 = NBlue::callback->i915b;
+	struct intel_gt *gt = to_gt(i915);
+	struct intel_guc *guc = gt_to_guc(gt);
+	struct intel_guc_ct *ct = &guc->ct;
+	struct intel_display *display = i915->display;
+	
+	auto ret=FunctionCast(loadFirmware, callback->oloadFirmware)(that);
+	
+	void *m_accelerator = getMember<void *>(gucp, 0x38);
+	
+	if (guc->fw.file_selected.ver.major < 69) {
+		
+		SafeForceWake(m_accelerator, true, 7);
+
+		gen11_enable_guc_interrupts(gt);
+		
+		intel_guc_sample_forcewake(gucp);
+		
+#define   GT_CONTEXT_SWITCH_INTERRUPT		REG_BIT(8)
+#define GEN11_RENDER_COPY_INTR_ENABLE		_MMIO(0x190030)
+#define GEN11_VCS_VECS_INTR_ENABLE		_MMIO(0x190034)
+	
+		u32 irqs = GT_CONTEXT_SWITCH_INTERRUPT;
+		u32 dmask = irqs << 16 | irqs;
+		intel_de_rmw(display, GEN11_RENDER_COPY_INTR_ENABLE, dmask, 0);
+		intel_de_rmw(display, GEN11_VCS_VECS_INTR_ENABLE, dmask, 0);
+	
+		SafeForceWake(m_accelerator, false, 7);
+	
+		intel_guc_resume0(gucp);
+		
+	}
+	
+	return ret;
+}
 
 
