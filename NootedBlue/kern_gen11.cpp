@@ -440,7 +440,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			 {"__ZN13IGHardwareGuC13loadGuCBinaryEv",loadGuCBinary0, this->oloadGuCBinary0},
 			 {"__ZN13IGHardwareGuC26setupAdditionalDataStructsEv",setupAdditionalDataStructs0, this->osetupAdditionalDataStructs0},
 			 {"__ZN13IGHardwareGuC15hostToGuCActionEPKjjiPj",hostToGuCAction, this->ohostToGuCAction},
-			 {"__ZN12IGScheduler412loadFirmwareEv",loadFirmware, this->oloadFirmware},
+			 //{"__ZN12IGScheduler412loadFirmwareEv",loadFirmware, this->oloadFirmware},
 			 
 			// {"__ZN20IGHardwareRingBuffer12waitForSpaceEj",waitForSpace, this->owaitForSpace},
 			 //{"__ZN16IntelAccelerator31initHardwareStatusPageRegistersEv",initHardwareStatusPageRegisters, this->oinitHardwareStatusPageRegisters},
@@ -509,7 +509,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			 {"__ZN13IGHardwareGuC13loadGuCBinaryEv",loadGuCBinary, this->oloadGuCBinary},
 			 {"__ZN13IGHardwareGuC26setupAdditionalDataStructsEv",setupAdditionalDataStructs, this->osetupAdditionalDataStructs},
 			 {"__ZN13IGHardwareGuC15hostToGuCActionEPKjjiPj",hostToGuCAction, this->ohostToGuCAction},
-			 {"__ZN12IGScheduler412loadFirmwareEv",loadFirmware, this->oloadFirmware},
+			 //{"__ZN12IGScheduler412loadFirmwareEv",loadFirmware, this->oloadFirmware},
 			 
 			 
 			 
@@ -2359,7 +2359,7 @@ static void guc_prepare_xfer0(struct intel_gt *gt)
 	intel_de_write(display, GEN9_GT_PM_CONFIG, GT_DOORBELL_ENABLE);
 
 	//xe
-	intel_de_rmw(display, GEN6_PMINTRMSK, ARAT_EXPIRED_INTRMSK, 0);
+	//intel_de_rmw(display, GEN6_PMINTRMSK, ARAT_EXPIRED_INTRMSK, 0);
 }
 
 static void guc_prepare_xfer(struct intel_gt *gt)
@@ -2396,7 +2396,7 @@ static void guc_prepare_xfer(struct intel_gt *gt)
 		intel_de_rmw(display, GUC_SHIM_CONTROL2, 0, GUC_ENABLE_DEBUG_REG);
 	
 	//xe
-	intel_de_rmw(display, GEN6_PMINTRMSK, ARAT_EXPIRED_INTRMSK, 0);
+	//intel_de_rmw(display, GEN6_PMINTRMSK, ARAT_EXPIRED_INTRMSK, 0);
 }
 
 
@@ -10474,15 +10474,21 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	guc->ads_map.vaddr = (void*)guc->ads_vma->node.vadr;
 	guc->ads_map.is_iomem = false;
 	
+	//if (guc->fw.file_selected.ver.major < 69)
+	//	guc_init_params0(guc); //35.2
+	
 	if (guc->fw.file_selected.ver.major < 69)
-		guc_init_params0(guc); //35.2
-	else guc_init_params(guc);
+	for ( i = 0; i < 6; i++)
+	guc->params[i]=getMember<u32[6]>(that, 0x8c)[i];
+		
+	if (guc->fw.file_selected.ver.major >= 69)
+	guc_init_params(guc);
 	
 	guc_ggtt_invalidate(gt,m_accelerator);
 	if (guc->fw.file_selected.ver.major > 69) intel_guc_ads_reset(guc);
-	
-	intel_guc_write_params(guc,m_accelerator);
 
+	intel_guc_write_params(guc,m_accelerator);
+	
 	if (guc->fw.file_selected.ver.major < 69)
 		guc_prepare_xfer0(gt);
 	else guc_prepare_xfer(gt);
