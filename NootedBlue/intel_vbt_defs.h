@@ -8972,6 +8972,18 @@ struct guc_mmio_reg_set {
 	u16 reserved;  // 6
 } __packed; // Size: 8 bytes
 
+struct guc_ads0 {
+	u32 reg_state_addr;
+	u32 reg_state_buffer;
+	u32 scheduler_policies;
+	u32 gt_system_info;
+	u32 clients_info;
+	u32 control_data;
+	u32 golden_context_lrca[GUC_MAX_ENGINE_CLASSES];
+	u32 eng_state_size[GUC_MAX_ENGINE_CLASSES];
+	u32 reserved[16];
+} __packed;
+
 struct guc_ads {
 	struct guc_mmio_reg_set reg_state_list[16][32]; // 0x0000: 16 * 32 * 8 = 4096 (0x1000) bytes
 	u32 reserved0;                     // 0x1000
@@ -8992,6 +9004,37 @@ struct guc_ads {
 	u32 reserved[11];                 // 0x11B0: 11 * 4 = 44 bytes
 } __packed; // Total Size: 0x11DC bytes
 
+struct guc_policy0 {
+	/* Time for one workload to execute. (in micro seconds) */
+	u32 execution_quantum;
+	/* Time to wait for a preemption request to completed before issuing a
+	 * reset. (in micro seconds). */
+	u32 preemption_time;
+	/* How much time to allow to run after the first fault is observed.
+	 * Then preempt afterwards. (in micro seconds) */
+	u32 fault_time;
+	u32 policy_flags;
+	u32 reserved[8];
+} __packed;
+
+struct guc_policies0 {
+	struct guc_policy0 policy[4][GUC_MAX_ENGINE_CLASSES];
+	u32 submission_queue_depth[GUC_MAX_ENGINE_CLASSES];
+	/* In micro seconds. How much time to allow before DPC processing is
+	 * called back via interrupt (to prevent DPC queue drain starving).
+	 * Typically 1000s of micro seconds (example only, not granularity). */
+	u32 dpc_promote_time;
+
+	/* Must be set to take these new values. */
+	u32 is_valid;
+
+	/* Max number of WIs to process per call. A large value may keep CS
+	 * idle. */
+	u32 max_num_work_items;
+
+	u32 reserved[4];
+} __packed;
+
 struct guc_policies {
 	u32 submission_queue_depth[16]; // 0x00: 64 bytes
 	u32 dpc_promote_time;           // 0x40
@@ -9000,6 +9043,17 @@ struct guc_policies {
 	u32 global_flags;               // 0x4C
 	u32 reserved[4];                // 0x50: 16 bytes
 } __packed; // Total Size: 0x60 bytes
+
+struct guc_gt_system_info0 {
+	u32 slice_enabled;
+	u32 rcs_enabled;
+	u32 reserved0;
+	u32 bcs_enabled;
+	u32 vdbox_enable_mask;
+	u32 vdbox_sfc_support_mask;
+	u32 vebox_enable_mask;
+	u32 reserved[9];
+} __packed;
 
 struct guc_gt_system_info {
 	u8 mapping_table[16][32];       // 0x00: 512 bytes
@@ -9019,8 +9073,57 @@ struct guc_engine_usage {
 	struct guc_engine_usage_record engines[16][32]; // 16 * 32 * 0x20 = 0x4000 bytes
 } __packed; // Total Size: 0x4000 bytes
 
+#define GUC_REGSET_MAX_REGISTERS	64
+#define GUC_S3_SAVE_SPACE_PAGES		10
 
 
+
+struct guc_mmio_regset {
+	struct guc_mmio_reg registers[GUC_REGSET_MAX_REGISTERS];
+	u32 values_valid;
+	u32 number_of_registers;
+} __packed;
+
+/* GuC register sets */
+struct guc_mmio_reg_state {
+	struct guc_mmio_regset engine_reg[GUC_MAX_ENGINE_CLASSES][GUC_MAX_INSTANCES_PER_CLASS];
+	u32 reserved[98];
+} __packed;
+struct guc_ct_buffer_desc0 {
+	u32 addr;		/* gfx address */
+	u64 host_private;	/* host private data */
+	u32 size;		/* size in bytes */
+	u32 head;		/* offset updated by GuC*/
+	u32 tail;		/* offset updated by owner */
+	u32 is_in_error;	/* error indicator */
+	u32 fence;		/* fence updated by GuC */
+	u32 status;		/* status updated by GuC */
+	u32 owner;		/* id of the channel owner */
+	u32 owner_sub_id;	/* owner-defined field for extra tracking */
+	u32 reserved[5];
+} __packed;
+struct guc_clients_info {
+	u32 clients_num;
+	u32 reserved0[13];
+	u32 ct_pool_addr;
+	u32 ct_pool_count;
+	u32 reserved[4];
+} __packed;
+
+struct guc_ct_pool_entry {
+	struct guc_ct_buffer_desc0 desc;
+	u32 reserved[7];
+} __packed;
+
+struct __guc_ads_blob0 {
+	struct guc_ads0 ads;
+	struct guc_policies0 policies;
+	struct guc_mmio_reg_state reg_state;
+	struct guc_gt_system_info0 system_info;
+	struct guc_clients_info clients_info;
+	struct guc_ct_pool_entry ct_pool[2];
+	u8 reg_state_buffer[10 * PAGE_SIZE];
+} __packed;
 
 struct __guc_ads_blob {
 	struct guc_ads ads;                  // 0x0000 to 0x11DB (Size: 0x11DC)
@@ -9414,19 +9517,7 @@ struct intel_guc_state_capture {
 
 
 
-struct guc_ct_buffer_desc0 {
-	u32 addr;		/* gfx address */
-	u64 host_private;	/* host private data */
-	u32 size;		/* size in bytes */
-	u32 head;		/* offset updated by GuC*/
-	u32 tail;		/* offset updated by owner */
-	u32 is_in_error;	/* error indicator */
-	u32 fence;		/* fence updated by GuC */
-	u32 status;		/* status updated by GuC */
-	u32 owner;		/* id of the channel owner */
-	u32 owner_sub_id;	/* owner-defined field for extra tracking */
-	u32 reserved[5];
-} __packed;
+
 struct intel_guc_ct_buffer0 {
 	struct guc_ct_buffer_desc0 *desc;
 	u32 *cmds;
