@@ -438,10 +438,10 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			 {"__ZN16IntelAccelerator13SafeForceWakeEbj",SafeForceWake, this->oSafeForceWake},
 			 {"__ZN20IGSharedMappedBuffer4freeEv",IGSharedMappedBufferfree, this->oIGSharedMappedBufferfree},
 			 {"__ZN13IGHardwareGuC13loadGuCBinaryEv",loadGuCBinary0, this->oloadGuCBinary0},
-			// {"__ZN13IGHardwareGuC26setupAdditionalDataStructsEv",setupAdditionalDataStructs0, this->osetupAdditionalDataStructs0},
 			 {"__ZN13IGHardwareGuC15hostToGuCActionEPKjjiPj",hostToGuCAction, this->ohostToGuCAction},
-			 {"__ZN12IGScheduler412loadFirmwareEv",loadFirmware, this->oloadFirmware},
-			 
+			 {"__ZN13IGHardwareGuC16setupContextPoolEi",setupContextPool, this->osetupContextPool},
+			 // {"__ZN12IGScheduler412loadFirmwareEv",loadFirmware, this->oloadFirmware},
+			 // {"__ZN13IGHardwareGuC26setupAdditionalDataStructsEv",setupAdditionalDataStructs0, this->osetupAdditionalDataStructs0},
 			// {"__ZN20IGHardwareRingBuffer12waitForSpaceEj",waitForSpace, this->owaitForSpace},
 			 //{"__ZN16IntelAccelerator31initHardwareStatusPageRegistersEv",initHardwareStatusPageRegisters, this->oinitHardwareStatusPageRegisters},
 			 
@@ -507,14 +507,23 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			 {"__ZN16IntelAccelerator13SafeForceWakeEbj",SafeForceWake, this->oSafeForceWake},
 			 {"__ZN20IGSharedMappedBuffer4freeEv",IGSharedMappedBufferfree, this->oIGSharedMappedBufferfree},
 			 {"__ZN13IGHardwareGuC13loadGuCBinaryEv",loadGuCBinary, this->oloadGuCBinary},
-			 {"__ZN13IGHardwareGuC26setupAdditionalDataStructsEv",setupAdditionalDataStructs, this->osetupAdditionalDataStructs},
 			 {"__ZN13IGHardwareGuC15hostToGuCActionEPKjjiPj",hostToGuCAction, this->ohostToGuCAction},
-			 {"__ZN12IGScheduler412loadFirmwareEv",loadFirmware, this->oloadFirmware},
+			 {"__ZN13IGHardwareGuC16setupContextPoolEi",setupContextPool, this->osetupContextPool},
+			 
+			 //{"__ZN12IGScheduler412loadFirmwareEv",loadFirmware, this->oloadFirmware},
+			 // {"__ZN13IGHardwareGuC26setupAdditionalDataStructsEv",setupAdditionalDataStructs, this->osetupAdditionalDataStructs},
+
+			// {"__ZN22IGHardwareGuCWorkQueue11withOptionsEP22IOGraphicsAccelerator2jP37UK_GEN11_SCHED_PROCESS_DESCRIPTOR_REC",IGHardwareGuCWorkQueuewithOptions, this->oIGHardwareGuCWorkQueuewithOptions},
+			 //{"__ZN13IGHardwareGuC14allocContextIdEyb",allocContextId, this->oallocContextId},
+			 
+			 /*
+			 {"__ZN13IGHardwareGuC16releaseUkContextEj",dovoid},
+			 {"__ZN13IGHardwareGuC33deregisterCommandTransportBuffersEv",dovoid},
+			 {"__ZN13IGHardwareGuC15createUkContextEy25UK_GEN11_CONTEXT_PRIORITY",udozero},
+			 {"__ZN13IGHardwareGuC31registerCommandTransportBuffersEv",ldone},*/
+			// {"__ZN13IGHardwareGuC16setupContextPoolEi",ldone},
 			 
 			 
-			 
-			 
-			 //{"__ZN13IGHardwareGuC13loadGuCBinaryEv",setupContextPool, this->osetupContextPool},
 			 //{"__ZN20IGHardwareRingBuffer12waitForSpaceEj",waitForSpace, this->owaitForSpace},
 			
 			 //{"__ZN16IntelAccelerator31initHardwareStatusPageRegistersEv",initHardwareStatusPageRegisters, this->oinitHardwareStatusPageRegisters},
@@ -547,7 +556,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			 //{"__ZN13IGHardwareGuC31DetachContextDescFromGucContextERK21SGfxContextDescriptor",DetachContextDescFromGucContext, this->oDetachContextDescFromGucContext},
 			 //{"__ZN13IGHardwareGuC16releaseUkContextEj",releaseUkContext, this->oreleaseUkContext},
 			 //{"__ZN13IGHardwareGuC29AttachContextDescToGucContextERK21SGfxContextDescriptor",AttachContextDescToGucContext, this->oAttachContextDescToGucContext},
-			 //{"__ZN13IGHardwareGuC14allocContextIdEyb",allocContextId, this->oallocContextId},
+			 
 			 
 
 			 
@@ -801,7 +810,18 @@ int Gen11::dozero()
 {
 	return 0;
 }
-
+uint Gen11::udozero()
+{
+	return 0;
+}
+u64 Gen11::ldozero()
+{
+	return 0;
+}
+u64 Gen11::ldone()
+{
+	return 1;
+}
 void Gen11::dovoid()
 {
 }
@@ -1167,7 +1187,7 @@ uint32_t Gen11::configureReport	(void *that,void *param_1,uint param_2,void *par
 		//fsetAttribute(frame0, 'wsrv',4);
 		//IOSleep(1);
 		*/
-		/*getMember<uint32_t>(frame0, 0x4284)=2;//sleepmode
+		getMember<uint32_t>(frame0, 0x4284)=2;//sleepmode
 		
 		getMember<uint8_t>(frame0, 0x1e0)=1;//fOnline
 		getMember<uint8_t>(frame0, 0x1e1)=0;//newOnlineState
@@ -1178,7 +1198,7 @@ uint32_t Gen11::configureReport	(void *that,void *param_1,uint param_2,void *par
 		getMember<uint8_t>(frame0, 0x1e1)=1;//newOnlineState
 		getMember<uint8_t>(ccont2, 0xe61)=0;//lidisclosed
 		wrapSetAttributeForConnection(frame0, 0, 'prob', 1);
-		IOSleep(1);*/
+		IOSleep(1);
 		
 		//IODelay(1000);
 		//getMember<uint32_t>(that, 0x4284)=1;//sleepmode
@@ -2359,7 +2379,7 @@ static void guc_prepare_xfer0(struct intel_gt *gt)
 	intel_de_write(display, GEN9_GT_PM_CONFIG, GT_DOORBELL_ENABLE);
 
 	//xe
-	//intel_de_rmw(display, GEN6_PMINTRMSK, ARAT_EXPIRED_INTRMSK, 0);
+	intel_de_rmw(display, GEN6_PMINTRMSK, ARAT_EXPIRED_INTRMSK, 0);
 }
 
 static void guc_prepare_xfer(struct intel_gt *gt)
@@ -2396,7 +2416,7 @@ static void guc_prepare_xfer(struct intel_gt *gt)
 		intel_de_rmw(display, GUC_SHIM_CONTROL2, 0, GUC_ENABLE_DEBUG_REG);
 	
 	//xe
-	//intel_de_rmw(display, GEN6_PMINTRMSK, ARAT_EXPIRED_INTRMSK, 0);
+	intel_de_rmw(display, GEN6_PMINTRMSK, ARAT_EXPIRED_INTRMSK, 0);
 }
 
 
@@ -2428,8 +2448,10 @@ long  Gen11::fgetVirtualAddress(void *that)
 	//return *((uint64_t *)that + 7);
 	return FunctionCast(fgetVirtualAddress, callback->ofgetVirtualAddress)( that);
 }
-
-
+void *Gen11::IGHardwareGuCWorkQueuewithOptions(void *param_1,uint param_2, void *param_3)
+{
+	return FunctionCast(IGHardwareGuCWorkQueuewithOptions, callback->oIGHardwareGuCWorkQueuewithOptions)( param_1,param_2,param_3);
+}
 
 uint64_t  Gen11::IGHashTablecontains(void *that,uint *param_1)
 {
@@ -9923,10 +9945,11 @@ static void guc_mmio_reg_state_init(struct intel_guc *guc)
 }
 
 
-static void __guc_ads_init(struct intel_guc *guc)
+static void __guc_ads_init(void *that)
 {
-	struct intel_gt *gt = guc->gt;
-	struct drm_i915_private *i915 = gt->i915;
+	struct drm_i915_private *i915= NBlue::callback->i915b;
+	struct intel_gt *gt=to_gt(i915);
+	struct intel_guc *guc = gt_to_guc(gt);
 	struct intel_display *display=i915->display;
 	struct iosys_map info_map = IOSYS_MAP_INIT_OFFSET(&guc->ads_map,
 			offsetof(struct __guc_ads_blob, system_info));
@@ -10105,7 +10128,7 @@ guc_capture_get_device_reglist(struct intel_guc *guc)
 	return lists;
 }
 
-int intel_guc_capture_init(struct intel_guc *guc)
+static int intel_guc_capture_init(struct intel_guc *guc)
 {
 	guc->capture = (struct intel_guc_state_capture*)IOMalloc(sizeof(struct intel_guc_state_capture));
 	if (!guc->capture)
@@ -10141,7 +10164,7 @@ static void guc_ads_private_data_reset(struct intel_guc *guc)
 	iosys_map_memset(&guc->ads_map, guc_ads_private_data_offset(guc),
 			 0, size);
 }
-void intel_guc_ads_reset(struct intel_guc *guc)
+static void intel_guc_ads_reset(struct intel_guc *guc)
 {
 	if (!guc->ads_vma)
 		return;
@@ -10210,7 +10233,7 @@ gen11_gt_engine_identity(struct intel_gt *gt,
 	return ident;
 }
 
-bool gen11_gt_reset_one_iir(struct intel_gt *gt,
+static bool gen11_gt_reset_one_iir(struct intel_gt *gt,
 				const unsigned int bank, const unsigned int bit)
 {
 	struct drm_i915_private *i915=gt->i915;
@@ -10284,7 +10307,7 @@ bool  Gen11::loadGuCBinary0(void *that)
 	return true;
 }
 
-int intel_guc_resume0(void *that)
+static int intel_guc_resume0(void *that)
 {
 #define GUC_POWER_D0		1
 	
@@ -10301,7 +10324,7 @@ int intel_guc_resume0(void *that)
 	return 1;
 }
 
-int intel_guc_sample_forcewake(void *that)
+static int intel_guc_sample_forcewake(void *that)
 {
 	
 	u32 action[2];
@@ -10317,16 +10340,7 @@ int intel_guc_sample_forcewake(void *that)
 	return 1;
 }
 
-/* Reset engine upon preempt failure */
-#define POLICY_RESET_ENGINE		(1<<0)
-/* Preempt to idle on quantum expiry */
-#define POLICY_PREEMPT_TO_IDLE		(1<<1)
 
-#define POLICY_MAX_NUM_WI 15
-#define POLICY_DEFAULT_DPC_PROMOTE_TIME_US 500000
-#define POLICY_DEFAULT_EXECUTION_QUANTUM_US 1000000
-#define POLICY_DEFAULT_PREEMPTION_TIME_US 500000
-#define POLICY_DEFAULT_FAULT_TIME_US 250000
 
 static void guc_policy_init(struct guc_policy0 *policy)
 {
@@ -10360,20 +10374,18 @@ static void guc_ct_pool_entries_init(struct guc_ct_pool_entry *pool, u32 num)
 	memset(pool, 0, num * sizeof(*pool));
 }
 
-static void __guc_ads_init0()
+static void __guc_ads_init0(void *that )
 {
-	struct drm_i915_private *i915=NBlue::callback->i915b;
+	struct drm_i915_private *i915= NBlue::callback->i915b;
 	struct intel_gt *gt=to_gt(i915);
 	struct intel_guc *guc = gt_to_guc(gt);
-	
-	struct __guc_ads_blob0 *blob = (struct __guc_ads_blob0 *)guc->ads_vma->obj;
+	struct __guc_ads_blob0 *blob = (struct __guc_ads_blob0 *)guc->ads_vma->node.vadr;
 	const u32 skipped_size = LRC_PPHWSP_SZ * PAGE_SIZE + LR_HW_CONTEXT_SIZE;
 	u32 base;
 	u8 engine_class;
 
 	guc_policies_init(&blob->policies);
-
-
+	
 	for (engine_class = 0; engine_class <= MAX_ENGINE_CLASS; ++engine_class) {
 		if (engine_class == OTHER_CLASS)
 			continue;
@@ -10402,7 +10414,7 @@ static void __guc_ads_init0()
 	blob->clients_info.clients_num = 1;
 	blob->clients_info.ct_pool_addr = base + ptr_offset(blob, ct_pool);
 	blob->clients_info.ct_pool_count = ARRAY_SIZE(blob->ct_pool);
-
+	
 	/* ADS */
 	blob->ads.scheduler_policies = base + ptr_offset(blob, policies);
 	blob->ads.reg_state_buffer = base + ptr_offset(blob, reg_state_buffer);
@@ -10540,7 +10552,7 @@ unsigned long Gen11::loadGuCBinary(void *that)
 		intel_engine_apply_workarounds(engine);
 		intel_engine_apply_whitelist(engine);
 		//intel_engine_emit_ctx_wa
-		//wa_list_apply(&engine->ctx_wa_list); //???
+		wa_list_apply(&engine->ctx_wa_list); //???
 	}
 	
 	
@@ -10557,11 +10569,13 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	guc->log.vma->node.vadr=fgetVirtualAddress(guc->log.vma->obj);
 	guc->log.vma->node.start=fgetGPUVirtualAddress(guc->log.vma->obj);
 	
-	t=getMember<void*>(that, 0x68);
-	guc->stage_desc_pool->obj=t; //35.2
-	guc->stage_desc_pool->node.vadr=fgetVirtualAddress(guc->stage_desc_pool->obj);
-	guc->stage_desc_pool->node.start=fgetGPUVirtualAddress(guc->stage_desc_pool->obj);
-	guc->stage_desc_pool_vaddr=(void *)guc->stage_desc_pool->node.vadr;
+	if (guc->fw.file_selected.ver.major<69) {
+		t=getMember<void*>(that, 0x68);
+		guc->stage_desc_pool->obj=t; //35.2
+		guc->stage_desc_pool->node.vadr=fgetVirtualAddress(guc->stage_desc_pool->obj);
+		guc->stage_desc_pool->node.start=fgetGPUVirtualAddress(guc->stage_desc_pool->obj);
+		guc->stage_desc_pool_vaddr=(void *)guc->stage_desc_pool->node.vadr;
+	}
 	t=getMember<void *>(that, kexticl ? 0x930: 0x9e8);
 	guc->ads_vma->obj=t;
 	guc->ads_vma->node.vadr=fgetVirtualAddress(guc->ads_vma->obj);
@@ -10570,15 +10584,18 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	guc->ads_map.vaddr = (void*)guc->ads_vma->node.vadr;
 	guc->ads_map.is_iomem = false;
 	
-	//if (guc->fw.file_selected.ver.major < 69)
-	//	guc_init_params0(guc); //35.2
-	
 	if (guc->fw.file_selected.ver.major < 69)
-	for ( i = 0; i < 6; i++)
-	guc->params[i]=getMember<u32[6]>(that, 0x8c)[i];
+		guc_init_params0(guc); //35.2
+	
+	//if (guc->fw.file_selected.ver.major < 69)
+	//for ( i = 0; i < 6; i++)
+	//guc->params[i]=getMember<u32[6]>(that, 0x8c)[i];
 		
 	if (guc->fw.file_selected.ver.major >= 69)
 	guc_init_params(guc);
+	
+	for ( i = 0; i < 6; i++)
+	getMember<u32[6]>(that, 0x8c)[i]=guc->params[i];
 	
 	guc_ggtt_invalidate(gt,m_accelerator);
 	//if (guc->fw.file_selected.ver.major > 69) intel_guc_ads_reset(guc);
@@ -10693,7 +10710,7 @@ static void guc_ct_buffer_init(struct intel_guc_ct_buffer *ctb,
 	guc_ct_buffer_reset(ctb);
 }
 
-void intel_guc_ct_init(void *that)
+static void intel_guc_ct_init(void *that)
 {
 	struct drm_i915_private *i915= NBlue::callback->i915b;
 	struct intel_gt *gt=to_gt(i915);
@@ -10714,11 +10731,11 @@ void intel_guc_ct_init(void *that)
 	//intel_guc_ct_init
 	blob_size = 2 * CTB_DESC_SIZE + CTB_H2G_BUFFER_SIZE + CTB_G2H_BUFFER_SIZE;
 	//err = intel_guc_allocate_and_map_vma(guc, blob_size, &ct->vma, &blob);
-	void *t = Gen11::callback->IGSharedMappedBufferwithOptions(field_0x150, round_up(blob_size, PAGE_SIZE), 2, 0);
+	blob = Gen11::callback->IGSharedMappedBufferwithOptions(field_0x150, round_up(blob_size, PAGE_SIZE), 2, 0);
 	
-	blob =(void *)Gen11::callback->fgetVirtualAddress(t);
+	getMember<void *>(that, 0x50)= blob;
 	
-	ct->vma->obj=t;
+	ct->vma->obj=blob;
 	ct->vma->node.vadr=Gen11::callback->fgetVirtualAddress(ct->vma->obj);
 	ct->vma->node.start=Gen11::callback->fgetGPUVirtualAddress(ct->vma->obj);
 	
@@ -10822,7 +10839,13 @@ static int guc_lrc_desc_pool_create_v69(struct intel_guc *guc,void *that)
 	//ret = intel_guc_allocate_and_map_vma(guc, size, &guc->lrc_desc_pool_v69,
 	//					 (void **)&guc->lrc_desc_pool_vaddr_v69);
 	
-	void* t = getMember<void *>(that, 0x68);
+	void *acel=getMember<void *>(that, 0x38);
+	void *field_0x150=getMember<void *>(acel, 0x150);
+	
+	void* t = Gen11::callback->IGSharedMappedBufferwithOptions(field_0x150, size, 2, 0);
+	
+	
+	getMember<void *>(that, 0x68)=t;
 	
 	guc->lrc_desc_pool_v69->obj=t;
 	guc->lrc_desc_pool_v69->node.vadr=Gen11::callback->fgetVirtualAddress(guc->lrc_desc_pool_v69->obj);
@@ -10831,9 +10854,11 @@ static int guc_lrc_desc_pool_create_v69(struct intel_guc *guc,void *that)
 	return 0;
 }
 
-int intel_guc_submission_init(struct intel_guc *guc,void *that)
+static int intel_guc_submission_init(void *that)
 {
-	struct intel_gt *gt = guc->gt;
+	struct drm_i915_private *i915= NBlue::callback->i915b;
+	struct intel_gt *gt=to_gt(i915);
+	struct intel_guc *guc = gt_to_guc(gt);
 	int ret;
 
 	if (guc->submission_initialized)
@@ -10871,19 +10896,125 @@ destroy_pool:
 	return ret;
 }
 
-int intel_guc_ads_create0(void *that)
+
+
+
+static int guc_workqueue_create(struct intel_guc *guc, void *that)
+{
+	void *acel=getMember<void *>(that, 0x38);
+	void *field_0x150=getMember<void *>(acel, 0x150);
+	
+	void *blob = Gen11::callback->IGSharedMappedBufferwithOptions(field_0x150,   PAGE_SIZE, 2, 0);
+	guc->workqueue->obj=blob;
+	guc->workqueue->node.vadr=Gen11::callback->fgetVirtualAddress(guc->workqueue->obj);
+	guc->workqueue->node.start=Gen11::callback->fgetGPUVirtualAddress(guc->workqueue->obj);
+	guc->workqueue_vaddr=(void*)guc->workqueue->node.vadr;
+	
+	u32 c= Gen11::callback->allocContextId(that,0,true);
+	Gen11::callback->IGHardwareGuCWorkQueuewithOptions(acel,c,guc->workqueue->obj);
+	
+	//void *blob = Gen11::callback->IGSharedMappedBufferwithOptions(field_0x150, (PAGE_SIZE * 2), 2, 0);
+	
+	
+	
+	return 0;
+}
+
+
+static int guc_proc_desc_create(struct intel_guc *guc, void *that)
+{
+	const u32 size = PAGE_ALIGN(sizeof(struct guc_process_desc));
+
+	void *acel=getMember<void *>(that, 0x38);
+	void *field_0x150=getMember<void *>(acel, 0x150);
+	
+	void *blob = Gen11::callback->IGSharedMappedBufferwithOptions(field_0x150,  size, 2, 0);
+	
+	guc->proc_desc->obj=blob;
+	guc->proc_desc->node.vadr=Gen11::callback->fgetVirtualAddress(guc->proc_desc->obj);
+	guc->proc_desc->node.start=Gen11::callback->fgetGPUVirtualAddress(guc->proc_desc->obj);
+	guc->proc_desc_vaddr=(void*)guc->proc_desc->node.vadr;
+	
+	return 0;
+}
+
+static int intel_guc_submission_init0(void *that)
+{
+	struct drm_i915_private *i915= NBlue::callback->i915b;
+	struct intel_gt *gt=to_gt(i915);
+	struct intel_guc *guc = gt_to_guc(gt);
+	
+	int ret;
+
+	if (guc->stage_desc_pool)
+		return 0;
+
+	u32 size = PAGE_ALIGN(sizeof(struct guc_stage_desc) *GUC_MAX_STAGE_DESCRIPTORS);
+	
+
+	void *acel=getMember<void *>(that, 0x38);
+	void *field_0x150=getMember<void *>(acel, 0x150);
+	
+	void *blob = Gen11::callback->IGSharedMappedBufferwithOptions(field_0x150,  size, 2, 0);
+
+	getMember<void *>(that, 0x68)=blob;
+	
+	guc->stage_desc_pool->obj=blob;
+	guc->stage_desc_pool->node.vadr=Gen11::callback->fgetVirtualAddress(guc->stage_desc_pool->obj);
+	guc->stage_desc_pool->node.start=Gen11::callback->fgetGPUVirtualAddress(guc->stage_desc_pool->obj);
+	guc->stage_desc_pool_vaddr=(void*)guc->stage_desc_pool->node.vadr;
+
+	//ret = guc_proc_desc_create(guc,that);
+	//ret = guc_workqueue_create(guc,that);
+	
+
+	return 0;
+
+}
+
+static int intel_guc_ct_init0(void *that)
+{
+	struct drm_i915_private *i915= NBlue::callback->i915b;
+	struct intel_gt *gt=to_gt(i915);
+	struct intel_guc *guc = gt_to_guc(gt);
+	struct intel_guc_ct0 *ct=&guc->ct0;
+	void *blob;
+	int err;
+	int i;
+
+	void *acel=getMember<void *>(that, 0x38);
+	void *field_0x150=getMember<void *>(acel, 0x150);
+	
+	
+	blob = Gen11::callback->IGSharedMappedBufferwithOptions(field_0x150, PAGE_SIZE, 2, 0);
+	getMember<void *>(that, 0x50)= blob;
+	
+	ct->vma->obj=blob;
+	ct->vma->node.vadr=Gen11::callback->fgetVirtualAddress(ct->vma->obj);
+	ct->vma->node.start=Gen11::callback->fgetGPUVirtualAddress(ct->vma->obj);
+	
+
+	for (i = 0; i < ARRAY_SIZE(ct->ctbs); i++) {
+		ct->ctbs[i].desc = (struct guc_ct_buffer_desc0 *)((u8*)blob + PAGE_SIZE/4 * i);
+		ct->ctbs[i].cmds = (u32*)((u8*)blob + PAGE_SIZE/4 * i + PAGE_SIZE/2);
+	}
+
+	return 0;
+}
+
+static int intel_guc_ads_create0(void *that)
 {
 	struct drm_i915_private *i915= NBlue::callback->i915b;
 	struct intel_gt *gt=to_gt(i915);
 	struct intel_guc *guc = gt_to_guc(gt);
 	int ret;
-	const u32 size = PAGE_ALIGN(sizeof(struct __guc_ads_blob0));
+	u32 size = PAGE_ALIGN(sizeof(struct __guc_ads_blob0));
 	
 	void *acel=getMember<void *>(that, 0x38);
 	void *field_0x150=getMember<void *>(acel, 0x150);
 	
 	
-	void* t = Gen11::callback->IGSharedMappedBufferwithOptions(field_0x150, round_up(size, PAGE_SIZE), 2, 0);
+	void* t = Gen11::callback->IGSharedMappedBufferwithOptions(field_0x150, size, 2, 0);
 	getMember<void *>(that, kexticl ? 0x930 : 0x9e8)= t;
 	
 	guc->ads_vma->obj=t;
@@ -10897,19 +11028,19 @@ int intel_guc_ads_create0(void *that)
 	u32 a0=getMember<u32>(that, 0xa0);
 	getMember<u32>(that, 0xa0) = (a0 & 0xFFC00001) | ads_param_val;
 	
-	__guc_ads_init0();
+	__guc_ads_init0(that);
 	
-	/*intel_guc_ct_init(that);
+	intel_guc_ct_init0(that);
 
 	if (intel_guc_submission_is_used(guc)) {
-			intel_guc_submission_init(guc,that);
+			intel_guc_submission_init0(that);
 
-	}*/
+	}
 	
 	return 1;
 }
 
-int intel_guc_ads_create(void *that)
+static int intel_guc_ads_create(void *that)
 {
 	struct drm_i915_private *i915= NBlue::callback->i915b;
 	struct intel_gt *gt=to_gt(i915);
@@ -10942,7 +11073,8 @@ int intel_guc_ads_create(void *that)
 	}
 	
 	size = guc_ads_blob_size(guc);
-
+	
+	
 	void *acel=getMember<void *>(that, 0x38);
 	void *field_0x150=getMember<void *>(acel, 0x150);
 	
@@ -10961,14 +11093,14 @@ int intel_guc_ads_create(void *that)
 	u32 a0=getMember<u32>(that, 0xa0);
 	getMember<u32>(that, 0xa0) = (a0 & 0xFFC00001) | ads_param_val;
 	
-	__guc_ads_init(guc);
+	__guc_ads_init(that);
 	
-	intel_guc_ct_init(that);
+	/*intel_guc_ct_init(that);
 
 	if (intel_guc_submission_is_used(guc)) {
-			intel_guc_submission_init(guc,that);
+			intel_guc_submission_init(that);
 
-	}
+	}*/
 	
 	return 1;
 }
@@ -10979,8 +11111,8 @@ bool Gen11::setupAdditionalDataStructs0(void *that)
 	struct intel_gt *gt=to_gt(i915);
 	struct intel_guc *guc = gt_to_guc(gt);
 	
-	if (guc->fw.file_selected.ver.major < 69) //intel_guc_ads_create0(that);
-		return FunctionCast(setupAdditionalDataStructs0, callback->osetupAdditionalDataStructs0)(that );
+	if (guc->fw.file_selected.ver.major < 69) intel_guc_ads_create0(that);
+		//return FunctionCast(setupAdditionalDataStructs0, callback->osetupAdditionalDataStructs0)(that );
 		
 	if (guc->fw.file_selected.ver.major >= 69)	intel_guc_ads_create(that);
 	
@@ -10992,8 +11124,8 @@ uint64_t Gen11::setupAdditionalDataStructs(void *that) {
 	struct intel_gt *gt=to_gt(i915);
 	struct intel_guc *guc = gt_to_guc(gt);
 	
-	if (guc->fw.file_selected.ver.major < 69) //intel_guc_ads_create0(that);
-		return FunctionCast(setupAdditionalDataStructs, callback->osetupAdditionalDataStructs)(that );
+	if (guc->fw.file_selected.ver.major < 69) intel_guc_ads_create0(that);
+		//return FunctionCast(setupAdditionalDataStructs, callback->osetupAdditionalDataStructs)(that );
 		
 	if (guc->fw.file_selected.ver.major >= 69)	intel_guc_ads_create(that);
 	
@@ -11007,10 +11139,11 @@ uint64_t Gen11::setupContextPool(void *that,int param_1)
 	struct intel_gt *gt=to_gt(i915);
 	struct intel_guc *guc = gt_to_guc(gt);
 	
+	param_1=1;
 	FunctionCast(setupContextPool, callback->osetupContextPool)(that,param_1 );
 	
-	if (guc->fw.file_selected.ver.major >= 69)
-		getMember<void *>(that, 0x50)= &guc->ct;
+	//if (guc->fw.file_selected.ver.major >= 69)
+	//	getMember<void *>(that, 0x50)= &guc->ct;
 	
 	return 1;
 	
@@ -11389,25 +11522,8 @@ unsigned long  Gen11::startGraphicsEngine(void *that)
 
 uint64_t Gen11::allocContextId(void *that, uint64_t res, bool clearContext)
 {
-	uint32_t contextId = GUCCtx_INVALID_ID;
-	uint32_t maxCount = getMember<uint32_t>(that, 0x80);
-	uint32_t nextFree = getMember<uint32_t>(that, 0x88);
 
-	if (nextFree < maxCount) {
-		contextId = nextFree;
-		uint8_t* poolBase = (uint8_t*)fgetVirtualAddress(getMember<void*>(that, 0x68));
-		uint8_t* contextBase = poolBase + ((uint64_t)contextId * GUCCtx_ENTRY_STRIDE);
-
-		if (clearContext) {
-			memset(contextBase, 0, GUCCtx_ENTRY_STRIDE);
-		}
-
-		uint32_t allocCount = getMember<uint32_t>(that, 0x84);
-		getMember<uint32_t>(that, 0x84)=allocCount + 1;
-		getMember<uint32_t>(that, 0x88)=nextFree + 1;
-
-	}
-	return contextId;
+	return FunctionCast(allocContextId, callback->oallocContextId)( that,res,clearContext);
 }
 
 
@@ -11909,6 +12025,159 @@ static void guc_route_semaphores(struct intel_gt *gt, bool to_guc)
 	intel_de_write(display, GEN12_GUC_SEM_INTR_ENABLES, val);
 }
 
+
+
+static int guc_action_register_ct_buffer(struct intel_guc *guc,
+					 u32 desc_addr,
+					 u32 type)
+{
+	u32 action[] = {
+		INTEL_GUC_ACTION_REGISTER_COMMAND_TRANSPORT_BUFFER,
+		desc_addr,
+		sizeof(struct guc_ct_buffer_desc0),
+		type
+	};
+
+	return intel_guc_send_mmio(guc, action, ARRAY_SIZE(action), NULL, 0);
+}
+
+static int ct_register_buffer0(struct intel_guc_ct0 *ct, u32 desc_addr, u32 type)
+{
+	struct drm_i915_private *i915 = NBlue::callback->i915b;
+	struct intel_gt *gt = to_gt(i915);
+	struct intel_guc *guc = gt_to_guc(gt);
+	
+	int err = guc_action_register_ct_buffer(guc, desc_addr, type);
+
+	return err;
+}
+
+static void guc_ct_buffer_desc_init0(struct guc_ct_buffer_desc0 *desc,
+					u32 cmds_addr, u32 size)
+{
+	memset(desc, 0, sizeof(*desc));
+	desc->addr = cmds_addr;
+	desc->size = size;
+	desc->owner = CTB_OWNER_HOST;
+}
+static int intel_guc_ct_enable0(struct intel_guc *guc)
+{
+	struct intel_guc_ct0 *ct=&guc->ct0;
+	u32 base, cmds, size;
+	int err;
+	int i;
+
+
+	base = intel_guc_ggtt_offset(guc, ct->vma);
+
+
+	for (i = 0; i < ARRAY_SIZE(ct->ctbs); i++) {
+		cmds = base + PAGE_SIZE / 4 * i + PAGE_SIZE / 2;
+		size = PAGE_SIZE / 4;
+		guc_ct_buffer_desc_init0(ct->ctbs[i].desc, cmds, size);
+	}
+
+
+	err = ct_register_buffer0(ct, base + PAGE_SIZE / 4 * CTB_RECV,
+				 INTEL_GUC_CT_BUFFER_TYPE_RECV);
+	if (unlikely(err))
+		goto err_out;
+
+	err = ct_register_buffer0(ct, base + PAGE_SIZE / 4 * CTB_SEND,
+				 INTEL_GUC_CT_BUFFER_TYPE_SEND);
+	if (unlikely(err))
+		goto err_deregister;
+
+	ct->enabled = true;
+
+	return 0;
+
+err_deregister:
+err_out:
+	return err;
+}
+static int guc_enable_communication(void *that)
+{
+	struct drm_i915_private *i915 = NBlue::callback->i915b;
+	struct intel_gt *gt = to_gt(i915);
+	struct intel_guc *guc = gt_to_guc(gt);
+	struct intel_guc_ct0 *ct = &guc->ct0;
+	struct intel_display *display = i915->display;
+	int ret;
+
+
+	//ret = intel_guc_ct_enable0(guc);
+
+
+	/* check for mmio messages received before/during the CT enable */
+	//guc_get_mmio_msg(guc);
+	//guc_handle_mmio_msg(guc);
+
+	gen11_enable_guc_interrupts(gt);
+
+	/* check for CT messages received before we enabled interrupts */
+	//spin_lock_irq(&i915->irq_lock);
+	//intel_guc_ct_event_handler(&guc->ct);
+	//spin_unlock_irq(&i915->irq_lock);
+
+
+	return 0;
+}
+
+static void guc_proc_desc_init(struct intel_guc *guc)
+{
+	struct guc_process_desc *desc;
+
+	desc = (struct guc_process_desc *)memset(guc->proc_desc_vaddr, 0, sizeof(*desc));
+
+	desc->wq_base_addr = 0;
+	desc->db_base_addr = 0;
+
+	desc->wq_size_bytes = GUC_WQ_SIZE;
+	desc->wq_status = WQ_STATUS_ACTIVE;
+	desc->priority = GUC_CLIENT_PRIORITY_KMD_NORMAL;
+}
+
+static struct guc_stage_desc *__get_stage_desc(struct intel_guc *guc, u32 id)
+{
+	struct guc_stage_desc *base = (struct guc_stage_desc *)guc->stage_desc_pool_vaddr;
+
+	return &base[id];
+}
+
+static void guc_stage_desc_init(struct intel_guc *guc)
+{
+	struct guc_stage_desc *desc;
+
+	/* we only use 1 stage desc, so hardcode it to 0 */
+	desc = __get_stage_desc(guc, 0);
+	memset(desc, 0, sizeof(*desc));
+
+	desc->attribute = GUC_STAGE_DESC_ATTR_ACTIVE |
+			  GUC_STAGE_DESC_ATTR_KERNEL;
+
+	desc->stage_id = 0;
+	desc->priority = GUC_CLIENT_PRIORITY_KMD_NORMAL;
+
+	desc->process_desc = intel_guc_ggtt_offset(guc, guc->proc_desc);
+	desc->wq_addr = intel_guc_ggtt_offset(guc, guc->workqueue);
+	desc->wq_size = GUC_WQ_SIZE;
+}
+static void intel_guc_submission_enable(struct intel_guc *guc)
+{
+
+	guc_proc_desc_init(guc);
+	guc_stage_desc_init(guc);
+
+	/* Take over from manual control of ELSP (execlists) */
+	//guc_interrupts_capture(gt);
+
+	/*for_each_engine(engine, gt, id) {
+		engine->set_default_submission = guc_set_default_submission;
+		engine->set_default_submission(engine);
+	}*/
+}
+
 uint64_t Gen11::loadFirmware(void *that)
 {
 	struct drm_i915_private *i915 = NBlue::callback->i915b;
@@ -11925,24 +12194,12 @@ uint64_t Gen11::loadFirmware(void *that)
 		
 		SafeForceWake(m_accelerator, true, 7);
 		
-		//intel_guc_ct_enable(guc);
-		gen11_enable_guc_interrupts(gt);
-		
-		
-		intel_guc_sample_forcewake(gucp);
-		
-#define   GT_CONTEXT_SWITCH_INTERRUPT		REG_BIT(8)
-#define GEN11_RENDER_COPY_INTR_ENABLE		_MMIO(0x190030)
-#define GEN11_VCS_VECS_INTR_ENABLE		_MMIO(0x190034)
-		
-		u32 irqs = GT_CONTEXT_SWITCH_INTERRUPT;
-		u32 dmask = irqs << 16 | irqs;
-		intel_de_rmw(display, GEN11_RENDER_COPY_INTR_ENABLE, dmask, 0);
-		intel_de_rmw(display, GEN11_VCS_VECS_INTR_ENABLE, dmask, 0);
-		
+		guc_enable_communication(guc);
+		//intel_guc_sample_forcewake(that);
+		//intel_guc_submission_enable(guc);
+		//intel_guc_resume0(that);
 		SafeForceWake(m_accelerator, false, 7);
 		
-		intel_guc_resume0(gucp);
 	}
 	
 	return ret;

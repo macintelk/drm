@@ -872,6 +872,9 @@ public:
 	static uint64_t loadFirmware(void *that);
 	mach_vm_address_t oloadFirmware {};
 	
+	static void *IGHardwareGuCWorkQueuewithOptions(void *param_1,uint param_2, void *param_3);
+	mach_vm_address_t oIGHardwareGuCWorkQueuewithOptions {};
+	
 	
 public:
 
@@ -882,6 +885,9 @@ public:
 	static bool dotrue();
 	static bool dofalse();
 	static int dozero();
+	static uint udozero();
+	static u64 ldozero();
+	static u64 ldone();
 	
 	
 	volatile UInt32 *rmmioPtr {nullptr};

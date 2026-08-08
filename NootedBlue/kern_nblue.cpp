@@ -2786,12 +2786,16 @@ int NBlue::intel_opregion_setup()
 	struct intel_guc *guc = gt_to_guc(gt);
 	struct intel_display *display=i915->display;
 	struct intel_guc_ct *ct=&guc->ct;
+	struct intel_guc_ct0 *ct0=&guc->ct0;
 	
 	guc->ads_vma=(struct i915_vma*)IOMalloc(sizeof(struct i915_vma));
 	ct->vma=(struct i915_vma*)IOMalloc(sizeof(struct i915_vma));
+	ct0->vma=(struct i915_vma*)IOMalloc(sizeof(struct i915_vma));
 	guc->log.vma=(struct i915_vma*)IOMalloc(sizeof(struct i915_vma));
 	guc->stage_desc_pool=(struct i915_vma*)IOMalloc(sizeof(struct i915_vma));
 	guc->lrc_desc_pool_v69=(struct i915_vma*)IOMalloc(sizeof(struct i915_vma));
+	guc->proc_desc=(struct i915_vma*)IOMalloc(sizeof(struct i915_vma));
+	guc->workqueue=(struct i915_vma*)IOMalloc(sizeof(struct i915_vma));
 	
 	guc->gt=gt;
 	i915b->initok=false;

@@ -8979,8 +8979,8 @@ struct guc_ads0 {
 	u32 gt_system_info;
 	u32 clients_info;
 	u32 control_data;
-	u32 golden_context_lrca[GUC_MAX_ENGINE_CLASSES];
-	u32 eng_state_size[GUC_MAX_ENGINE_CLASSES];
+	u32 golden_context_lrca[16];
+	u32 eng_state_size[16];
 	u32 reserved[16];
 } __packed;
 
@@ -9018,8 +9018,8 @@ struct guc_policy0 {
 } __packed;
 
 struct guc_policies0 {
-	struct guc_policy0 policy[4][GUC_MAX_ENGINE_CLASSES];
-	u32 submission_queue_depth[GUC_MAX_ENGINE_CLASSES];
+	struct guc_policy0 policy[4][16];
+	u32 submission_queue_depth[16];
 	/* In micro seconds. How much time to allow before DPC processing is
 	 * called back via interrupt (to prevent DPC queue drain starving).
 	 * Typically 1000s of micro seconds (example only, not granularity). */
@@ -9086,7 +9086,7 @@ struct guc_mmio_regset {
 
 /* GuC register sets */
 struct guc_mmio_reg_state {
-	struct guc_mmio_regset engine_reg[GUC_MAX_ENGINE_CLASSES][GUC_MAX_INSTANCES_PER_CLASS];
+	struct guc_mmio_regset engine_reg[16][32];
 	u32 reserved[98];
 } __packed;
 struct guc_ct_buffer_desc0 {
@@ -9920,6 +9920,16 @@ struct intel_guc {
 	struct intel_guc_log log;
 	/** @ct: the command transport communication channel */
 	struct intel_guc_ct ct;
+	
+	struct intel_guc_ct0 ct0;
+	struct i915_vma *workqueue;
+	void *workqueue_vaddr;
+	spinlock_t wq_lock;
+
+	struct i915_vma *proc_desc;
+	void *proc_desc_vaddr;
+	
+	
 	/** @slpc: sub-structure containing SLPC related data and objects */
 	//struct intel_guc_slpc slpc;
 	/** @capture: the error-state-capture module's data and objects */
@@ -11282,6 +11292,85 @@ enum intel_guc_action {
 	INTEL_GUC_ACTION_NOTIFY_EXCEPTION = 0x8005,
 	INTEL_GUC_ACTION_LIMIT
 };
+
+#define GUC_RENDER_ENGINE		0
+#define GUC_VIDEO_ENGINE		1
+#define GUC_BLITTER_ENGINE		2
+#define GUC_VIDEOENHANCE_ENGINE		3
+#define GUC_VIDEO_ENGINE2		4
+#define GUC_MAX_ENGINES_NUM		(GUC_VIDEO_ENGINE2 + 1)
+struct guc_execlist_context {
+	u32 context_desc;
+	u32 context_id;
+	u32 ring_status;
+	u32 ring_lrca;
+	u32 ring_begin;
+	u32 ring_end;
+	u32 ring_next_free_location;
+	u32 ring_current_tail_pointer_value;
+	u8 engine_state_submit_value;
+	u8 engine_state_wait_value;
+	u16 pagefault_count;
+	u16 engine_submit_queue_count;
+} __packed;
+
+struct guc_stage_desc {
+	u32 sched_common_area;
+	u32 stage_id;
+	u32 pas_id;
+	u8 engines_used;
+	u64 db_trigger_cpu;
+	u32 db_trigger_uk;
+	u64 db_trigger_phy;
+	u16 db_id;
+
+	struct guc_execlist_context lrc[GUC_MAX_ENGINES_NUM];
+
+	u8 attribute;
+
+	u32 priority;
+
+	u32 wq_sampled_tail_offset;
+	u32 wq_total_submit_enqueues;
+
+	u32 process_desc;
+	u32 wq_addr;
+	u32 wq_size;
+
+	u32 engine_presence;
+
+	u8 engine_suspended;
+
+	u8 reserved0[3];
+	u64 reserved1[1];
+
+	u64 desc_private;
+} __packed;
+struct guc_process_desc {
+	u32 stage_id;
+	u64 db_base_addr;
+	u32 head;
+	u32 tail;
+	u32 error_offset;
+	u64 wq_base_addr;
+	u32 wq_size_bytes;
+	u32 wq_status;
+	u32 engine_presence;
+	u32 priority;
+	u32 reserved[30];
+} __packed;
+
+/* Reset engine upon preempt failure */
+#define POLICY_RESET_ENGINE		(1<<0)
+/* Preempt to idle on quantum expiry */
+#define POLICY_PREEMPT_TO_IDLE		(1<<1)
+
+#define POLICY_MAX_NUM_WI 15
+#define POLICY_DEFAULT_DPC_PROMOTE_TIME_US 500000
+#define POLICY_DEFAULT_EXECUTION_QUANTUM_US 1000000
+#define POLICY_DEFAULT_PREEMPTION_TIME_US 500000
+#define POLICY_DEFAULT_FAULT_TIME_US 250000
+
 
 
 #ifdef __cplusplus
