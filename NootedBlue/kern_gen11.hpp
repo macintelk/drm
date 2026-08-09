@@ -586,8 +586,11 @@ public:
 	static uint64_t  getOSInformation(void *that);
 	mach_vm_address_t ogetOSInformation {};
 	
-	static IOReturn wrapPavpSessionCallback(void *intelAccelerator, int32_t sessionCommand, uint32_t sessionAppId, uint32_t *a4, bool flag);
+	static unsigned long wrapPavpSessionCallback(void *intelAccelerator, int32_t sessionCommand, uint32_t sessionAppId, uint32_t *a4, bool flag);
 	mach_vm_address_t orgPavpSessionCallback {};
+	
+	static uint32_t wrapPavpSessionCallback0(void *intelAccelerator, int32_t sessionCommand, uint32_t sessionAppId, uint32_t *a4, bool flag);
+	mach_vm_address_t orgPavpSessionCallback0 {};
 	
 	static uint32_t	AppleIntelFramebufferinit(void *frame,void *cont,uint param_2);
 	mach_vm_address_t oAppleIntelFramebufferinit {};
@@ -772,7 +775,7 @@ public:
 	static void  disablePowerWellPG(void *that,uint param_1);
 	mach_vm_address_t odisablePowerWellPG {};
 	
-	static bool  loadGuCBinary0(void *that);
+	static char  loadGuCBinary0(void *that);
 	mach_vm_address_t oloadGuCBinary0 {};
 	
 	static unsigned long  loadGuCBinary(void *that);
@@ -845,6 +848,9 @@ public:
 	static uint64_t setupContextPool(void *that,int param_1);
 	mach_vm_address_t osetupContextPool {};
 	
+	static bool setupContextPool0(void *that,int param_1);
+	mach_vm_address_t osetupContextPool0 {};
+	
 	static uint64_t registerCommandTransportBuffers(void *that);
 	mach_vm_address_t oregisterCommandTransportBuffers {};
 	
@@ -875,6 +881,8 @@ public:
 	static void *IGHardwareGuCWorkQueuewithOptions(void *param_1,uint param_2, void *param_3);
 	mach_vm_address_t oIGHardwareGuCWorkQueuewithOptions {};
 	
+	static void enablePipe(void *that,void *param_1, void *param_2,void *param_3);
+	mach_vm_address_t oenablePipe {};
 	
 public:
 

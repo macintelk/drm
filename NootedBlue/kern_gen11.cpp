@@ -100,12 +100,22 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			{"__ZN31AppleIntelFramebufferController15hwSetPanelPowerEj",hwSetPanelPower, this->ohwSetPanelPower},
 			{"__ZN14AppleIntelPort12linkTrainingEP18AGDCDPPortConfig_t",linkTraining, this->olinkTraining},
 			//{"__ZN21AppleIntelFramebuffer19getPixelInformationEiiiP18IOPixelInformation",fgetPixelInformation, this->ofgetPixelInformation},
-			{"__ZN21AppleIntelDisplayPath8initHDCPEv", dozero},
+			{"__ZN21AppleIntelDisplayPath8initHDCPEv", dovoid},
 			//{"__ZN15AppleIntelPlane17configurePlaneCUSEP19FlipTransactionArgs10IGColorCtl",dovoid},
 			//{"__ZN15AppleIntelPlane18configurePlaneiCSCEP19FlipTransactionArgs10IGColorCtl",dovoid},
 			{"__ZN17AppleIntelPortHAL13getLinkConfigEP16IOFBDPLinkConfig",getLinkConfig, this->ogetLinkConfig},
 			{"__ZN21AppleIntelFramebuffer12getAttributeEjPm",fgetAttribute, this->ofgetAttribute},
 			{"__ZN21AppleIntelFramebuffer12setAttributeEjm",fsetAttribute, this->ofsetAttribute},
+			{"__ZN31AppleIntelFramebufferController10enablePipeEP21AppleIntelFramebufferP21AppleIntelDisplayPathPK29IODetailedTimingInformationV2",enablePipe, this->oenablePipe},
+			
+			/*
+			{"__ZN19AppleIntelPowerWell4initEP31AppleIntelFramebufferController",AppleIntelPowerWellinit, this->oAppleIntelPowerWellinit},
+			{"__ZN19AppleIntelPowerWell19enableDisplayEngineEv",enableDisplayEngine, this->oenableDisplayEngine},
+			{"__ZN19AppleIntelPowerWell23overridePowerWellsStateEb",overridePowerWellsState, this->ooverridePowerWellsState},
+			{"__ZN19AppleIntelPowerWell19disablePowerWellAuxEj",disablePowerWellAux, this->odisablePowerWellAux},
+			{"__ZN19AppleIntelPowerWell19disablePowerWellDDIEj",disablePowerWellDDI, this->odisablePowerWellDDI},
+			{"__ZN19AppleIntelPowerWell18disablePowerWellPGEj",disablePowerWellPG, this->odisablePowerWellPG},
+			*/
 			
 			//{"__ZN31AppleIntelFramebufferController16hwRegsNeedUpdateEP21AppleIntelFramebufferP21AppleIntelDisplayPathP10CRTCParamsPK29IODetailedTimingInformationV2PN16AppleIntelScaler12SCALERPARAMSE",hwRegsNeedUpdate, this->ohwRegsNeedUpdate},
 			/*{"__ZN21AppleIntelFramebuffer31frameBufferNotificationcallbackEP8OSObjectPvP13IOFramebufferiS2_",aframeBufferNotificationcallback, this->oaframeBufferNotificationcallback},
@@ -164,8 +174,8 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			{&kextG11FB, f7, r7, arrsize(f7),    1},
 			{&kextG11FB, f7a, r7a, arrsize(f7a),    1},
 			{&kextG11FB, f9, r9, arrsize(f9),    1},
-			//{&kextG11FB, f9b, r9b, arrsize(f9b),    1},
-			//{&kextG11FB, f9c, r9c, arrsize(f9c),    1},
+			{&kextG11FB, f9b, r9b, arrsize(f9b),    1},
+			{&kextG11FB, f9c, r9c, arrsize(f9c),    1},
 			{&kextG11FB, f24b, r24b, arrsize(f24b),    12},
 			{&kextG11FB, f24c, r24c, arrsize(f24c),    1},
 			{&kextG11FB, f24d, r24d, arrsize(f24d),    10},
@@ -216,7 +226,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			//{"__ZN31AppleIntelRegisterAccessManager15WriteRegister32Emj",raWriteRegister32, this->oraWriteRegister32},
 			{"__ZN21AppleIntelFramebuffer25setAttributeForConnectionEijm",wrapSetAttributeForConnection, this->owrapSetAttributeForConnection},
 			{"__ZN21AppleIntelFramebuffer25getAttributeForConnectionEijPm",fgetAttributeForConnection, this->ofgetAttributeForConnection},
-			{"__ZN26AppleIntelDSBAccessManager13isDSBRegisterEj", dozero},
+			{"__ZN26AppleIntelDSBAccessManager13isDSBRegisterEj", ldozero},
 			{"__ZN31AppleIntelRegisterAccessManager18isConflictRegisterEj", isConflictRegister},
 			{"__ZN15AppleIntelPlane10setupPlaneEP21AppleIntelDisplayPath",setupPlane2, this->osetupPlane2},
 			{"__ZN14AppleIntelPort12linkTrainingEP18AGDCDPPortConfig_t",linkTraining, this->olinkTraining},
@@ -227,7 +237,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			//{"__ZN21AppleIntelFramebuffer19getPixelInformationEiiiP18IOPixelInformation",fgetPixelInformation, this->ofgetPixelInformation},
 			//{"__ZN15AppleIntelPlane18configurePlaneiCSCEP19FlipTransactionArgs10IGColorCtl",dovoid},
 			//{"__ZN15AppleIntelPlane17configurePlaneCUSEP19FlipTransactionArgs10IGColorCtl",dovoid},
-			{"__ZN21AppleIntelDisplayPath8initHDCPEv", dozero},
+			{"__ZN21AppleIntelDisplayPath8initHDCPEv", dovoid},
 			{"__ZN17AppleIntelPortHAL4initEP10PortConfig",AppleIntelPortHALinit, this->oAppleIntelPortHALinit},
 			{"__ZN21AppleIntelDisplayPath13getLinkConfigEP16IOFBDPLinkConfig",getLinkConfig, this->ogetLinkConfig},
 			{"__ZN15AppleIntelPlane11updatePlaneEb",updatePlane, this->oupdatePlane},
@@ -237,8 +247,6 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			{"__ZN19AppleIntelPowerWell19disablePowerWellAuxEj",disablePowerWellAux, this->odisablePowerWellAux},
 			{"__ZN19AppleIntelPowerWell19disablePowerWellDDIEj",disablePowerWellDDI, this->odisablePowerWellDDI},
 			{"__ZN19AppleIntelPowerWell18disablePowerWellPGEj",disablePowerWellPG, this->odisablePowerWellPG},
-			
-			
 			
 			
 			/*{"__ZN21AppleIntelFramebuffer17prepareToExitWakeEv",dovoid},
@@ -253,6 +261,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		
 		if (isprod) {
 			RouteRequestPlus requests[] = {
+				{"__ZN31AppleIntelFramebufferController10enablePipeEP21AppleIntelFramebufferP21AppleIntelDisplayPathPK29IODetailedTimingInformationV2",enablePipe, this->oenablePipe},
 				{"__ZN31AppleIntelFramebufferController13probeBootPipeEPbPN17AppleIntelPortHAL3DDIE",probeBootPipe, this->oprobeBootPipe},
 				{"__ZN31AppleIntelFramebufferController11initCDClockEv",initCDClock, this->oinitCDClock},
 				//{"__ZN31AppleIntelFramebufferController15configureReportEP19IOReportChannelListjPvS2_",configureReport, this->oconfigureReport},
@@ -281,6 +290,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		} else //debug version
 		{
 			RouteRequestPlus requests[] = {
+				{"__ZN24AppleIntelBaseController10enablePipeEP21AppleIntelFramebufferP21AppleIntelDisplayPathPK29IODetailedTimingInformationV2",enablePipe, this->oenablePipe},
 				{"__ZN24AppleIntelBaseController13probeBootPipeEPbPN17AppleIntelPortHAL3DDIE",probeBootPipe, this->oprobeBootPipe},
 				{"__ZN24AppleIntelBaseController11initCDClockEv",initCDClock, this->oinitCDClock},
 				//{"__ZN24AppleIntelBaseController15configureReportEP19IOReportChannelListjPvS2_",configureReport, this->oconfigureReport},
@@ -439,7 +449,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			 {"__ZN20IGSharedMappedBuffer4freeEv",IGSharedMappedBufferfree, this->oIGSharedMappedBufferfree},
 			 {"__ZN13IGHardwareGuC13loadGuCBinaryEv",loadGuCBinary0, this->oloadGuCBinary0},
 			 {"__ZN13IGHardwareGuC15hostToGuCActionEPKjjiPj",hostToGuCAction, this->ohostToGuCAction},
-			 {"__ZN13IGHardwareGuC16setupContextPoolEi",setupContextPool, this->osetupContextPool},
+			 {"__ZN13IGHardwareGuC16setupContextPoolEi",setupContextPool0, this->osetupContextPool0},
 			 // {"__ZN12IGScheduler412loadFirmwareEv",loadFirmware, this->oloadFirmware},
 			 // {"__ZN13IGHardwareGuC26setupAdditionalDataStructsEv",setupAdditionalDataStructs0, this->osetupAdditionalDataStructs0},
 			// {"__ZN20IGHardwareRingBuffer12waitForSpaceEj",waitForSpace, this->owaitForSpace},
@@ -469,13 +479,20 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		static const uint8_t f3b[] = {0xb9, 0x02, 0x00, 0x00, 0x00, 0xba, 0x04, 0x00, 0x00, 0x00, 0xbe, 0x80, 0x00, 0x00, 0x00};
 		static const uint8_t r3b[] = {0xb9, 0x02, 0x00, 0x00, 0x00, 0xba, 0x06, 0x00, 0x00, 0x00, 0xbe, 0x80, 0x00, 0x00, 0x00};
 		
+		//GEN12_GUC_TLB_INV_CR
+		static const uint8_t f4[] = {0x74, 0x42, 0x00, 0x00};
+		static const uint8_t r4[] = {0xe8, 0xce, 0x00, 0x00};
+		
+		
 		LookupPatchPlus const patches[] = {
 			{&kextG11HW, f2, r2, arrsize(f2),	1},
 			{&kextG11HW, f2a, r2a, arrsize(f2a),	1},
-			{&kextG11HW, f2b, r2b, arrsize(f2b),	1},
-			{&kextG11HW, f3, r3, arrsize(f3),	1},
-			{&kextG11HW, f3a, r3a, arrsize(f3a),	1},
-			{&kextG11HW, f3b, r3b, arrsize(f3b),	1},
+			//{&kextG11HW, f2b, r2b, arrsize(f2b),	1},
+			//{&kextG11HW, f3, r3, arrsize(f3),	1},
+			//{&kextG11HW, f3a, r3a, arrsize(f3a),	1},
+			//{&kextG11HW, f3b, r3b, arrsize(f3b),	1},
+			{&kextG11HW, f4, r4, arrsize(f4),	22},
+			
 		};
 		PANIC_COND(!LookupPatchPlus::applyAll(patcher, patches , address, size), "nblue", "kextG11HW Failed to apply patches!");
 
@@ -496,7 +513,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		
 		 RouteRequestPlus requests[] = {
 			 
-			 {"__ZN16IntelAccelerator19PAVPCommandCallbackE22PAVPSessionCommandID_tjPjb", wrapPavpSessionCallback, this->orgPavpSessionCallback},
+			 {"__ZN16IntelAccelerator19PAVPCommandCallbackE22PAVPSessionCommandID_tjPjb", wrapPavpSessionCallback0, this->orgPavpSessionCallback0},
 			 {"__ZN16IntelAccelerator18setAsyncSliceCountE13IGSliceConfig",setAsyncSliceCount2, this->osetAsyncSliceCount2},
 			 {"__ZN16IntelAccelerator14setSliceConfigE13IGSliceConfig",setSliceConfig, this->osetSliceConfig},
 			 {"__ZN16IntelAccelerator19startGraphicsEngineEv",startGraphicsEngine, this->ostartGraphicsEngine},
@@ -581,7 +598,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		
 		//ringmask
 		static const uint8_t f4[] = {0x41, 0x80, 0x8d, 0x00, 0x13, 0x00, 0x00, 0x3f};
-		static const uint8_t r4[] = {0x41, 0x80, 0x8d, 0x00, 0x13, 0x00, 0x00, 0x3f};
+		static const uint8_t r4[] = {0x41, 0x80, 0x8d, 0x00, 0x13, 0x00, 0x00, 0x1f};
 		
 		
 		//blit3d mem align patch
@@ -595,7 +612,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 				{&kext, f2a, r2a, arrsize(f2a),	1},
 				{&kext, f3, r3, arrsize(f3),	1},
 				{&kext, f3a, r3a, arrsize(f3a),	1},
-				//{&kext, f4, r4, arrsize(f4),	1},
+				{&kext, f4, r4, arrsize(f4),	1},
 				{&kext, f5, r5, arrsize(f5),	1},
 				
 			};
@@ -708,7 +725,7 @@ uint64_t  Gen11::getOSInformation2(void *that)
 		pinfo[p].connectors[i].flags=NBlue::callback->i915b->display->bconnectors[i].flags;
 	}
 	
-	pinfo[p].connectors[1].type=ConnectorDummy;
+	//pinfo[p].connectors[1].type=ConnectorDummy;
 	
 	//pinfo[p].connectors[0].flags-=CNConnectorAlwaysConnected;
 	pinfo[p].connectors[0].pipe=1;
@@ -773,7 +790,7 @@ uint64_t  Gen11::getOSInformation(void *that)
 		pinfo[p].connectors[i].flags=NBlue::callback->i915b->display->bconnectors[i].flags;
 	}
 	
-	pinfo[p].connectors[1].type=ConnectorDummy;
+	//pinfo[p].connectors[1].type=ConnectorDummy;
 	//pinfo[p].connectors[0].pipe=1;
 		
 	OSArray *connectorArray = OSArray::withCapacity(6);
@@ -796,8 +813,16 @@ uint64_t  Gen11::getOSInformation(void *that)
 }
 
 
+uint32_t Gen11::wrapPavpSessionCallback0( void *intelAccelerator, int32_t sessionCommand, uint32_t sessionAppId, uint32_t *a4, bool flag) {
+	
+	if (sessionCommand == 4) {
+		return kIOReturnTimeout;
+	}
 
-IOReturn Gen11::wrapPavpSessionCallback( void *intelAccelerator, int32_t sessionCommand, uint32_t sessionAppId, uint32_t *a4, bool flag) {
+	return FunctionCast(wrapPavpSessionCallback0, callback->orgPavpSessionCallback0)(intelAccelerator, sessionCommand, sessionAppId, a4, flag);
+}
+
+unsigned long Gen11::wrapPavpSessionCallback( void *intelAccelerator, int32_t sessionCommand, uint32_t sessionAppId, uint32_t *a4, bool flag) {
 	
 	if (sessionCommand == 4) {
 		return kIOReturnTimeout;
@@ -4248,24 +4273,33 @@ static bool fixup_dmc_evt(struct intel_display *display,
 	if (!is_dmc_evt_htp_reg(display, dmc_id, reg_htp))
 		return false;
 
-	if ((reg_ctl) - (DMC_EVT_CTL(display, dmc_id, 0)) !=
-		(reg_htp) - (DMC_EVT_HTP(display, dmc_id, 0)))
+	if (i915_mmio_reg_offset(reg_ctl) - i915_mmio_reg_offset(DMC_EVT_CTL(display, dmc_id, 0)) !=
+		i915_mmio_reg_offset(reg_htp) - i915_mmio_reg_offset(DMC_EVT_HTP(display, dmc_id, 0)))
 		return false;
 
-
+	/*
+	 * On ADL-S the HRR event handler is not restored after DC6.
+	 * Clear it to zero from the beginning to avoid mismatches later.
+	 */
 	if (display->platform.alderlake_s && dmc_id == DMC_FW_MAIN &&
-		is_event_handler(display, dmc_id, 0x32, reg_ctl, *data_ctl)) {
+		is_event_handler(display, dmc_id, MAINDMC_EVENT_VBLANK_A, reg_ctl, *data_ctl)) {
 		*data_ctl = 0;
 		*data_htp = 0;
 		return true;
 	}
 
-
+	/*
+	 * TGL/ADL-S DMC firmware incorrectly uses the undelayed vblank
+	 * event for the HRR handler, when it should be using the delayed
+	 * vblank event instead. Fixed firmware was never released
+	 * so the Windows driver just hacks around it by overriding
+	 * the event ID. Do the same.
+	 */
 	if ((display->platform.tigerlake || display->platform.alderlake_s) &&
-		is_event_handler(display, dmc_id, 0x32, reg_ctl, *data_ctl)) {
+		is_event_handler(display, dmc_id, MAINDMC_EVENT_VBLANK_A, reg_ctl, *data_ctl)) {
 		*data_ctl &= ~DMC_EVT_CTL_EVENT_ID_MASK;
 		*data_ctl |=  REG_FIELD_PREP(DMC_EVT_CTL_EVENT_ID_MASK,
-									 0x2e);
+						 MAINDMC_EVENT_VBLANK_DELAYED_A);
 		return true;
 	}
 
@@ -4454,6 +4488,7 @@ static u32 dmc_evt_ctl_disable(u32 dmc_evt_ctl)
 		REG_FIELD_PREP(DMC_EVT_CTL_EVENT_ID_MASK,
 				   DMC_EVENT_FALSE);
 }
+
 static bool disable_dmc_evt(struct intel_display *display,
 				enum intel_dmc_id dmc_id,
 							u32 reg, u32 data)
@@ -4461,19 +4496,23 @@ static bool disable_dmc_evt(struct intel_display *display,
 	if (!is_dmc_evt_ctl_reg(display, dmc_id, reg))
 		return false;
 
+	/* keep all pipe DMC events disabled by default */
 	if (dmc_id != DMC_FW_MAIN)
 		return true;
 
+	/* also disable the flip queue event on the main DMC on TGL */
 	if (display->platform.tigerlake &&
-		is_event_handler(display, dmc_id, 0xbf, reg, data))
+		is_event_handler(display, dmc_id, MAINDMC_EVENT_CLK_MSEC, reg, data))
 		return true;
 
+	/* also disable the HRR event on the main DMC on TGL/ADLS */
 	if ((display->platform.tigerlake || display->platform.alderlake_s) &&
-		is_event_handler(display, dmc_id, 0x2e, reg, data))
+		is_event_handler(display, dmc_id, MAINDMC_EVENT_VBLANK_DELAYED_A, reg, data))
 		return true;
 
 	return false;
 }
+
 static u32 dmc_mmiodata(struct intel_display *display,
 			struct intel_dmc *dmc,
 			enum intel_dmc_id dmc_id, int i)
@@ -5306,18 +5345,139 @@ void intel_dmc_load_program(struct intel_display *display)
 		assert_dmc_loaded(display, dmc_id);
 	}
 
-	/*if (DISPLAY_VER(display) >= 20)
-		intel_de_write(display, DMC_FQ_W2_PTS_CFG_SEL,
-				   PIPE_D_DMC_W2_PTS_CONFIG_SELECT(PIPE_D) |
-				   PIPE_C_DMC_W2_PTS_CONFIG_SELECT(PIPE_C) |
-				   PIPE_B_DMC_W2_PTS_CONFIG_SELECT(PIPE_B) |
-				   PIPE_A_DMC_W2_PTS_CONFIG_SELECT(PIPE_A));
-*/
 	power_domains->dc_state = 0;
 
 	gen9_set_dc_state_debugmask(display);
 
 	pipedmc_clock_gating_wa(display, false);
+}
+
+
+static bool can_enable_pipedmc(const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *i915=NBlue::callback->i915b;
+	struct intel_display *display=i915->display;
+
+
+	if (DISPLAY_VER(display) == 12 && crtc_state->has_psr)
+		return false;
+
+	return true;
+}
+
+void intel_dmc_disable_pipe(const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *i915=NBlue::callback->i915b;
+	struct intel_display *display=i915->display;
+	
+	enum pipe pipe = display->pipe0;
+	enum intel_dmc_id dmc_id = (enum intel_dmc_id)PIPE_TO_DMC_ID(pipe);
+
+	if (!is_valid_dmc_id(dmc_id) || !has_dmc_id_fw(display, dmc_id))
+		return;
+
+	/*if (DISPLAY_VER(display) >= 14)
+		intel_de_rmw(display, MTL_PIPEDMC_CONTROL, PIPEDMC_ENABLE_MTL(pipe), 0);
+	else*/
+		intel_de_rmw(display, PIPEDMC_CONTROL(pipe), PIPEDMC_ENABLE, 0);
+
+	/*if (DISPLAY_VER(display) >= 20) {
+		intel_de_write(display, PIPEDMC_INTERRUPT_MASK(pipe), ~0);
+		intel_de_write(display, PIPEDMC_INTERRUPT(pipe), pipedmc_interrupt_mask(display));
+
+		intel_flipq_reset(display, pipe);
+	}*/
+}
+static bool need_pipedmc_load_program(struct intel_display *display)
+{
+	/* On TGL/derivatives pipe DMC state is lost when PG1 is disabled */
+	return DISPLAY_VER(display) == 12;
+}
+static bool need_pipedmc_load_mmio(struct intel_display *display, enum pipe pipe)
+{
+	/*
+	 * Xe3_LPD/Xe3p_LPD:
+	 * - pipe A/B DMC doesn't need save/restore
+	 * - pipe C/D DMC is in PG0, needs manual save/restore
+	 */
+	if (IS_DISPLAY_VER(display, 30, 35))
+		return pipe >= PIPE_C;
+
+	/*
+	 * FIXME LNL unclear, main DMC firmware has the pipe DMC A/B PG0
+	 * save/restore, but so far unable to see the loss of pipe DMC state
+	 * in action. Are we just failing to turn off PG0 due to some other
+	 * SoC level stuff?
+	 */
+	if (DISPLAY_VER(display) == 20)
+		return false;
+
+	/*
+	 * FIXME BMG untested, main DMC firmware has the
+	 * pipe DMC A/B PG0 save/restore...
+	 */
+	//if (display->platform.battlemage)
+		//return false;
+
+	/*
+	 * DG2:
+	 * - Pipe DMCs presumably in PG0?
+	 * - No DC6, and even DC9 doesn't seem to result
+	 *   in loss of DMC state for whatever reason
+	 */
+	//if (display->platform.dg2)
+		//return false;
+
+	/*
+	 * ADL/MTL:
+	 * - pipe A/B DMC is in PG0, saved/restored by the main DMC
+	 * - pipe C/D DMC is in PG0, needs manual save/restore
+	 */
+	if (IS_DISPLAY_VER(display, 13, 14))
+		return pipe >= PIPE_C;
+
+	return false;
+}
+void intel_dmc_enable_pipe(const struct intel_crtc_state *crtc_state, enum pipe pipe)
+{
+	struct drm_i915_private *i915=NBlue::callback->i915b;
+	struct intel_display *display=i915->display;
+	
+	enum intel_dmc_id dmc_id = (enum intel_dmc_id)PIPE_TO_DMC_ID(pipe);
+
+	if (!is_valid_dmc_id(dmc_id) || !has_dmc_id_fw(display, dmc_id))
+		return;
+
+	if (!can_enable_pipedmc(crtc_state)) {
+		intel_dmc_disable_pipe(crtc_state);
+		return;
+	}
+
+	if (need_pipedmc_load_program(display))
+		dmc_load_program(display, dmc_id);
+	else if (need_pipedmc_load_mmio(display, pipe))
+		dmc_load_mmio(display, dmc_id);
+
+	assert_dmc_loaded(display, dmc_id);
+
+	intel_de_rmw(display, PIPEDMC_CONTROL(pipe), 0, PIPEDMC_ENABLE);
+}
+
+
+void Gen11::enablePipe(void *that,void *param_1, void *param_2,void *param_3)
+{
+	 
+	struct drm_i915_private *i915=NBlue::callback->i915b;
+	struct intel_display *display=i915->display;
+	
+	
+	uint32_t fbNum = getMember<uint32_t>(param_1, 0x1dc);
+	enum pipe pipe0=fbNum==0 ? PIPE_A: PIPE_B;
+	
+	intel_dmc_enable_pipe(&display->crtc_state0,pipe0);
+	
+	FunctionCast(enablePipe, callback->oenablePipe)(that, param_1,param_2,param_3);
+	
 }
 
 void Gen11::hwInitializeCState(void *that)
@@ -5337,6 +5497,7 @@ void Gen11::hwInitializeCState(void *that)
 	
 	
 	intel_dmc_load_program(display);
+	
 
 	/* Wa_14011508470:tgl,dg1,rkl,adl-s,adl-p,dg2 */
 	if (intel_display_wa(display, INTEL_DISPLAY_WA_14011508470))
@@ -5356,12 +5517,8 @@ void Gen11::hwInitializeCState(void *that)
 				 PCH_GMBUSUNIT_CLOCK_GATE_DISABLE, 0);
 	}
 	
-	
-	//hsw_crtc_enable
-	intel_de_rmw(display, PIPEDMC_CONTROL(PIPE_A), 0, PIPEDMC_ENABLE);
-	
 	hwConfigureCustomAUX(that, true);
-	//intel_flipq_enable
+	
 }
 
 void Gen11::setupPlane(void *that,void *param_1,int param_2)
@@ -10301,11 +10458,7 @@ static void gen11_disable_guc_interrupts(struct intel_gt *gt)
 	gen11_reset_guc_interrupts(gt);
 }
 
-bool  Gen11::loadGuCBinary0(void *that)
-{
-	loadGuCBinary(that);
-	return true;
-}
+
 
 static int intel_guc_resume0(void *that)
 {
@@ -10677,6 +10830,12 @@ fail:
 	SafeForceWake(m_accelerator, false, 7);
 	IGSharedMappedBufferfree(fwBuffer);
 	return 0;
+}
+
+char  Gen11::loadGuCBinary0(void *that)
+{
+	loadGuCBinary(that);
+	return '1';
 }
 
 static void guc_ct_buffer_desc_init(struct guc_ct_buffer_desc *desc)
@@ -11132,18 +11291,21 @@ uint64_t Gen11::setupAdditionalDataStructs(void *that) {
 	return 1;
 }
 
+bool Gen11::setupContextPool0(void *that,int param_1)
+{
+	
+	param_1=1;
+	FunctionCast(setupContextPool0, callback->osetupContextPool0)(that,param_1 );
+	
+	return true;
+	
+}
 
 uint64_t Gen11::setupContextPool(void *that,int param_1)
 {
-	struct drm_i915_private *i915= NBlue::callback->i915b;
-	struct intel_gt *gt=to_gt(i915);
-	struct intel_guc *guc = gt_to_guc(gt);
 	
 	param_1=1;
 	FunctionCast(setupContextPool, callback->osetupContextPool)(that,param_1 );
-	
-	//if (guc->fw.file_selected.ver.major >= 69)
-	//	getMember<void *>(that, 0x50)= &guc->ct;
 	
 	return 1;
 	
