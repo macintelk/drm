@@ -699,7 +699,7 @@ uint64_t  Gen11::getOSInformation2(void *that)
 	/*FB_FLAG_ENABLE_BACKLIGHT_REG_CONTROL|*/FB_FLAG_AVOID_FAST_LINK_TRAINING;
 	
 	
-		pinfo[p].camelliaVersion=0;
+		pinfo[p].camelliaVersion=3;
 	
 		pinfo[p].fMobile=1;
 		pinfo[p].fPipeCount=3;
@@ -761,7 +761,7 @@ uint64_t  Gen11::getOSInformation(void *that)
 	|FB_FLAG_USE_VIDEO_TURBO|FB_FLAG_ALTERNATE_PWM_INCREMENT2*/;
 	
 	
-		pinfo[p].cameliav=0;
+		pinfo[p].cameliav=3;
 		//CamelliaTcon2=2 BanksiaTcon=3
 	
 		pinfo[p].fMobile=1;
@@ -5776,39 +5776,49 @@ static void gen11_irq_postinstall(struct drm_i915_private *dev_priv)
 	intel_de_posting_read(display, GEN11_GFX_MSTR_IRQ);
 }
 
+static void dmc_configure_event(struct intel_display *display,
+				enum intel_dmc_id dmc_id,
+				unsigned int event_id,
+				bool enable)
+{
+	struct intel_dmc *dmc = display_to_dmc(display);
+	int num_handlers = 0;
+	int i;
+
+	for (i = 0; i < dmc->dmc_info[dmc_id].mmio_count; i++) {
+		u32 reg = dmc->dmc_info[dmc_id].mmioaddr[i];
+		u32 data = dmc->dmc_info[dmc_id].mmiodata[i];
+
+		if (!is_event_handler(display, dmc_id, event_id, reg, data))
+			continue;
+
+		intel_de_write(display, reg, enable ? data : dmc_evt_ctl_disable(data));
+		num_handlers++;
+	}
+
+
+}
 
 
 void Gen11::enablePipe(void *that,void *param_1, void *param_2,void *param_3)
 {
-	 /*
-	new_crtc_state->use_flipq =
-		intel_flipq_supported(display) &&
-		!new_crtc_state->do_async_flip &&
-		!new_crtc_state->vrr.enable &&
-		!new_crtc_state->has_psr &&
-		!intel_crtc_needs_modeset(new_crtc_state) &&
-		!intel_crtc_needs_fastset(new_crtc_state) &&
-		!intel_crtc_needs_color_update(new_crtc_state);
-
-	new_crtc_state->use_dsb =
-		!new_crtc_state->use_flipq &&
-		!new_crtc_state->do_async_flip &&
-		(DISPLAY_VER(display) >= 20 || !new_crtc_state->has_psr) &&
-		!intel_crtc_needs_modeset(new_crtc_state) &&
-		!intel_crtc_needs_fastset(new_crtc_state);
-	*/
+	FunctionCast(enablePipe, callback->oenablePipe)(that, param_1,param_2,param_3);
+	
 	struct drm_i915_private *i915=NBlue::callback->i915b;
 	struct intel_display *display=i915->display;
 	
 	
 	uint32_t fbNum = getMember<uint32_t>(param_1, 0x1dc);
-	enum pipe pipe0=fbNum==0 ? PIPE_A: PIPE_B;
+	enum pipe pipe=fbNum==0 ? PIPE_A: PIPE_B;
+	enum intel_dmc_id dmc_id = (enum intel_dmc_id)PIPE_TO_DMC_ID(pipe);
 	
-	intel_dmc_enable_pipe(&display->crtc_state0,pipe0);
-	
-	FunctionCast(enablePipe, callback->oenablePipe)(that, param_1,param_2,param_3);
-	
+	intel_dmc_enable_pipe(&display->crtc_state0,pipe);
+
 	gen11_irq_postinstall(i915);
+	
+	//dmc_configure_event(display, dmc_id, PIPEDMC_EVENT_VBLANK, true);
+	//dmc_configure_event(display, dmc_id, PIPEDMC_EVENT_SCANLINE_INRANGE_FQ_TRIGGER, true);
+	
 }
 
 void Gen11::hwInitializeCState(void *that)
