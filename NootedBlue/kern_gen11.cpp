@@ -64,14 +64,14 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 	if (kextG11FB.loadIndex == index) {
 		kexticl=true;
 		
-		SolveRequestPlus solveRequests[] = {
+		KernelPatcher::SolveRequest solveRequests[] = {
 			{"_gPlatformInformationList", this->gPlatformInformationList},
 			{"__ZN31AppleIntelFramebufferController14disableCDClockEv", this->orgDisableCDClock},
 			{"__ZN31AppleIntelFramebufferController19setCDClockFrequencyEy", this->orgSetCDClockFrequency},
 		};
-		PANIC_COND(!SolveRequestPlus::solveAll(patcher, index, solveRequests, address, size), "nblue",	"Failed to resolve symbols");
-		
-		RouteRequestPlus requests[] = {
+		PANIC_COND(!patcher.solveMultiple( index, solveRequests, address, size), "nblue",	"Failed to resolve symbols");
+
+		KernelPatcher::RouteRequest requests[] = {
 			
 			{"__ZN31AppleIntelFramebufferController23initPlatformWorkaroundsEv",initPlatformWorkarounds, this->oinitPlatformWorkarounds},
 			{"__ZN31AppleIntelFramebufferController16getOSInformationEv",getOSInformation2, this->ogetOSInformation2},
@@ -129,7 +129,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			
 			
 		};
-		PANIC_COND(!RouteRequestPlus::routeAll(patcher, index, requests, address, size), "nblue","Failed to route symbols");
+		PANIC_COND(!patcher.routeMultipleLong(index, requests, address, size), "nblue","Failed to route symbols");
 		
 		//cache + boot
 		static const uint8_t f7[]= {0x83, 0x78, 0x08, 0x00, 0x0f, 0x84, 0x32, 0x01, 0x00, 0x00};
@@ -201,25 +201,25 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		kexttglp=isprod;
 		
 		if (isprod) {
-			SolveRequestPlus solveRequests[] = {
+			KernelPatcher::SolveRequest solveRequestsp[] = {
 				{"_gPlatformInformationList", this->gPlatformInformationList},
 				{"__ZN31AppleIntelFramebufferController14disableCDClockEv", this->orgDisableCDClock},
-				{"__ZN31AppleIntelFramebufferController19setCDClockFrequencyEy", this->orgSetCDClockFrequency},
+				{"__ZN31AppleIntelFramebufferController19setCDClockFrequencyEy", this->orgSetCDClockFrequency}
 			};
-			PANIC_COND(!SolveRequestPlus::solveAll(patcher, index, solveRequests, address, size), "nblue",	"Failed to resolve symbols");
+			PANIC_COND(!patcher.solveMultiple( index,  solveRequestsp, address, size), "nblue",	"Failed to resolve symbols");
 		}
 		else
 		{
-			SolveRequestPlus solveRequests[] = {
+			KernelPatcher::SolveRequest solveRequestsd[] = {
 				{"_gPlatformInformationList", this->gPlatformInformationList},
 				{"__ZN24AppleIntelBaseController14disableCDClockEv", this->orgDisableCDClock},
-				{"__ZN24AppleIntelBaseController19setCDClockFrequencyEy", this->orgSetCDClockFrequency},
+				{"__ZN24AppleIntelBaseController19setCDClockFrequencyEy", this->orgSetCDClockFrequency}
 			};
-			PANIC_COND(!SolveRequestPlus::solveAll(patcher, index, solveRequests, address, size), "nblue",	"Failed to resolve symbols");
+			PANIC_COND(!patcher.solveMultiple( index,  solveRequestsd, address, size), "nblue",	"Failed to resolve symbols");
 		}
 
 		
-		RouteRequestPlus requests[] = {
+		KernelPatcher::RouteRequest requests[] = {
 			{"__ZN16AppleIntelScaler4initE10IGScalerID", AppleIntelScalerinit,this->oAppleIntelScalerinit},
 			{"__ZN15AppleIntelPlane4initE9IGPlaneID", AppleIntelPlaneinit,this->oAppleIntelPlaneinit},
 			//{"__ZN31AppleIntelRegisterAccessManager14ReadRegister32Em",raReadRegister32, this->oraReadRegister32},
@@ -248,21 +248,22 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			{"__ZN19AppleIntelPowerWell19disablePowerWellDDIEj",disablePowerWellDDI, this->odisablePowerWellDDI},
 			{"__ZN19AppleIntelPowerWell18disablePowerWellPGEj",disablePowerWellPG, this->odisablePowerWellPG},
 			{"__ZN21AppleIntelFramebuffer11initVRRCapsEv",initVRRCaps, this->oinitVRRCaps},
+			//{"__ZN21AppleIntelFramebuffer28setupInitialTransactionStateEj",fsetupInitialTransactionState, this->ofsetupInitialTransactionState},
 			
-			
-			
-			/*{"__ZN21AppleIntelFramebuffer17prepareToExitWakeEv",dovoid},
+			/*
+			{"__ZN21AppleIntelFramebuffer17prepareToExitWakeEv",dovoid},
 			{"__ZN21AppleIntelFramebuffer18prepareToExitSleepEv",dovoid},
 			{"__ZN21AppleIntelFramebuffer19prepareToEnterSleepEv",dovoid},
 			{"__ZN21AppleIntelFramebuffer18prepareToEnterWakeEv",dovoid},
 			*/
 			
-			
 		};
-		PANIC_COND(!RouteRequestPlus::routeAll(patcher, index, requests, address, size), "nblue","Failed to route dp symbols");
+
+		PANIC_COND(!patcher.routeMultipleLong(index, requests, address, size), "nblue","Failed to route dp symbols");
+
 		
 		if (isprod) {
-			RouteRequestPlus requests[] = {
+			KernelPatcher::RouteRequest requestsp[] = {
 				{"__ZN31AppleIntelFramebufferController10enablePipeEP21AppleIntelFramebufferP21AppleIntelDisplayPathPK29IODetailedTimingInformationV2",enablePipe, this->oenablePipe},
 				{"__ZN31AppleIntelFramebufferController13probeBootPipeEPbPN17AppleIntelPortHAL3DDIE",probeBootPipe, this->oprobeBootPipe},
 				{"__ZN31AppleIntelFramebufferController11initCDClockEv",initCDClock, this->oinitCDClock},
@@ -287,11 +288,11 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 				{"__ZN31AppleIntelFramebufferController20hwConfigureCustomAUXEb",hwConfigureCustomAUX, this->ohwConfigureCustomAUX},
 				
 			};
-			PANIC_COND(!RouteRequestPlus::routeAll(patcher, index, requests, address, size), "nblue","Failed to route p symbols");
+			PANIC_COND(!patcher.routeMultipleLong(index, requestsp, address, size), "nblue","Failed to route p symbols");
 			
 		} else //debug version
 		{
-			RouteRequestPlus requests[] = {
+			KernelPatcher::RouteRequest requestsd[] = {
 				{"__ZN24AppleIntelBaseController10enablePipeEP21AppleIntelFramebufferP21AppleIntelDisplayPathPK29IODetailedTimingInformationV2",enablePipe, this->oenablePipe},
 				{"__ZN24AppleIntelBaseController13probeBootPipeEPbPN17AppleIntelPortHAL3DDIE",probeBootPipe, this->oprobeBootPipe},
 				{"__ZN24AppleIntelBaseController11initCDClockEv",initCDClock, this->oinitCDClock},
@@ -316,7 +317,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 				{"__ZN24AppleIntelBaseController20hwConfigureCustomAUXEb",hwConfigureCustomAUX, this->ohwConfigureCustomAUX},
 				
 			};
-			PANIC_COND(!RouteRequestPlus::routeAll(patcher, index, requests, address, size), "nblue","Failed to route d symbols");
+			PANIC_COND(!patcher.routeMultipleLong(index, requestsd, address, size), "nblue","Failed to route d symbols");
 			
 		}
 		
@@ -437,7 +438,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		
 	}     else if (kextG11HW.loadIndex == index) {
 		 // icl
-		 RouteRequestPlus requests[] = {
+		KernelPatcher::RouteRequest requests[] = {
 			 
 			 //{"__ZN16IntelAccelerator19PAVPCommandCallbackE22PAVPSessionCommandID_tjPjb", wrapPavpSessionCallback, this->orgPavpSessionCallback},
 			 {"__ZN16IntelAccelerator18setAsyncSliceCountE13IGSliceConfig",setAsyncSliceCount2, this->osetAsyncSliceCount2},
@@ -458,7 +459,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			 //{"__ZN16IntelAccelerator31initHardwareStatusPageRegistersEv",initHardwareStatusPageRegisters, this->oinitHardwareStatusPageRegisters},
 			 
 		 };
-		PANIC_COND(!RouteRequestPlus::routeAll(patcher, index, requests, address, size), "nblue","Failed to route symbols");
+		PANIC_COND(!patcher.routeMultipleLong(index, requests, address, size), "nblue","Failed to route symbols");
 		
 		//sku = 8
 		static const uint8_t f2[] = {0x41, 0xc1, 0xef, 0x1c, 0x44, 0x89, 0xbb, 0x50, 0x11, 0x00, 0x00};
@@ -506,15 +507,8 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		//tgl
 		auto kext=kextG11HWT.loadIndex == index ? kextG11HWT: kextG11HWTe;
 		
-		SolveRequestPlus solveRequests[] = {
-			//apple rings control variable -> 11 globals
-			{"__ZL11kIGHwCsDesc", this->kIGHwCsDesc},
-			
-		};
-		//PANIC_COND(!SolveRequestPlus::solveAll(patcher, index, solveRequests, address, size), "nblue",	"Failed to resolve symbols");
-		 
 		
-		 RouteRequestPlus requests[] = {
+		KernelPatcher::RouteRequest requests[] = {
 			 
 			 //{"__ZN16IntelAccelerator19PAVPCommandCallbackE22PAVPSessionCommandID_tjPjb", wrapPavpSessionCallback0, this->orgPavpSessionCallback0},
 			 {"__ZN16IntelAccelerator18setAsyncSliceCountE13IGSliceConfig",setAsyncSliceCount2, this->osetAsyncSliceCount2},
@@ -575,7 +569,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			 //{"__ZN13IGHardwareGuC29AttachContextDescToGucContextERK21SGfxContextDescriptor",AttachContextDescToGucContext, this->oAttachContextDescToGucContext},
 			 
 		 };
-		PANIC_COND(!RouteRequestPlus::routeAll(patcher, index, requests, address, size), "nblue","Failed to route symbols");
+		PANIC_COND(!patcher.routeMultipleLong(index, requests, address, size), "nblue","Failed to route symbols");
 		
 		// 8 subslices
 		static const uint8_t f2[] = {0x8b, 0x5d, 0xd0, 0xf3, 0x0f, 0xb8, 0xf3, 0x01, 0xf6, 0x41, 0x89, 0xb7, 0x58, 0x11, 0x00, 0x00};
@@ -699,7 +693,7 @@ uint64_t  Gen11::getOSInformation2(void *that)
 	/*FB_FLAG_ENABLE_BACKLIGHT_REG_CONTROL|*/FB_FLAG_AVOID_FAST_LINK_TRAINING;
 	
 	
-		pinfo[p].camelliaVersion=3;
+		pinfo[p].camelliaVersion=0;
 	
 		pinfo[p].fMobile=1;
 		pinfo[p].fPipeCount=3;
@@ -761,7 +755,7 @@ uint64_t  Gen11::getOSInformation(void *that)
 	|FB_FLAG_USE_VIDEO_TURBO|FB_FLAG_ALTERNATE_PWM_INCREMENT2*/;
 	
 	
-		pinfo[p].cameliav=3;
+		pinfo[p].cameliav=0;
 		//CamelliaTcon2=2 BanksiaTcon=3
 	
 		pinfo[p].fMobile=1;
@@ -831,18 +825,22 @@ int Gen11::dozero()
 {
 	return 0;
 }
+
 uint Gen11::udozero()
 {
 	return 0;
 }
+
 u64 Gen11::ldozero()
 {
 	return 0;
 }
+
 u64 Gen11::ldone()
 {
 	return 1;
 }
+
 void Gen11::dovoid()
 {
 }
@@ -1197,18 +1195,9 @@ uint32_t Gen11::configureReport	(void *that,void *param_1,uint param_2,void *par
 	if (Report==-1)
 	{
 		Report=0;
-		
 
-		/*getMember<uint32_t>(frame0, 0x420c)=0x11;
-		
-		getMember<uint32_t>(frame0, 0x49e0)=1;//sleepwake
-		getMember<uint32_t>(frame0, 0x4284)=1;//sleepmode
-		FunctionCast(fsetAttribute, callback->ofsetAttribute)(frame0, 'powr',2);
-		IOSleep(1);
-		//fsetAttribute(frame0, 'wsrv',4);
-		//IOSleep(1);
-		*/
-		getMember<uint32_t>(frame0, 0x4284)=2;//sleepmode
+
+		/*getMember<uint32_t>(frame0, 0x4284)=2;//sleepmode
 		
 		getMember<uint8_t>(frame0, 0x1e0)=1;//fOnline
 		getMember<uint8_t>(frame0, 0x1e1)=0;//newOnlineState
@@ -1219,7 +1208,7 @@ uint32_t Gen11::configureReport	(void *that,void *param_1,uint param_2,void *par
 		getMember<uint8_t>(frame0, 0x1e1)=1;//newOnlineState
 		getMember<uint8_t>(ccont2, 0xe61)=0;//lidisclosed
 		wrapSetAttributeForConnection(frame0, 0, 'prob', 1);
-		IOSleep(1);
+		IOSleep(1);*/
 		
 		//IODelay(1000);
 		//getMember<uint32_t>(that, 0x4284)=1;//sleepmode
@@ -1268,6 +1257,11 @@ void Gen11::initVRRCaps(void *that)
 	getMember<uint8_t>(that, 0x4a39)=0;
 	getMember<uint8_t>(that, 0x4a3a)=0;
 	//FunctionCast(initVRRCaps, callback->oinitVRRCaps)(that);
+}
+
+void Gen11::fsetupInitialTransactionState(void *that,uint param_1)
+{
+	 FunctionCast(fsetupInitialTransactionState, callback->ofsetupInitialTransactionState)(that, param_1);
 }
 
 void Gen11::updatePlane(void *that,bool param_1)
@@ -1694,7 +1688,6 @@ static u32 guc_ctl_debug_flags(struct intel_guc *guc)
 	return flags;
 }
 
-void intel_guc_submission_flush_work(struct intel_guc *guc);
 
 static inline bool intel_guc_submission_is_supported(struct intel_guc *guc)
 {
@@ -2344,7 +2337,7 @@ void intel_wopcm_init(struct intel_gt *gt, u32 guc_fw_size)
 		if (!__wopcm_regs_writable(gt->i915))
 			wopcm_size = MAX_WOPCM_SIZE;
 
-		goto check;
+		return;
 	}
 
 	guc_wopcm_base = huc_fw_size + WOPCM_RESERVED_SIZE;
@@ -2360,7 +2353,7 @@ void intel_wopcm_init(struct intel_gt *gt, u32 guc_fw_size)
 	
 	uc_init_wopcm(gt);
 
-check:
+//check:
 }
 
 static int gen6_hw_domain_reset(struct intel_gt *gt, u32 hw_domain_mask)
@@ -2626,14 +2619,6 @@ static void tgl_whitelist_build(struct intel_engine_cs *engine)
 		break;
 	}
 }
-
-
-
-
-
-
-
-
 
 
 

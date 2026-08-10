@@ -887,6 +887,13 @@ public:
 	static void initVRRCaps(void *that);
 	mach_vm_address_t oinitVRRCaps {};
 	
+	static void fsetupInitialTransactionState(void *that,uint param_1);
+	mach_vm_address_t ofsetupInitialTransactionState {};
+	
+	
+	
+	
+	
 	
 	
 public:

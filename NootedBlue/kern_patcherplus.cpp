@@ -4,13 +4,14 @@
 #include "kern_patcherplus.hpp"
 
 bool SolveRequestPlus::solve(KernelPatcher &patcher, size_t id, mach_vm_address_t address, size_t maxSize) {
-	if(!this->address) return false;
-	//PANIC_COND(!this->address, "Patcher+", "this->address is null");
+	PANIC_COND(!this->address, "Patcher+", "this->address is null");
 
-	*this->address = patcher.solveSymbol(id, this->symbol);
-	if (*this->address) { return true; }
-	patcher.clearError();
-
+	if (this->symbol != nullptr) {
+		*this->address = patcher.solveSymbol(id, this->symbol);
+		if (*this->address) { return true; }
+		patcher.clearError();
+	}
+	
 	if (!this->pattern || !this->patternSize) {
 		DBGLOG("Patcher+", "Failed to solve %s using symbol", safeString(this->symbol));
 		return false;
