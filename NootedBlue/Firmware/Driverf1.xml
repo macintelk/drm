@@ -110,7 +110,7 @@
 		<key>4KVideoDownscale</key>
 		<integer>1</integer>
 		<key>ASFU</key>
-		<integer>1</integer>
+		<integer>0</integer>
 		<key>ASFUThresholdFPS</key>
 		<integer>50</integer>
 		<key>ASRDisable</key>
@@ -200,7 +200,7 @@
 		<key>VBLWatchdogFeatureEnable</key>
 		<integer>1</integer>
 		<key>VRRSupport</key>
-		<integer>1</integer>
+		<integer>0</integer>
 		<key>YTiling</key>
 		<integer>1</integer>
 		<key>hwAssistedHDR</key>

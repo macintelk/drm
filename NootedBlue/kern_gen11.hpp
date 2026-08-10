@@ -884,6 +884,11 @@ public:
 	static void enablePipe(void *that,void *param_1, void *param_2,void *param_3);
 	mach_vm_address_t oenablePipe {};
 	
+	static void initVRRCaps(void *that);
+	mach_vm_address_t oinitVRRCaps {};
+	
+	
+	
 public:
 
 	void init();

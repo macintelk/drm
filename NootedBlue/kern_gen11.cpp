@@ -247,6 +247,8 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			{"__ZN19AppleIntelPowerWell19disablePowerWellAuxEj",disablePowerWellAux, this->odisablePowerWellAux},
 			{"__ZN19AppleIntelPowerWell19disablePowerWellDDIEj",disablePowerWellDDI, this->odisablePowerWellDDI},
 			{"__ZN19AppleIntelPowerWell18disablePowerWellPGEj",disablePowerWellPG, this->odisablePowerWellPG},
+			{"__ZN21AppleIntelFramebuffer11initVRRCapsEv",initVRRCaps, this->oinitVRRCaps},
+			
 			
 			
 			/*{"__ZN21AppleIntelFramebuffer17prepareToExitWakeEv",dovoid},
@@ -437,7 +439,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		 // icl
 		 RouteRequestPlus requests[] = {
 			 
-			 {"__ZN16IntelAccelerator19PAVPCommandCallbackE22PAVPSessionCommandID_tjPjb", wrapPavpSessionCallback, this->orgPavpSessionCallback},
+			 //{"__ZN16IntelAccelerator19PAVPCommandCallbackE22PAVPSessionCommandID_tjPjb", wrapPavpSessionCallback, this->orgPavpSessionCallback},
 			 {"__ZN16IntelAccelerator18setAsyncSliceCountE13IGSliceConfig",setAsyncSliceCount2, this->osetAsyncSliceCount2},
 			 {"__ZN16IntelAccelerator14setSliceConfigE13IGSliceConfig",setSliceConfig, this->osetSliceConfig},
 			 {"__ZN16IntelAccelerator19startGraphicsEngineEv",startGraphicsEngine, this->ostartGraphicsEngine},
@@ -514,7 +516,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		
 		 RouteRequestPlus requests[] = {
 			 
-			 {"__ZN16IntelAccelerator19PAVPCommandCallbackE22PAVPSessionCommandID_tjPjb", wrapPavpSessionCallback0, this->orgPavpSessionCallback0},
+			 //{"__ZN16IntelAccelerator19PAVPCommandCallbackE22PAVPSessionCommandID_tjPjb", wrapPavpSessionCallback0, this->orgPavpSessionCallback0},
 			 {"__ZN16IntelAccelerator18setAsyncSliceCountE13IGSliceConfig",setAsyncSliceCount2, this->osetAsyncSliceCount2},
 			 {"__ZN16IntelAccelerator14setSliceConfigE13IGSliceConfig",setSliceConfig, this->osetSliceConfig},
 			 {"__ZN16IntelAccelerator19startGraphicsEngineEv",startGraphicsEngine, this->ostartGraphicsEngine},
@@ -750,7 +752,6 @@ uint64_t  Gen11::getOSInformation(void *that)
 	
 	if (NBlue::callback->intel_opregion_setup()!=0) panic("BAD BIOS");
 
-	
 	struct PlatformInfo *pinfo =static_cast<PlatformInfo *>(callback->gPlatformInformationList);
 	
 	int p=1;
@@ -1257,6 +1258,17 @@ IOReturn Gen11::wrapSetAttributeForConnection(void* framebuffer, int32_t connect
 	getMember<uint32_t>(ccont2, kexticl ? 0xe4c: kexttgld ? 0xe64 : 0xe58)=value;
 	return kIOReturnSuccess;
 };
+
+void Gen11::initVRRCaps(void *that)
+{
+	getMember<uint8_t>(that, 0x4a35)=0;//IsVRRSupported
+	getMember<uint8_t>(that, 0x4a36)=0;//IsASFUSupported
+	getMember<uint8_t>(that, 0x4a37)=0;
+	getMember<uint8_t>(that, 0x4a38)=0;
+	getMember<uint8_t>(that, 0x4a39)=0;
+	getMember<uint8_t>(that, 0x4a3a)=0;
+	//FunctionCast(initVRRCaps, callback->oinitVRRCaps)(that);
+}
 
 void Gen11::updatePlane(void *that,bool param_1)
 {
@@ -2399,7 +2411,7 @@ static void guc_prepare_xfer0(struct intel_gt *gt)
 	intel_de_write(display, GEN9_GT_PM_CONFIG, GT_DOORBELL_ENABLE);
 
 	//xe
-	intel_de_rmw(display, GEN6_PMINTRMSK, ARAT_EXPIRED_INTRMSK, 0);
+	//intel_de_rmw(display, GEN6_PMINTRMSK, ARAT_EXPIRED_INTRMSK, 0);
 }
 
 static void guc_prepare_xfer(struct intel_gt *gt)
@@ -2436,7 +2448,7 @@ static void guc_prepare_xfer(struct intel_gt *gt)
 		intel_de_rmw(display, GUC_SHIM_CONTROL2, 0, GUC_ENABLE_DEBUG_REG);
 	
 	//xe
-	intel_de_rmw(display, GEN6_PMINTRMSK, ARAT_EXPIRED_INTRMSK, 0);
+	//intel_de_rmw(display, GEN6_PMINTRMSK, ARAT_EXPIRED_INTRMSK, 0);
 }
 
 
@@ -5764,44 +5776,35 @@ static void gen11_irq_postinstall(struct drm_i915_private *dev_priv)
 	intel_de_posting_read(display, GEN11_GFX_MSTR_IRQ);
 }
 
-static void dmc_configure_event(struct intel_display *display,
-				enum intel_dmc_id dmc_id,
-				unsigned int event_id,
-				bool enable)
-{
-	struct intel_dmc *dmc = display_to_dmc(display);
-	int num_handlers = 0;
-	int i;
 
-	for (i = 0; i < dmc->dmc_info[dmc_id].mmio_count; i++) {
-		u32 reg = dmc->dmc_info[dmc_id].mmioaddr[i];
-		u32 data = dmc->dmc_info[dmc_id].mmiodata[i];
-
-		if (!is_event_handler(display, dmc_id, event_id, reg, data))
-			continue;
-
-		intel_de_write(display, reg, enable ? data : dmc_evt_ctl_disable(data));
-		num_handlers++;
-	}
-
-
-}
 
 void Gen11::enablePipe(void *that,void *param_1, void *param_2,void *param_3)
 {
-	 
+	 /*
+	new_crtc_state->use_flipq =
+		intel_flipq_supported(display) &&
+		!new_crtc_state->do_async_flip &&
+		!new_crtc_state->vrr.enable &&
+		!new_crtc_state->has_psr &&
+		!intel_crtc_needs_modeset(new_crtc_state) &&
+		!intel_crtc_needs_fastset(new_crtc_state) &&
+		!intel_crtc_needs_color_update(new_crtc_state);
+
+	new_crtc_state->use_dsb =
+		!new_crtc_state->use_flipq &&
+		!new_crtc_state->do_async_flip &&
+		(DISPLAY_VER(display) >= 20 || !new_crtc_state->has_psr) &&
+		!intel_crtc_needs_modeset(new_crtc_state) &&
+		!intel_crtc_needs_fastset(new_crtc_state);
+	*/
 	struct drm_i915_private *i915=NBlue::callback->i915b;
 	struct intel_display *display=i915->display;
 	
 	
 	uint32_t fbNum = getMember<uint32_t>(param_1, 0x1dc);
 	enum pipe pipe0=fbNum==0 ? PIPE_A: PIPE_B;
-	enum intel_dmc_id dmc_id = (enum intel_dmc_id)PIPE_TO_DMC_ID(pipe0);
 	
 	intel_dmc_enable_pipe(&display->crtc_state0,pipe0);
-
-	dmc_configure_event(display, dmc_id, PIPEDMC_EVENT_VBLANK, true);
-	//dmc_configure_event(display, dmc_id, PIPEDMC_EVENT_SCANLINE_INRANGE_FQ_TRIGGER, true);
 	
 	FunctionCast(enablePipe, callback->oenablePipe)(that, param_1,param_2,param_3);
 	
@@ -8606,6 +8609,7 @@ uint64_t  Gen11::linkTraining(void *that,void *param_1)
 	
 	intel_ddi_enable(display, crtc_state);
 	
+	//getMember<uint32_t>(frame0, kexticl ? 0xe45 : 0x420c)=0x3;//fWSAAState
 	
 	if (ret) return 0;
 
@@ -9175,6 +9179,8 @@ void  Gen11::enableDisplayEngine(void *that0)
 	
 	mbus_ctl_join_update(display, &dbuf_state, PIPE_A);
 	pipe_mbus_dbox_ctl_update(display, &dbuf_state);
+	
+	if (HAS_MBUS_JOINING(display))
 	intel_dbuf_mdclk_cdclk_ratio_update(display, 1,dbuf_state.joined_mbus);
 
 }
