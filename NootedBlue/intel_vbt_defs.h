@@ -11653,6 +11653,135 @@ struct guc_process_desc {
 #define POLICY_DEFAULT_PREEMPTION_TIME_US 500000
 #define POLICY_DEFAULT_FAULT_TIME_US 250000
 
+#define SDE_GMBUS_ICP			(1 << 23)
+#define SDEISR  _MMIO(0xc4000)
+#define SDEIMR  _MMIO(0xc4004)
+#define SDEIIR  _MMIO(0xc4008)
+#define SDEIER  _MMIO(0xc400c)
+#define HAS_DBUF_OVERLAP_DETECTION(__display)	(DISPLAY_RUNTIME_INFO(__display)->has_dbuf_overlap_detection)
+#define HAS_DSB(__display)		(DISPLAY_INFO(__display)->has_dsb)
+
+#define SDE_IRQ_REGS			I915_IRQ_REGS(SDEIMR, \
+							  SDEIER, \
+							  SDEIIR)
+	enum intel_dsb_id {
+		INTEL_DSB_0,
+		INTEL_DSB_1,
+		INTEL_DSB_2,
+
+		I915_MAX_DSBS,
+	};
+#define GEN11_GU_MISC_ISR	_MMIO(0x444f0)
+#define GEN11_GU_MISC_IMR	_MMIO(0x444f4)
+#define GEN11_GU_MISC_IIR	_MMIO(0x444f8)
+#define GEN11_GU_MISC_IER	_MMIO(0x444fc)
+#define  GEN11_GU_MISC_GSE	(1 << 27)
+#define GT_BLT_FLUSHDW_NOTIFY_INTERRUPT		(1 << 26)
+#define GT_BLT_CS_ERROR_INTERRUPT		(1 << 25)
+#define GT_BLT_USER_INTERRUPT			(1 << 22)
+#define GT_BSD_CS_ERROR_INTERRUPT		(1 << 15)
+#define GT_BSD_USER_INTERRUPT			(1 << 12)
+#define GT_RENDER_L3_PARITY_ERROR_INTERRUPT_S1	(1 << 11) /* hsw+; rsvd on snb, ivb, vlv */
+#define GT_WAIT_SEMAPHORE_INTERRUPT		REG_BIT(11) /* bdw+ */
+#define GT_CONTEXT_SWITCH_INTERRUPT		(1 <<  8)
+#define GT_RENDER_L3_PARITY_ERROR_INTERRUPT	(1 <<  5) /* !snb */
+#define GT_RENDER_PIPECTL_NOTIFY_INTERRUPT	(1 <<  4)
+#define GT_CS_MASTER_ERROR_INTERRUPT		REG_BIT(3)
+#define GT_RENDER_SYNC_STATUS_INTERRUPT		(1 <<  2)
+#define GT_RENDER_DEBUG_INTERRUPT		(1 <<  1)
+#define GT_RENDER_USER_INTERRUPT		(1 <<  0)
+#define GEN12_RPSTAT1				_MMIO(0x1381b4)
+#define   GEN12_VOLTAGE_MASK			REG_GENMASK(10, 0)
+#define   GEN12_CAGF_MASK			REG_GENMASK(19, 11)
+
+#define GEN11_GT_INTR_DW(x)			_MMIO(0x190018 + ((x) * 4))
+#define   GEN11_CSME				(31)
+#define   GEN12_HECI_2				(30)
+#define   GEN11_GUNIT				(28)
+#define   GEN11_GUC				(25)
+#define   MTL_MGUC				(24)
+#define   GEN11_WDPERF				(20)
+#define   GEN11_KCR				(19)
+#define   GEN11_GTPM				(16)
+#define   GEN11_BCS				(15)
+#define   XEHPC_BCS1				(14)
+#define   XEHPC_BCS2				(13)
+#define   XEHPC_BCS3				(12)
+#define   XEHPC_BCS4				(11)
+#define   XEHPC_BCS5				(10)
+#define   XEHPC_BCS6				(9)
+#define   XEHPC_BCS7				(8)
+#define   XEHPC_BCS8				(23)
+#define   GEN12_CCS3				(7)
+#define   GEN12_CCS2				(6)
+#define   GEN12_CCS1				(5)
+#define   GEN12_CCS0				(4)
+#define   GEN11_RCS0				(0)
+#define   GEN11_VECS(x)				(31 - (x))
+#define   GEN11_VCS(x)				(x)
+
+#define GEN11_RENDER_COPY_INTR_ENABLE		_MMIO(0x190030)
+#define GEN11_VCS_VECS_INTR_ENABLE		_MMIO(0x190034)
+#define GEN11_GUC_SG_INTR_ENABLE		_MMIO(0x190038)
+#define   ENGINE1_MASK				REG_GENMASK(31, 16)
+#define   ENGINE0_MASK				REG_GENMASK(15, 0)
+#define GEN11_GPM_WGBOXPERF_INTR_ENABLE		_MMIO(0x19003c)
+#define GEN11_CRYPTO_RSVD_INTR_ENABLE		_MMIO(0x190040)
+#define GEN11_GUNIT_CSME_INTR_ENABLE		_MMIO(0x190044)
+#define GEN12_CCS_RSVD_INTR_ENABLE		_MMIO(0x190048)
+
+#define GEN11_INTR_IDENTITY_REG(x)		_MMIO(0x190060 + ((x) * 4))
+#define   GEN11_INTR_DATA_VALID			(1 << 31)
+#define   GEN11_INTR_ENGINE_CLASS(x)		(((x) & GENMASK(18, 16)) >> 16)
+#define   GEN11_INTR_ENGINE_INSTANCE(x)		(((x) & GENMASK(25, 20)) >> 20)
+#define   GEN11_INTR_ENGINE_INTR(x)		((x) & 0xffff)
+/* irq instances for OTHER_CLASS */
+#define   OTHER_GUC_INSTANCE			0
+#define   OTHER_GTPM_INSTANCE			1
+#define   OTHER_GSC_HECI_2_INSTANCE		3
+#define   OTHER_KCR_INSTANCE			4
+#define   OTHER_GSC_INSTANCE			6
+#define   OTHER_MEDIA_GUC_INSTANCE		16
+#define   OTHER_MEDIA_GTPM_INSTANCE		17
+
+#define GEN11_IIR_REG_SELECTOR(x)		_MMIO(0x190070 + ((x) * 4))
+#define GEN11_GFX_MSTR_IRQ		_MMIO(0x190010)
+#define  GEN11_MASTER_IRQ		(1 << 31)
+
+#define GEN11_RCS0_RSVD_INTR_MASK		_MMIO(0x190090)
+#define GEN11_BCS_RSVD_INTR_MASK		_MMIO(0x1900a0)
+#define GEN11_VCS0_VCS1_INTR_MASK		_MMIO(0x1900a8)
+#define GEN11_VCS2_VCS3_INTR_MASK		_MMIO(0x1900ac)
+#define GEN12_VCS4_VCS5_INTR_MASK		_MMIO(0x1900b0)
+#define GEN12_VCS6_VCS7_INTR_MASK		_MMIO(0x1900b4)
+#define GEN11_VECS0_VECS1_INTR_MASK		_MMIO(0x1900d0)
+#define GEN12_VECS2_VECS3_INTR_MASK		_MMIO(0x1900d4)
+#define GEN12_HECI2_RSVD_INTR_MASK		_MMIO(0x1900e4)
+#define GEN11_GUC_SG_INTR_MASK			_MMIO(0x1900e8)
+#define MTL_GUC_MGUC_INTR_MASK			_MMIO(0x1900e8) /* MTL+ */
+#define GEN11_GPM_WGBOXPERF_INTR_MASK		_MMIO(0x1900ec)
+#define GEN11_CRYPTO_RSVD_INTR_MASK		_MMIO(0x1900f0)
+#define GEN11_GUNIT_CSME_INTR_MASK		_MMIO(0x1900f4)
+#define GEN12_CCS0_CCS1_INTR_MASK		_MMIO(0x190100)
+#define GEN12_CCS2_CCS3_INTR_MASK		_MMIO(0x190104)
+#define XEHPC_BCS1_BCS2_INTR_MASK		_MMIO(0x190110)
+#define XEHPC_BCS3_BCS4_INTR_MASK		_MMIO(0x190114)
+#define XEHPC_BCS5_BCS6_INTR_MASK		_MMIO(0x190118)
+#define XEHPC_BCS7_BCS8_INTR_MASK		_MMIO(0x19011c)
+
+#define GEN12_SFC_DONE(n)			_MMIO(0x1cc000 + (n) * 0x1000)
+#define HAS_D12_PLANE_MINIMIZATION(__display)	((__display)->platform.rocketlake || (__display)->platform.alderlake_s)
+#define GEN11_GU_MISC_ISR	_MMIO(0x444f0)
+#define GEN11_GU_MISC_IMR	_MMIO(0x444f4)
+#define GEN11_GU_MISC_IIR	_MMIO(0x444f8)
+#define GEN11_GU_MISC_IER	_MMIO(0x444fc)
+#define  GEN11_GU_MISC_GSE	(1 << 27)
+
+#define GEN11_GU_MISC_IRQ_REGS		I915_IRQ_REGS(GEN11_GU_MISC_IMR, \
+							  GEN11_GU_MISC_IER, \
+							  GEN11_GU_MISC_IIR)
+
+
 
 
 #ifdef __cplusplus
