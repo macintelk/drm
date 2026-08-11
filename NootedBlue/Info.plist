@@ -36,6 +36,10 @@
 			<string>AppleDisplay</string>
 			<key>IOProviderMergeProperties</key>
 			<dict>
+				<key>DisplayVendorID</key>
+				<integer>1552</integer>
+				<key>DisplayProductID</key>
+				<integer>40178</integer>
 				<key>IOClass</key>
 				<string>AppleBacklightDisplay</string>
 			</dict>

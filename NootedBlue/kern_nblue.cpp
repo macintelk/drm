@@ -2975,8 +2975,7 @@ int NBlue::intel_opregion_setup()
 				intel_dp->lane_count = display->panel.vbt.edp.lanes;
 				crtc_state->lane_count = display->panel.vbt.edp.lanes;
 				crtc_state->dither=display->panel.vbt.lvds_dither;
-				
-				
+				memcpy(&crtc_state->hw.adjusted_mode,panel->vbt.lfp_vbt_mode,sizeof(struct drm_display_mode));
 				//intel_dp_init_connector
 				
 			}

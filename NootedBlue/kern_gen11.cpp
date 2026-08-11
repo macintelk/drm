@@ -251,6 +251,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			{"__ZN19AppleIntelPowerWell18disablePowerWellPGEj",disablePowerWellPG, this->odisablePowerWellPG},
 			{"__ZN21AppleIntelFramebuffer11initVRRCapsEv",initVRRCaps, this->oinitVRRCaps},
 			//{"__ZN21AppleIntelFramebuffer28setupInitialTransactionStateEj",fsetupInitialTransactionState, this->ofsetupInitialTransactionState},
+
 			
 			/*
 			{"__ZN21AppleIntelFramebuffer17prepareToExitWakeEv",dovoid},
@@ -487,7 +488,6 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		static const uint8_t f4[] = {0x74, 0x42, 0x00, 0x00};
 		static const uint8_t r4[] = {0xe8, 0xce, 0x00, 0x00};
 		
-
 		
 		LookupPatchPlus const patches[] = {
 			{&kextG11HW, f2, r2, arrsize(f2),	1},
@@ -497,7 +497,6 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			{&kextG11HW, f3a, r3a, arrsize(f3a),	1},
 			{&kextG11HW, f3b, r3b, arrsize(f3b),	1},*/
 			{&kextG11HW, f4, r4, arrsize(f4),	22},
-			
 			
 		};
 		PANIC_COND(!LookupPatchPlus::applyAll(patcher, patches , address, size), "nblue", "kextG11HW Failed to apply patches!");
@@ -5798,6 +5797,49 @@ static void dmc_configure_event(struct intel_display *display,
 }
 
 
+
+
+
+static void intel_crt_set_dpms(enum pipe pipe,
+				   const struct intel_crtc_state *crtc_state,
+				   int mode)
+{
+	struct drm_i915_private *i915=NBlue::callback->i915b;
+	struct intel_display *display=i915->display;
+	const struct drm_display_mode *adjusted_mode = &crtc_state->hw.adjusted_mode;
+	u32 adpa;
+	u32 adpa_reg = PCH_ADPA;
+
+		adpa = 0;
+
+	if (adjusted_mode->flags & DRM_MODE_FLAG_PHSYNC)
+		adpa |= ADPA_HSYNC_ACTIVE_HIGH;
+	if (adjusted_mode->flags & DRM_MODE_FLAG_PVSYNC)
+		adpa |= ADPA_VSYNC_ACTIVE_HIGH;
+
+
+	adpa |= ADPA_PIPE_SEL(pipe);
+
+		intel_de_write(display, BCLRPAT(display, pipe), 0);
+
+	switch (mode) {
+	case DRM_MODE_DPMS_ON:
+		adpa |= ADPA_DAC_ENABLE;
+		break;
+	case DRM_MODE_DPMS_STANDBY:
+		adpa |= ADPA_DAC_ENABLE | ADPA_HSYNC_CNTL_DISABLE;
+		break;
+	case DRM_MODE_DPMS_SUSPEND:
+		adpa |= ADPA_DAC_ENABLE | ADPA_VSYNC_CNTL_DISABLE;
+		break;
+	case DRM_MODE_DPMS_OFF:
+		adpa |= ADPA_HSYNC_CNTL_DISABLE | ADPA_VSYNC_CNTL_DISABLE;
+		break;
+	}
+
+	intel_de_write(display, adpa_reg, adpa);
+}
+
 void Gen11::enablePipe(void *that,void *param_1, void *param_2,void *param_3)
 {
 	FunctionCast(enablePipe, callback->oenablePipe)(that, param_1,param_2,param_3);
@@ -5813,6 +5855,10 @@ void Gen11::enablePipe(void *that,void *param_1, void *param_2,void *param_3)
 	intel_dmc_enable_pipe(&display->crtc_state0,pipe);
 
 	gen11_irq_postinstall(i915);
+	
+	icl_set_pipe_chicken();
+
+	intel_crt_set_dpms(pipe, &display->crtc_state0, DRM_MODE_DPMS_ON);
 	
 	//dmc_configure_event(display, dmc_id, PIPEDMC_EVENT_VBLANK, true);
 	//dmc_configure_event(display, dmc_id, PIPEDMC_EVENT_SCANLINE_INRANGE_FQ_TRIGGER, true);
@@ -7890,15 +7936,18 @@ int intel_dp_output_format_link_bpp_x16(enum intel_output_format output_format, 
 
 	return fxp_q4_from_int(pipe_bpp);
 }
-int
-intel_dp_compute_config(struct intel_display *display, struct intel_crtc_state *pipe_config)
+
+
+int intel_dp_compute_config(struct intel_display *display, struct intel_crtc_state *pipe_config)
 {
 	struct intel_dp *intel_dp=&display->intel_dp0;
 	int ret = 0, link_bpp_x16;
 	struct drm_display_mode *adjusted_mode = &pipe_config->hw.adjusted_mode;
 	struct intel_crtc_state *crtc_state=&display->crtc_state0;
+	const struct drm_display_mode *fixed_mode;
 	
-	/*fixed_mode = intel_panel_fixed_mode(connector, adjusted_mode);
+	/*
+	fixed_mode = intel_panel_fixed_mode(connector, adjusted_mode);
 	if (intel_dp_is_edp(intel_dp) && fixed_mode) {
 		ret = intel_panel_compute_config(connector, adjusted_mode);
 		if (ret)
@@ -12709,5 +12758,4 @@ uint64_t Gen11::loadFirmware(void *that)
 	
 	return ret;
 }
-
 
