@@ -107,15 +107,17 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			{"__ZN21AppleIntelFramebuffer12getAttributeEjPm",fgetAttribute, this->ofgetAttribute},
 			{"__ZN21AppleIntelFramebuffer12setAttributeEjm",fsetAttribute, this->ofsetAttribute},
 			{"__ZN31AppleIntelFramebufferController10enablePipeEP21AppleIntelFramebufferP21AppleIntelDisplayPathPK29IODetailedTimingInformationV2",enablePipe, this->oenablePipe},
+			{"__ZN21AppleIntelFramebuffer11initVRRCapsEv",initVRRCaps, this->oinitVRRCaps},
 			
-			/*
-			{"__ZN19AppleIntelPowerWell4initEP31AppleIntelFramebufferController",AppleIntelPowerWellinit, this->oAppleIntelPowerWellinit},
+			
+			
+			//{"__ZN19AppleIntelPowerWell4initEP31AppleIntelFramebufferController",AppleIntelPowerWellinit, this->oAppleIntelPowerWellinit},
 			{"__ZN19AppleIntelPowerWell19enableDisplayEngineEv",enableDisplayEngine, this->oenableDisplayEngine},
 			{"__ZN19AppleIntelPowerWell23overridePowerWellsStateEb",overridePowerWellsState, this->ooverridePowerWellsState},
 			{"__ZN19AppleIntelPowerWell19disablePowerWellAuxEj",disablePowerWellAux, this->odisablePowerWellAux},
 			{"__ZN19AppleIntelPowerWell19disablePowerWellDDIEj",disablePowerWellDDI, this->odisablePowerWellDDI},
 			{"__ZN19AppleIntelPowerWell18disablePowerWellPGEj",disablePowerWellPG, this->odisablePowerWellPG},
-			*/
+			
 			
 			//{"__ZN31AppleIntelFramebufferController16hwRegsNeedUpdateEP21AppleIntelFramebufferP21AppleIntelDisplayPathP10CRTCParamsPK29IODetailedTimingInformationV2PN16AppleIntelScaler12SCALERPARAMSE",hwRegsNeedUpdate, this->ohwRegsNeedUpdate},
 			/*{"__ZN21AppleIntelFramebuffer31frameBufferNotificationcallbackEP8OSObjectPvP13IOFramebufferiS2_",aframeBufferNotificationcallback, this->oaframeBufferNotificationcallback},
@@ -440,7 +442,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		 // icl
 		KernelPatcher::RouteRequest requests[] = {
 			 
-			 //{"__ZN16IntelAccelerator19PAVPCommandCallbackE22PAVPSessionCommandID_tjPjb", wrapPavpSessionCallback, this->orgPavpSessionCallback},
+			 {"__ZN16IntelAccelerator19PAVPCommandCallbackE22PAVPSessionCommandID_tjPjb", wrapPavpSessionCallback, this->orgPavpSessionCallback},
 			 {"__ZN16IntelAccelerator18setAsyncSliceCountE13IGSliceConfig",setAsyncSliceCount2, this->osetAsyncSliceCount2},
 			 {"__ZN16IntelAccelerator14setSliceConfigE13IGSliceConfig",setSliceConfig, this->osetSliceConfig},
 			 {"__ZN16IntelAccelerator19startGraphicsEngineEv",startGraphicsEngine, this->ostartGraphicsEngine},
@@ -510,7 +512,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		
 		KernelPatcher::RouteRequest requests[] = {
 			 
-			 //{"__ZN16IntelAccelerator19PAVPCommandCallbackE22PAVPSessionCommandID_tjPjb", wrapPavpSessionCallback0, this->orgPavpSessionCallback0},
+			 {"__ZN16IntelAccelerator19PAVPCommandCallbackE22PAVPSessionCommandID_tjPjb", wrapPavpSessionCallback0, this->orgPavpSessionCallback0},
 			 {"__ZN16IntelAccelerator18setAsyncSliceCountE13IGSliceConfig",setAsyncSliceCount2, this->osetAsyncSliceCount2},
 			 {"__ZN16IntelAccelerator14setSliceConfigE13IGSliceConfig",setSliceConfig, this->osetSliceConfig},
 			 {"__ZN16IntelAccelerator19startGraphicsEngineEv",startGraphicsEngine, this->ostartGraphicsEngine},
@@ -1250,12 +1252,23 @@ IOReturn Gen11::wrapSetAttributeForConnection(void* framebuffer, int32_t connect
 
 void Gen11::initVRRCaps(void *that)
 {
-	getMember<uint8_t>(that, 0x4a35)=0;//IsVRRSupported
-	getMember<uint8_t>(that, 0x4a36)=0;//IsASFUSupported
-	getMember<uint8_t>(that, 0x4a37)=0;
-	getMember<uint8_t>(that, 0x4a38)=0;
-	getMember<uint8_t>(that, 0x4a39)=0;
-	getMember<uint8_t>(that, 0x4a3a)=0;
+	if (kexticl){
+		getMember<uint8_t>(that, 0x8f75)=0;//IsVRRSupported
+		getMember<uint8_t>(that, 0x8f76)=0;//IsASFUSupported
+		getMember<uint8_t>(that, 0x8f77)=0;
+		getMember<uint8_t>(that, 0x8f78)=0;
+		getMember<uint8_t>(that, 0x8f79)=0;
+		getMember<uint8_t>(that, 0x8f7a)=0;
+	}
+	else
+	{
+		getMember<uint8_t>(that, 0x4a35)=0;//IsVRRSupported
+		getMember<uint8_t>(that, 0x4a36)=0;//IsASFUSupported
+		getMember<uint8_t>(that, 0x4a37)=0;
+		getMember<uint8_t>(that, 0x4a38)=0;
+		getMember<uint8_t>(that, 0x4a39)=0;
+		getMember<uint8_t>(that, 0x4a3a)=0;
+	}
 	//FunctionCast(initVRRCaps, callback->oinitVRRCaps)(that);
 }
 
