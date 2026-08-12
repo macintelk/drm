@@ -228,15 +228,15 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			//{"__ZN31AppleIntelRegisterAccessManager15WriteRegister32Emj",raWriteRegister32, this->oraWriteRegister32},
 			{"__ZN21AppleIntelFramebuffer25setAttributeForConnectionEijm",wrapSetAttributeForConnection, this->owrapSetAttributeForConnection},
 			{"__ZN21AppleIntelFramebuffer25getAttributeForConnectionEijPm",fgetAttributeForConnection, this->ofgetAttributeForConnection},
-			{"__ZN26AppleIntelDSBAccessManager13isDSBRegisterEj", ldozero},
-			{"__ZN31AppleIntelRegisterAccessManager18isConflictRegisterEj", isConflictRegister},
+			//{"__ZN26AppleIntelDSBAccessManager13isDSBRegisterEj", ldozero},
+			//{"__ZN31AppleIntelRegisterAccessManager18isConflictRegisterEj", isConflictRegister},
 			{"__ZN15AppleIntelPlane10setupPlaneEP21AppleIntelDisplayPath",setupPlane2, this->osetupPlane2},
 			{"__ZN14AppleIntelPort12linkTrainingEP18AGDCDPPortConfig_t",linkTraining, this->olinkTraining},
 			{"__ZN14AppleIntelPort8writeAUXEjPvj",writeAUX, this->owriteAUX},
 			{"__ZN14AppleIntelPort7readAUXEjPvj",readAUX, this->oreadAUX},
 			{"__ZN21AppleIntelFramebuffer12getAttributeEjPm",fgetAttribute, this->ofgetAttribute},
 			{"__ZN21AppleIntelFramebuffer12setAttributeEjm",fsetAttribute, this->ofsetAttribute},
-			//{"__ZN21AppleIntelFramebuffer19getPixelInformationEiiiP18IOPixelInformation",fgetPixelInformation, this->ofgetPixelInformation},
+			{"__ZN21AppleIntelFramebuffer19getPixelInformationEiiiP18IOPixelInformation",fgetPixelInformation, this->ofgetPixelInformation},
 			//{"__ZN15AppleIntelPlane18configurePlaneiCSCEP19FlipTransactionArgs10IGColorCtl",dovoid},
 			//{"__ZN15AppleIntelPlane17configurePlaneCUSEP19FlipTransactionArgs10IGColorCtl",dovoid},
 			{"__ZN21AppleIntelDisplayPath8initHDCPEv", dovoid},
@@ -1196,7 +1196,6 @@ uint32_t Gen11::configureReport	(void *that,void *param_1,uint param_2,void *par
 	if (Report==-1)
 	{
 		Report=0;
-
 
 		/*getMember<uint32_t>(frame0, 0x4284)=2;//sleepmode
 		
@@ -5840,13 +5839,361 @@ static void intel_crt_set_dpms(enum pipe pipe,
 	intel_de_write(display, adpa_reg, adpa);
 }
 
+static u8 intel_dp_get_sink_sync_latency(struct intel_dp *intel_dp)
+{
+	struct drm_i915_private *i915=NBlue::callback->i915b;
+	struct intel_display *display=i915->display;
+	
+	u8 val = 8; /* assume the worst if we can't read the value */
+
+	if (Gen11::callback->readAUX(linkp,DP_SYNCHRONIZATION_LATENCY_IN_SINK,&val,1)== 1)
+		val &= DP_MAX_RESYNC_FRAME_COUNT_MASK;
+
+	return val;
+}
+
+static u8 psr_compute_idle_frames(struct intel_dp *intel_dp)
+{
+	struct drm_i915_private *i915=NBlue::callback->i915b;
+	struct intel_display *display=i915->display;
+	struct intel_panel *panel=&display->panel;
+
+	int idle_frames;
+	u8 v=intel_dp_get_sink_sync_latency(intel_dp);
+
+	idle_frames = max(6, panel->vbt.psr.idle_frames);
+	idle_frames = max(idle_frames, v + 1);
+
+	if (( idle_frames > 0xf))
+		idle_frames = 0xf;
+
+	return idle_frames;
+}
+
+bool intel_dp_source_supports_tps3(struct intel_display *display)
+{
+	return DISPLAY_VER(display) >= 9;
+}
+
+static inline bool
+drm_dp_tps3_supported(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
+{
+	return dpcd[DP_DPCD_REV] >= 0x12 &&
+		dpcd[DP_MAX_LANE_COUNT] & DP_TPS3_SUPPORTED;
+}
+
+static u32 intel_psr1_get_tp_time(struct intel_dp *intel_dp)
+{
+	struct drm_i915_private *i915=NBlue::callback->i915b;
+	struct intel_display *display=i915->display;
+	struct intel_panel *panel=&display->panel;
+	
+	u32 val = 0;
+
+	if (DISPLAY_VER(display) >= 11)
+		val |= EDP_PSR_TP4_TIME_0us;
+
+	/*if (display->params.psr_safest_params) {
+		val |= EDP_PSR_TP1_TIME_2500us;
+		val |= EDP_PSR_TP2_TP3_TIME_2500us;
+		goto check_tp3_sel;
+	}*/
+
+	if (panel->vbt.psr.tp1_wakeup_time_us == 0)
+		val |= EDP_PSR_TP1_TIME_0us;
+	else if (panel->vbt.psr.tp1_wakeup_time_us <= 100)
+		val |= EDP_PSR_TP1_TIME_100us;
+	else if (panel->vbt.psr.tp1_wakeup_time_us <= 500)
+		val |= EDP_PSR_TP1_TIME_500us;
+	else
+		val |= EDP_PSR_TP1_TIME_2500us;
+
+	if (panel->vbt.psr.tp2_tp3_wakeup_time_us == 0)
+		val |= EDP_PSR_TP2_TP3_TIME_0us;
+	else if (panel->vbt.psr.tp2_tp3_wakeup_time_us <= 100)
+		val |= EDP_PSR_TP2_TP3_TIME_100us;
+	else if (panel->vbt.psr.tp2_tp3_wakeup_time_us <= 500)
+		val |= EDP_PSR_TP2_TP3_TIME_500us;
+	else
+		val |= EDP_PSR_TP2_TP3_TIME_2500us;
+
+
+
+check_tp3_sel:
+	if (intel_dp_source_supports_tps3(display) &&
+		drm_dp_tps3_supported(intel_dp->dpcd))
+		val |= EDP_PSR_TP_TP1_TP3;
+	else
+		val |= EDP_PSR_TP_TP1_TP2;
+
+	return val;
+}
+
+static void hsw_activate_psr1(struct drm_i915_private *i915)
+{
+	struct intel_display *display=i915->display;
+	struct intel_dp *intel_dp=&display->intel_dp0;
+	
+	enum transcoder cpu_transcoder = intel_dp->psr.transcoder;
+	u32 max_sleep_time = 0x1f;
+	u32 val = EDP_PSR_ENABLE;
+
+	val |= EDP_PSR_IDLE_FRAMES(psr_compute_idle_frames(intel_dp));
+
+	if (DISPLAY_VER(display) < 20)
+		val |= EDP_PSR_MAX_SLEEP_TIME(max_sleep_time);
+
+
+	//if (intel_dp->psr.link_standby)
+	//	val |= EDP_PSR_LINK_STANDBY;
+
+	val |= intel_psr1_get_tp_time(intel_dp);
+
+	if (DISPLAY_VER(display) >= 8)
+		val |= EDP_PSR_CRC_ENABLE;
+
+
+	intel_de_rmw(display, EDP_PSR_CTL(display, cpu_transcoder),
+			 ~EDP_PSR_RESTORE_PSR_ACTIVE_CTX_MASK, val);
+
+
+}
+
+
+
+
+static void psr_irq_control(struct intel_dp *intel_dp)
+{
+	struct drm_i915_private *i915=NBlue::callback->i915b;
+	struct intel_display *display=i915->display;
+	enum transcoder cpu_transcoder = intel_dp->psr.transcoder;
+	u32 mask;
+
+	if (intel_dp->psr.panel_replay_enabled)
+		return;
+
+	mask = TGL_PSR_ERROR;
+	if (intel_dp->psr.debug & I915_PSR_DEBUG_IRQ)
+		mask |= TGL_PSR_POST_EXIT |
+		TGL_PSR_PRE_ENTRY;
+
+	intel_de_rmw(display, TRANS_PSR_IMR(display, cpu_transcoder),
+				 TGL_PSR_MASK, ~mask);
+}
+
+static void wm_optimization_wa(struct intel_dp *intel_dp,
+				   const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *i915=NBlue::callback->i915b;
+	struct intel_display *display=i915->display;
+	enum pipe pipe = intel_dp->psr.pipe;
+	bool activate = false;
+
+	/* Wa_14015648006 */
+	if (IS_DISPLAY_VER(display, 11, 14) && crtc_state->wm_level_disabled)
+		activate = true;
+
+	/* Wa_16013835468 */
+	if (DISPLAY_VER(display) == 12 &&
+		crtc_state->hw.adjusted_mode.crtc_vblank_start !=
+		crtc_state->hw.adjusted_mode.crtc_vdisplay)
+		activate = true;
+
+	if (activate)
+		intel_de_rmw(display, GEN8_CHICKEN_DCPR_1,
+				 0, LATENCY_REPORTING_REMOVED(pipe));
+	else
+		intel_de_rmw(display, GEN8_CHICKEN_DCPR_1,
+				 LATENCY_REPORTING_REMOVED(pipe), 0);
+}
+
+static void intel_psr_enable_source(struct intel_dp *intel_dp,
+					const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *i915=NBlue::callback->i915b;
+	struct intel_display *display=i915->display;
+	
+	enum transcoder cpu_transcoder = intel_dp->psr.transcoder;
+	u32 mask = 0;
+
+
+
+	if (DISPLAY_VER(display) < 20 )
+	{
+		mask = EDP_PSR_DEBUG_MASK_HPD;
+
+		mask |= EDP_PSR_DEBUG_MASK_MEMUP;
+
+
+		if (DISPLAY_VER(display) >= 8 || display->platform.haswell_ult)
+			mask |= EDP_PSR_DEBUG_MASK_LPSP;
+
+		if (DISPLAY_VER(display) < 20)
+			mask |= EDP_PSR_DEBUG_MASK_MAX_SLEEP;
+
+	}
+
+	intel_de_write(display, EDP_PSR_DEBUG(display, cpu_transcoder), mask);
+
+	psr_irq_control(intel_dp);
+
+u32 val = intel_de_read(display, TRANS_EXITLINE(display, cpu_transcoder));
+u32 dc3co_exitline = REG_FIELD_GET(EXITLINE_MASK, val);
+
+	if (dc3co_exitline)
+		intel_de_rmw(display,
+				 TRANS_EXITLINE(display, cpu_transcoder),
+				 EXITLINE_MASK,
+				 dc3co_exitline << EXITLINE_SHIFT | EXITLINE_ENABLE);
+
+	if (HAS_PSR_HW_TRACKING(display) && HAS_PSR2_SEL_FETCH(display))
+		intel_de_rmw(display, CHICKEN_PAR1_1, IGNORE_PSR2_HW_TRACKING,
+				 intel_dp->psr.psr2_sel_fetch_enabled ?
+				 IGNORE_PSR2_HW_TRACKING : 0);
+
+
+	wm_optimization_wa(intel_dp, crtc_state);
+
+
+
+}
+
+
+
+static void _psr_enable_sink(struct intel_dp *intel_dp,
+				 const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *i915=NBlue::callback->i915b;
+	struct intel_display *display=i915->display;
+	u8 val = 0;
+
+	/*if (crtc_state->has_sel_update) {
+		val |= DP_PSR_ENABLE_PSR2 | DP_PSR_IRQ_HPD_WITH_CRC_ERRORS;
+	} else {
+		if (intel_dp->psr.link_standby)
+			val |= DP_PSR_MAIN_LINK_ACTIVE;
+*/
+		if (DISPLAY_VER(display) >= 8)
+			val |= DP_PSR_CRC_VERIFICATION;
+	//}
+
+	/*if (crtc_state->req_psr2_sdp_prior_scanline)
+		val |= DP_PSR_SU_REGION_SCANLINE_CAPTURE;
+
+	if (crtc_state->enable_psr2_su_region_et)
+		val |= DP_PANEL_REPLAY_ENABLE_SU_REGION_ET;*/
+
+	if (intel_dp->psr.entry_setup_frames > 0)
+		val |= DP_PSR_FRAME_CAPTURE;
+
+	Gen11::callback->writeAUX(linkp,DP_PSR_EN_CFG,&val, 1);
+
+	val |= DP_PSR_ENABLE;
+	Gen11::callback->writeAUX(linkp,DP_PSR_EN_CFG,&val, 1);
+}
+
+static void intel_psr_enable_sink(struct intel_dp *intel_dp,
+				  const struct intel_crtc_state *crtc_state)
+{
+	//intel_alpm_enable_sink(intel_dp, crtc_state);
+
+	//crtc_state->has_panel_replay ?
+		//_panel_replay_enable_sink(intel_dp, crtc_state) :
+		_psr_enable_sink(intel_dp, crtc_state);
+
+	//if (intel_dp_is_edp(intel_dp))
+	//{
+		u8 val = DP_SET_POWER_D0;
+		Gen11::callback->writeAUX(linkp,DP_SET_POWER,&val, 1);
+	//}
+}
+
+static bool psr_interrupt_error_check(struct intel_dp *intel_dp)
+{
+	struct drm_i915_private *i915=NBlue::callback->i915b;
+	struct intel_display *display=i915->display;
+	enum transcoder cpu_transcoder = intel_dp->psr.transcoder;
+	u32 val;
+
+	if (intel_dp->psr.panel_replay_enabled)
+		goto no_err;
+
+
+	val = intel_de_read(display, TRANS_PSR_IIR(display, cpu_transcoder));
+	val &= TGL_PSR_ERROR;
+	if (val) {
+		intel_dp->psr.sink_not_reliable = true;
+
+		return false;
+	}
+
+no_err:
+	return true;
+}
+
+static void intel_psr_enable_locked(struct intel_dp *intel_dp,
+					const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *i915=NBlue::callback->i915b;
+	struct intel_display *display=i915->display;
+	u32 val;
+	
+	u32 mask;
+	int err;
+
+
+	intel_dp->psr.sel_update_enabled = crtc_state->has_sel_update;
+	intel_dp->psr.panel_replay_enabled = crtc_state->has_panel_replay;
+	intel_dp->psr.busy_frontbuffer_bits = 0;
+	intel_dp->psr.pipe = display->pipe0;
+	intel_dp->psr.transcoder = crtc_state->cpu_transcoder;
+
+	//val = usecs_to_jiffies(intel_get_frame_time_us(crtc_state) * 6);
+	//intel_dp->psr.dc3co_exit_delay = val;
+	//intel_dp->psr.dc3co_exitline = crtc_state->dc3co_exitline;
+	intel_dp->psr.psr2_sel_fetch_enabled = crtc_state->enable_psr2_sel_fetch;
+	intel_dp->psr.su_region_et_enabled = crtc_state->enable_psr2_su_region_et;
+	intel_dp->psr.psr2_sel_fetch_cff_enabled = false;
+	intel_dp->psr.req_psr2_sdp_prior_scanline =
+		crtc_state->req_psr2_sdp_prior_scanline;
+	intel_dp->psr.active_non_psr_pipes = crtc_state->active_non_psr_pipes;
+	intel_dp->psr.pkg_c_latency_used = crtc_state->pkg_c_latency_used;
+	intel_dp->psr.io_wake_lines = crtc_state->alpm_state.io_wake_lines;
+	intel_dp->psr.fast_wake_lines = crtc_state->alpm_state.fast_wake_lines;
+	intel_dp->psr.entry_setup_frames = crtc_state->entry_setup_frames;
+
+	if (!psr_interrupt_error_check(intel_dp))
+		return;
+	
+	u32 reg = EDP_PSR_STATUS(display, intel_dp->psr.transcoder);
+	mask = EDP_PSR_STATUS_STATE_MASK;
+	err = intel_de_wait_for_clear_ms(display, reg, mask, 50);
+
+	intel_psr_enable_sink(intel_dp, crtc_state);
+
+	//if (intel_dp_is_edp(intel_dp))
+	//	intel_snps_phy_update_psr_power_state(&dig_port->base, true);
+
+	intel_psr_enable_source(intel_dp, crtc_state);
+	intel_dp->psr.enabled = true;
+	intel_dp->psr.pause_counter = 0;
+
+	intel_dp->psr.link_ok = true;
+
+	hsw_activate_psr1(i915);
+	
+	intel_de_write(display, CURSURFLIVE(display, intel_dp->psr.pipe), 0);
+}
+
+
+
 void Gen11::enablePipe(void *that,void *param_1, void *param_2,void *param_3)
 {
 	FunctionCast(enablePipe, callback->oenablePipe)(that, param_1,param_2,param_3);
 	
 	struct drm_i915_private *i915=NBlue::callback->i915b;
 	struct intel_display *display=i915->display;
-	
+	struct intel_dp *intel_dp=&display->intel_dp0;
 	
 	uint32_t fbNum = getMember<uint32_t>(param_1, 0x1dc);
 	enum pipe pipe=fbNum==0 ? PIPE_A: PIPE_B;
@@ -5860,8 +6207,9 @@ void Gen11::enablePipe(void *that,void *param_1, void *param_2,void *param_3)
 
 	intel_crt_set_dpms(pipe, &display->crtc_state0, DRM_MODE_DPMS_ON);
 	
-	//dmc_configure_event(display, dmc_id, PIPEDMC_EVENT_VBLANK, true);
-	//dmc_configure_event(display, dmc_id, PIPEDMC_EVENT_SCANLINE_INRANGE_FQ_TRIGGER, true);
+	//intel_psr_enable_locked(intel_dp,&display->crtc_state0);
+	
+	
 	
 }
 
@@ -6889,17 +7237,8 @@ drm_dp_tps4_supported(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
 	return dpcd[DP_DPCD_REV] >= 0x14 &&
 		dpcd[DP_MAX_DOWNSPREAD] & DP_TPS4_SUPPORTED;
 }
-bool intel_dp_source_supports_tps3(struct intel_display *display)
-{
-	return DISPLAY_VER(display) >= 9 ||
-		display->platform.broadwell || display->platform.haswell;
-}
-static inline bool
-drm_dp_tps3_supported(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
-{
-	return dpcd[DP_DPCD_REV] >= 0x12 &&
-		dpcd[DP_MAX_LANE_COUNT] & DP_TPS3_SUPPORTED;
-}
+
+
 static u32 intel_dp_training_pattern(struct intel_dp *intel_dp,
 					 const struct intel_crtc_state *crtc_state,
 					 enum drm_dp_phy dp_phy)
@@ -8820,7 +9159,8 @@ int Gen11::isConflictRegister(void *that,uint param_1)
 int Gen11::fgetPixelInformation(void *that,int param_1,int param_2,int param_3,void *param_4)
 {
 	auto ret=FunctionCast(fgetPixelInformation, callback->ofgetPixelInformation)(that ,param_1,param_2,param_3,param_4);
-	if (ret!=0) ret=0;
+	uint32_t fbNum = getMember<uint32_t>(that, 0x1dc);
+	if (fbNum==0) return 0;
 	return ret;
 }
 
