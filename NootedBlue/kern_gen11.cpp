@@ -228,8 +228,8 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			//{"__ZN31AppleIntelRegisterAccessManager15WriteRegister32Emj",raWriteRegister32, this->oraWriteRegister32},
 			{"__ZN21AppleIntelFramebuffer25setAttributeForConnectionEijm",wrapSetAttributeForConnection, this->owrapSetAttributeForConnection},
 			{"__ZN21AppleIntelFramebuffer25getAttributeForConnectionEijPm",fgetAttributeForConnection, this->ofgetAttributeForConnection},
-			//{"__ZN26AppleIntelDSBAccessManager13isDSBRegisterEj", ldozero},
-			//{"__ZN31AppleIntelRegisterAccessManager18isConflictRegisterEj", isConflictRegister},
+			{"__ZN26AppleIntelDSBAccessManager13isDSBRegisterEj", ldozero},
+			{"__ZN31AppleIntelRegisterAccessManager18isConflictRegisterEj", isConflictRegister},
 			{"__ZN15AppleIntelPlane10setupPlaneEP21AppleIntelDisplayPath",setupPlane2, this->osetupPlane2},
 			{"__ZN14AppleIntelPort12linkTrainingEP18AGDCDPPortConfig_t",linkTraining, this->olinkTraining},
 			{"__ZN14AppleIntelPort8writeAUXEjPvj",writeAUX, this->owriteAUX},
@@ -237,8 +237,8 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			{"__ZN21AppleIntelFramebuffer12getAttributeEjPm",fgetAttribute, this->ofgetAttribute},
 			{"__ZN21AppleIntelFramebuffer12setAttributeEjm",fsetAttribute, this->ofsetAttribute},
 			{"__ZN21AppleIntelFramebuffer19getPixelInformationEiiiP18IOPixelInformation",fgetPixelInformation, this->ofgetPixelInformation},
-			//{"__ZN15AppleIntelPlane18configurePlaneiCSCEP19FlipTransactionArgs10IGColorCtl",dovoid},
-			//{"__ZN15AppleIntelPlane17configurePlaneCUSEP19FlipTransactionArgs10IGColorCtl",dovoid},
+			{"__ZN15AppleIntelPlane18configurePlaneiCSCEP19FlipTransactionArgs10IGColorCtl",dovoid},
+			{"__ZN15AppleIntelPlane17configurePlaneCUSEP19FlipTransactionArgs10IGColorCtl",dovoid},
 			{"__ZN21AppleIntelDisplayPath8initHDCPEv", dovoid},
 			{"__ZN17AppleIntelPortHAL4initEP10PortConfig",AppleIntelPortHALinit, this->oAppleIntelPortHALinit},
 			{"__ZN21AppleIntelDisplayPath13getLinkConfigEP16IOFBDPLinkConfig",getLinkConfig, this->ogetLinkConfig},
@@ -781,6 +781,7 @@ uint64_t  Gen11::getOSInformation(void *that)
 		pinfo[p].connectors[i].flags=NBlue::callback->i915b->display->bconnectors[i].flags;
 	}
 	
+	pinfo[0].connectors[0].flags=CNConnectorAlwaysConnected|CNSupport32BPP;
 	//pinfo[p].connectors[1].type=ConnectorDummy;
 	//pinfo[p].connectors[0].pipe=1;
 		
@@ -6209,7 +6210,8 @@ void Gen11::enablePipe(void *that,void *param_1, void *param_2,void *param_3)
 	
 	//intel_psr_enable_locked(intel_dp,&display->crtc_state0);
 	
-	
+	//dmc_configure_event(display, dmc_id, PIPEDMC_EVENT_VBLANK, true);
+	//dmc_configure_event(display, dmc_id, PIPEDMC_EVENT_SCANLINE_INRANGE_FQ_TRIGGER, true);
 	
 }
 
