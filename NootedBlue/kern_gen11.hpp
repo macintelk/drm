@@ -7,6 +7,28 @@
 #include "kern_patcherplus.hpp"
 #include <Headers/kern_util.hpp>
 
+struct AGDCGPUCapability_t {
+	struct {
+		uint64_t        portMap;
+		uint64_t        MSTPortMap;
+		uint64_t        ddcTransportMap;
+		uint64_t        auxTransportMap;
+		struct {
+			uint32_t    DVI;
+			uint32_t    DP;
+			uint32_t    MST;
+			uint32_t    maximum;
+		}               numberOfStreams;
+		uint32_t        numberOfFramebuffers;
+
+		uint64_t        _reserved[9];                   // kernel is 64 bit, user is 32/64.. pointers are not safe!!!
+
+		uint64_t        _reserved_a;
+		uint64_t        _reserved_b;
+		uint64_t        _reserved_c;
+		uint64_t        _reserved_d;
+	} gpu;
+};
 
 struct uc_css_header {
 	u32 module_type;
@@ -766,6 +788,9 @@ public:
 	static int probeBootPipe(void *that,bool *param_1,void *param_2);
 	mach_vm_address_t oprobeBootPipe {};
 	
+	static void  enablePowerWellAux(void *that,uint param_1);
+	mach_vm_address_t oenablePowerWellAux {};
+	
 	static void  disablePowerWellAux(void *that,uint param_1);
 	mach_vm_address_t odisablePowerWellAux {};
 	
@@ -889,6 +914,12 @@ public:
 	
 	static void fsetupInitialTransactionState(void *that,uint param_1);
 	mach_vm_address_t ofsetupInitialTransactionState {};
+	
+	static uint64_t getCallbackCapability(void *that,void *param_1);
+	mach_vm_address_t ogetCallbackCapability {};
+	
+	static uint64_t GetGPUCapability(void *that,void *param_1);
+	mach_vm_address_t oGetGPUCapability {};
 	
 	
 	

@@ -77,21 +77,6 @@ void NBlue::processPatcher(KernelPatcher &patcher) {
 		
         static uint8_t builtin[] = {0x00};
 		
-		/*static uint8_t builtin2[] = {0x00, 0x00, 0x52, 0x8A};
-		static uint8_t builtin3[] = {0x52, 0x8A, 0x00, 0x00};
-		int ok=0;
-		//tgl
-		if (ok)
-		{
-			builtin2[2]=0x49;
-			builtin2[3]=0x9A;
-			builtin3[0]=0x49;
-			builtin3[1]=0x9A;
-		}
-		
-		this->iGPU->setProperty("AAPL,ig-platform-id", builtin2, arrsize(builtin2));
-		this->iGPU->setProperty("device-id", builtin3, arrsize(builtin3));
-		*/
 		this->iGPU->setProperty("built-in", builtin, arrsize(builtin));
 		this->iGPU->setProperty("AAPL,slot-name", const_cast<char *>("built-in"), 9);
 		this->iGPU->setProperty("hda-gfx", const_cast<char *>("onboard-1"), 10);
@@ -106,7 +91,8 @@ void NBlue::processPatcher(KernelPatcher &patcher) {
 		WIOKit::getOSDataValue(this->iGPU, "device-id", device);
 		this->tglid=device==0x9a49;
 		this->iclid=device==0x8a52;
-
+		if(!this->iclid && !this->tglid) panic ("tglid=device==0x9a49 iclid=device==0x8a52");
+		
 		KernelPatcher::routeVirtual(this->iGPU, WIOKit::PCIConfigOffset::ConfigRead16, configRead16, &orgConfigRead16);
 		KernelPatcher::routeVirtual(this->iGPU, WIOKit::PCIConfigOffset::ConfigRead32, configRead32, &orgConfigRead32);
 
@@ -278,13 +264,13 @@ bool NBlue::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		const LookupPatchPlus boardIdPatch {&kextAGDP, kAGDPBoardIDKeyOriginal, kAGDPBoardIDKeyPatched, 1};
 		SYSLOG_COND(!boardIdPatch.apply(patcher, address, size), "AGDP", "Failed to apply AGDP board-id patch");
 
-		if (getKernelVersion() == KernelVersion::Ventura) {
+		/*if (getKernelVersion() == KernelVersion::Ventura) {
 			const LookupPatchPlus patch {&kextAGDP, kAGDPFBCountCheckOriginal13, kAGDPFBCountCheckPatched13, 1};
 			SYSLOG_COND(!patch.apply(patcher, address, size), "AGDP", "Failed to apply AGDP FB count check patch");
 		} else {
 			const LookupPatchPlus patch {&kextAGDP, kAGDPFBCountCheckOriginal, kAGDPFBCountCheckPatched, 1};
 			SYSLOG_COND(!patch.apply(patcher, address, size), "AGDP", "Failed to apply AGDP FB count check patch");
-		}
+		}*/
 		
 		
 		return true;
@@ -2217,34 +2203,26 @@ static void print_ddi_port(const struct intel_bios_encoder_data *devdata)
 		display->pipe0=PIPE_A;
 	}
 	
-	int ii=-1;
-	for (int i = 0; i < 6; i++) {
-		if (display->bconnectors[i].type==ConnectorDummy) {
-			ii=i;
-			break;
-		}
-	}
-	
-	if (ii!=-1) {
 		
 		ConnectorType type=ConnectorDummy;
 		if (is_dp) type=ConnectorDP;
 		if (is_hdmi) type=ConnectorHDMI;
-		
+		//if (is_edp) type=ConnectorLVDS;
+	
 		u32 flags=CNAlterAppertureRequirements;
 		if (is_dp) flags+=CNFlagDP;
 		if (is_edp) flags+=CNFlagInternalOverride;
 		if (is_edp) flags+=CNUseMiscIoPowerWell;
 		if (is_edp) flags+=CNFlagNoHPD;
-		//if (is_edp) flags=CNConnectorAlwaysConnected|CNSupport32BPP;
 		if (is_hdmi) flags+=CNFlagHDMI;
+		//if (is_edp) flags=CNConnectorAlwaysConnected|CNSupport32BPP;
 		
-		display->bconnectors[ii].busId=child->ddc_pin;
-		display->bconnectors[ii].pipe=port;
-		display->bconnectors[ii].type=type;
-		display->bconnectors[ii].flags=flags;
-	}
+		display->bconnectors[port].busId=child->ddc_pin;
+		display->bconnectors[port].pipe=port;
+		display->bconnectors[port].type=type;
+		display->bconnectors[port].flags=flags;
 
+	
 	/*drm_dbg_kms(display->drm,
 			"Port %c VBT info: CRT:%d DVI:%d HDMI:%d DP:%d eDP:%d DSI:%d DP++:%d LSPCON:%d USB-Type-C:%d TBT:%d DSC:%d\n",
 			port_name(port), is_crt, is_dvi, is_hdmi, is_dp, is_edp, is_dsi,
@@ -2308,15 +2286,16 @@ static bool has_ddi_port_info(struct intel_display *display)
 static void parse_ddi_ports(struct intel_display *display)
 {
 	struct intel_bios_encoder_data *devdata;
-
+	
 	if (!has_ddi_port_info(display))
 		return;
-
+	
 	list_for_each_entry(devdata, &display->vbt.display_devices, node)
-		parse_ddi_port(devdata);
-
+	parse_ddi_port(devdata);
+	
 	list_for_each_entry(devdata, &display->vbt.display_devices, node)
-		print_ddi_port(devdata);
+	print_ddi_port(devdata);
+	
 }
 
 static void

@@ -237,8 +237,8 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			{"__ZN21AppleIntelFramebuffer12getAttributeEjPm",fgetAttribute, this->ofgetAttribute},
 			{"__ZN21AppleIntelFramebuffer12setAttributeEjm",fsetAttribute, this->ofsetAttribute},
 			{"__ZN21AppleIntelFramebuffer19getPixelInformationEiiiP18IOPixelInformation",fgetPixelInformation, this->ofgetPixelInformation},
-			{"__ZN15AppleIntelPlane18configurePlaneiCSCEP19FlipTransactionArgs10IGColorCtl",dovoid},
-			{"__ZN15AppleIntelPlane17configurePlaneCUSEP19FlipTransactionArgs10IGColorCtl",dovoid},
+			//{"__ZN15AppleIntelPlane18configurePlaneiCSCEP19FlipTransactionArgs10IGColorCtl",dovoid},
+			//{"__ZN15AppleIntelPlane17configurePlaneCUSEP19FlipTransactionArgs10IGColorCtl",dovoid},
 			{"__ZN21AppleIntelDisplayPath8initHDCPEv", dovoid},
 			{"__ZN17AppleIntelPortHAL4initEP10PortConfig",AppleIntelPortHALinit, this->oAppleIntelPortHALinit},
 			{"__ZN21AppleIntelDisplayPath13getLinkConfigEP16IOFBDPLinkConfig",getLinkConfig, this->ogetLinkConfig},
@@ -251,7 +251,12 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			{"__ZN19AppleIntelPowerWell18disablePowerWellPGEj",disablePowerWellPG, this->odisablePowerWellPG},
 			{"__ZN21AppleIntelFramebuffer11initVRRCapsEv",initVRRCaps, this->oinitVRRCaps},
 			//{"__ZN21AppleIntelFramebuffer28setupInitialTransactionStateEj",fsetupInitialTransactionState, this->ofsetupInitialTransactionState},
-
+			{"__ZN19AppleIntelPowerWell18enablePowerWellAuxEj",enablePowerWellAux, this->oenablePowerWellAux},
+			
+			
+			//{"__ZN24AppleIntelBaseController21getCallbackCapabilityEP24AGDCCallbackCapability_t",getCallbackCapability, this->ogetCallbackCapability},
+			//{"__ZN24AppleIntelBaseController16GetGPUCapabilityEP19AGDCGPUCapability_t",GetGPUCapability, this->oGetGPUCapability},
+			
 			
 			/*
 			{"__ZN21AppleIntelFramebuffer17prepareToExitWakeEv",dovoid},
@@ -404,7 +409,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		
 		if (isprod){
 			LookupPatchPlus const patchesp[] = {// tgl production kext
-				{&kextG11FBT, f5, r5, arrsize(f5),	1},
+				//{&kextG11FBT, f5, r5, arrsize(f5),	1},
 				{&kextG11FBT, f7p, r7p, arrsize(f7p),	1},
 				{&kextG11FBT, f9p, r9p, arrsize(f9p),	1},
 				{&kextG11FBT, f13p, r13p, arrsize(f13p),	1},
@@ -718,10 +723,8 @@ uint64_t  Gen11::getOSInformation2(void *that)
 	}
 	
 	//pinfo[p].connectors[1].type=ConnectorDummy;
-	
-	//pinfo[p].connectors[0].flags-=CNConnectorAlwaysConnected;
 	pinfo[p].connectors[0].pipe=1;
-
+	pinfo[p].connectors[1].pipe=2;
 	
 	OSArray *connectorArray = OSArray::withCapacity(6);
 	for (int i = 0; i < 6; i++) {
@@ -781,9 +784,9 @@ uint64_t  Gen11::getOSInformation(void *that)
 		pinfo[p].connectors[i].flags=NBlue::callback->i915b->display->bconnectors[i].flags;
 	}
 	
-	pinfo[0].connectors[0].flags=CNConnectorAlwaysConnected|CNSupport32BPP;
 	//pinfo[p].connectors[1].type=ConnectorDummy;
 	//pinfo[p].connectors[0].pipe=1;
+	
 		
 	OSArray *connectorArray = OSArray::withCapacity(6);
 	for (int i = 0; i < 6; i++) {
@@ -880,6 +883,7 @@ uint32_t Gen11::AppleIntelFramebufferinit(void *frame,void *cont,uint param_2)
 	}
 	auto ret=FunctionCast(AppleIntelFramebufferinit, callback->oAppleIntelFramebufferinit)(frame,cont,param_2 );
 	if (param_2==0) frame0=(IOFramebuffer *)frame;
+	
 	return ret;
 }
 
@@ -1286,6 +1290,18 @@ void Gen11::RestoreTransactions(void *that,bool param_1)
 	return FunctionCast(RestoreTransactions, callback->oRestoreTransactions)(that, param_1);
 }
 
+uint64_t Gen11::getCallbackCapability(void *that,void *param_1)
+{
+	*(u32 *)param_1 = 0xd;
+	return 0;
+}
+
+uint64_t Gen11::GetGPUCapability(void *that,void *param_1)
+{
+	auto ret=FunctionCast(GetGPUCapability, callback->oGetGPUCapability)(that, param_1);
+
+	return ret;
+}
 
 void  Gen11::overridePowerWellsState(void *that,bool param_1)
 {
@@ -1300,6 +1316,11 @@ int Gen11::probeBootPipe(void *that,bool *param_1,void *param_2)
 void  Gen11::disablePowerWellAux(void *that,uint param_1)
 {
 	return FunctionCast(disablePowerWellAux, callback->odisablePowerWellAux)(that, param_1);
+}
+
+void  Gen11::enablePowerWellAux(void *that,uint param_1)
+{
+	return FunctionCast(enablePowerWellAux, callback->oenablePowerWellAux)(that, param_1);
 }
 
 void  Gen11::disablePowerWellDDI(void *that,uint param_1)
@@ -8986,7 +9007,7 @@ uint64_t  Gen11::linkTraining(void *that,void *param_1)
 		intel_dp->para->ASR = 0;//(u8)getMember<u8>(that, 0x118);  //DP_EDP_CONFIGURATION_SET
 		intel_dp->para->Downspread = 0;//(u8)getMember<u8>(that, kexticl ? 0x11 : 0x119);
 		intel_dp->para->BitRate2 = intel_dp->para->BitRate;
-		intel_dp->para->NumberOfLanes2 = (u8)lane_count;
+		intel_dp->para->NumberOfLanes2 = intel_dp->para->NumberOfLanes;
 		intel_dp->para->CR =0;
 		intel_dp->para->EQ =0;
 		intel_dp->para->voltageSwing = 0;
@@ -9622,7 +9643,7 @@ void  Gen11::AppleIntelPowerWellinit(void *that0, void *param_1)
 	struct intel_display *display = NBlue::callback->i915b->display;
 	u32 pg_state, ddi_state, aux_state, tbt_state;
 	int bootPipe;
-	u32 active_ddi = 9;
+	int active_ddi = 0;
 	int i;
 	AppleIntelPowerWell0 *that=(AppleIntelPowerWell0*)that0;
 	
