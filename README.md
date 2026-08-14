@@ -14,12 +14,14 @@ add -allow3d to load graphics
    
 add you igpu to opencore DeviceProperties (e.g PciRoot(0x0)/Pci(0x2,0x0))
 
-<img width="324" height="123" alt="Captura de ecrã 2026-07-09, às 23 04 46" src="https://github.com/user-attachments/assets/4cb031c0-cd40-4db9-859a-97787dddbd4d" />
+<img width="863" height="146" alt="Captura de ecrã 2026-08-14, às 20 14 17" src="https://github.com/user-attachments/assets/6c47509d-867a-4486-8dfd-d1b6b3646fdf" />
+
 
 add this properties (rename for swap icl/tgl)
 AAPL,ig-platform-id 0000528A 
 device-id 528A0000 
 AAPL,ig-platform-id1 0000499A 
 device-id1 499A0000 
+rename edid0 to edid to inject display edid
 
 nblue will load based on installed kexts and injected device-id
