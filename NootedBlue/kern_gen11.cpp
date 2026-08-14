@@ -108,7 +108,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			{"__ZN21AppleIntelFramebuffer12setAttributeEjm",fsetAttribute, this->ofsetAttribute},
 			{"__ZN31AppleIntelFramebufferController10enablePipeEP21AppleIntelFramebufferP21AppleIntelDisplayPathPK29IODetailedTimingInformationV2",enablePipe, this->oenablePipe},
 			{"__ZN21AppleIntelFramebuffer11initVRRCapsEv",initVRRCaps, this->oinitVRRCaps},
-			
+			{"__ZN14AppleIntelPort19displayPortReadEDIDEjjPhj",displayPortReadEDID, this->odisplayPortReadEDID},
 			
 			
 			//{"__ZN19AppleIntelPowerWell4initEP31AppleIntelFramebufferController",AppleIntelPowerWellinit, this->oAppleIntelPowerWellinit},
@@ -250,12 +250,15 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			{"__ZN19AppleIntelPowerWell19disablePowerWellDDIEj",disablePowerWellDDI, this->odisablePowerWellDDI},
 			{"__ZN19AppleIntelPowerWell18disablePowerWellPGEj",disablePowerWellPG, this->odisablePowerWellPG},
 			{"__ZN21AppleIntelFramebuffer11initVRRCapsEv",initVRRCaps, this->oinitVRRCaps},
+			{"__ZN14AppleIntelPort19displayPortReadEDIDEjjPhj",displayPortReadEDID, this->odisplayPortReadEDID},
 			//{"__ZN21AppleIntelFramebuffer28setupInitialTransactionStateEj",fsetupInitialTransactionState, this->ofsetupInitialTransactionState},
-			{"__ZN19AppleIntelPowerWell18enablePowerWellAuxEj",enablePowerWellAux, this->oenablePowerWellAux},
+			//{"__ZN19AppleIntelPowerWell18enablePowerWellAuxEj",enablePowerWellAux, this->oenablePowerWellAux},
 			
 			
 			//{"__ZN24AppleIntelBaseController21getCallbackCapabilityEP24AGDCCallbackCapability_t",getCallbackCapability, this->ogetCallbackCapability},
 			//{"__ZN24AppleIntelBaseController16GetGPUCapabilityEP19AGDCGPUCapability_t",GetGPUCapability, this->oGetGPUCapability},
+			
+			
 			
 			
 			/*
@@ -1333,6 +1336,48 @@ void  Gen11::disablePowerWellPG(void *that,uint param_1)
 	return FunctionCast(disablePowerWellPG, callback->odisablePowerWellPG)(that, param_1);
 }
 
+typedef struct EDIDStruct {
+	char Header[8];
+	char Serial[10];
+	char Version[2];
+	char BasicParams[5];
+	char Chroma[10];
+	char Established[3];
+	char Standard[16];
+	char Descriptor1[18];
+	char Descriptor2[18];
+	char Descriptor3[18];
+	char Descriptor4[18];
+	char Extensions;
+	char Checksum;
+} EDIDStruct_t;
+
+
+int Gen11::displayPortReadEDID(void *that,uint param_1,uint param_2,unsigned char *param_3,uint param_4)
+{
+	auto ret= FunctionCast(displayPortReadEDID, callback->odisplayPortReadEDID)(that, param_1, param_2, param_3, param_4);
+
+	/*u8 edid[] = {
+		0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x06, 0x10, 0x36, 0x92, 0x00, 0x22, 0x0D, 0x02, 0x03, 0x13, 0x01, 0x04, 0xA5, 0x34, 0x20, 0x78, 0x26, 0x6E, 0xA1, 0xA7, 0x55, 0x4C, 0x9D, 0x25, 0x0E, 0x50, 0x54, 0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x78, 0x37, 0x80, 0xB4, 0x70, 0x38, 0x2E, 0x40, 0x6C, 0x30, 0xAA, 0x00, 0x58, 0xC1, 0x10, 0x00, 0x00, 0x18, 0x00, 0x00, 0x00, 0xFC, 0x00, 0x4C, 0x45, 0x44, 0x20, 0x43, 0x69, 0x6E, 0x65, 0x6D, 0x61, 0x0A, 0x20, 0x20, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x32, 0x41, 0x39, 0x30, 0x33, 0x34, 0x31, 0x5A, 0x30, 0x4B, 0x30, 0x0A, 0x20, 0x00, 0x00, 0x00, 0xFE, 0x00, 0x42, 0x31, 0x35, 0x36, 0x48, 0x41, 0x4E, 0x30, 0x32, 0x2E, 0x31, 0x20, 0x0A, 0x00, 0x22
+	};*/
+
+	struct EDIDStruct *EDIDStructure=(struct EDIDStruct *)param_3;
+	
+	if (NBlue::callback->edidok)
+	memcpy(param_3, NBlue::callback->edid, 0x80);
+	
+	/*unsigned char sum = 0;
+	int i = 0;
+
+	for (i = 0; i < 127; i++)
+	   sum += param_3[i];
+
+	sum=((unsigned char)((((unsigned short)0x100) - sum) & 0xFF));
+	
+	EDIDStructure->Checksum=sum;*/
+	
+	return ret;
+}
 
 
 void Gen11::updateSliceConfig(void *that, uint32_t val)

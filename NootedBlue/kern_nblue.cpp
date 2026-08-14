@@ -77,6 +77,16 @@ void NBlue::processPatcher(KernelPatcher &patcher) {
 		
         static uint8_t builtin[] = {0x00};
 		
+		this->edidok=false;
+		auto edid0 =(OSData*) this->iGPU->getProperty("edid" );
+		if (edid0)
+		{
+			this->edidok=true;
+			memcpy(this->edid, edid0->getBytesNoCopy(), 0x80);
+		}
+		
+		
+		
 		this->iGPU->setProperty("built-in", builtin, arrsize(builtin));
 		this->iGPU->setProperty("AAPL,slot-name", const_cast<char *>("built-in"), 9);
 		this->iGPU->setProperty("hda-gfx", const_cast<char *>("onboard-1"), 10);

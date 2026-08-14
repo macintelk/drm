@@ -921,8 +921,8 @@ public:
 	static uint64_t GetGPUCapability(void *that,void *param_1);
 	mach_vm_address_t oGetGPUCapability {};
 	
-	
-	
+	static int displayPortReadEDID(void *that,uint param_1,uint param_2,unsigned char *param_3,uint param_4);
+	mach_vm_address_t odisplayPortReadEDID {};
 	
 public:
 

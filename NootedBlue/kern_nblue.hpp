@@ -46,6 +46,8 @@ class NBlue {
 	uint32_t pciRevision {0};
 	bool tglid;
 	bool iclid;
+	u8 edid[0x80];
+	bool edidok;
 	
 	volatile UInt32 *rmmioPtr {nullptr};
 	unsigned long rmmioLen;
