@@ -2227,7 +2227,7 @@ static void print_ddi_port(const struct intel_bios_encoder_data *devdata)
 		if (is_hdmi) flags+=CNFlagHDMI;
 		//if (is_edp) flags=CNConnectorAlwaysConnected|CNSupport32BPP;
 		
-		display->bconnectors[port].busId=child->ddc_pin;
+		display->bconnectors[port].busId=child->i2c_pin;
 		display->bconnectors[port].pipe=port;
 		display->bconnectors[port].type=type;
 		display->bconnectors[port].flags=flags;
