@@ -7,6 +7,18 @@
 #include "kern_patcherplus.hpp"
 #include <Headers/kern_util.hpp>
 
+
+
+
+struct PortConfig { 
+	uint32_t index;
+	uint32_t busId;
+	uint32_t pipe;
+	uint32_t pad;
+	uint32_t type;
+	uint32_t flags;
+};
+
 struct AGDCGPUCapability_t {
 	struct {
 		uint64_t        portMap;

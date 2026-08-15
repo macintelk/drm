@@ -99,7 +99,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			{"__ZN31AppleIntelFramebufferController16disableVDDForAuxEP14AppleIntelPort",disableVDDForAux2, this->odisableVDDForAux2},
 			{"__ZN31AppleIntelFramebufferController15hwSetPanelPowerEj",hwSetPanelPower, this->ohwSetPanelPower},
 			{"__ZN14AppleIntelPort12linkTrainingEP18AGDCDPPortConfig_t",linkTraining, this->olinkTraining},
-			//{"__ZN21AppleIntelFramebuffer19getPixelInformationEiiiP18IOPixelInformation",fgetPixelInformation, this->ofgetPixelInformation},
+			{"__ZN21AppleIntelFramebuffer19getPixelInformationEiiiP18IOPixelInformation",fgetPixelInformation, this->ofgetPixelInformation},
 			{"__ZN21AppleIntelDisplayPath8initHDCPEv", dovoid},
 			//{"__ZN15AppleIntelPlane17configurePlaneCUSEP19FlipTransactionArgs10IGColorCtl",dovoid},
 			//{"__ZN15AppleIntelPlane18configurePlaneiCSCEP19FlipTransactionArgs10IGColorCtl",dovoid},
@@ -258,9 +258,6 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			//{"__ZN24AppleIntelBaseController21getCallbackCapabilityEP24AGDCCallbackCapability_t",getCallbackCapability, this->ogetCallbackCapability},
 			//{"__ZN24AppleIntelBaseController16GetGPUCapabilityEP19AGDCGPUCapability_t",GetGPUCapability, this->oGetGPUCapability},
 			
-			
-			
-			
 			/*
 			{"__ZN21AppleIntelFramebuffer17prepareToExitWakeEv",dovoid},
 			{"__ZN21AppleIntelFramebuffer18prepareToExitSleepEv",dovoid},
@@ -280,7 +277,6 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 				{"__ZN31AppleIntelFramebufferController11initCDClockEv",initCDClock, this->oinitCDClock},
 				//{"__ZN31AppleIntelFramebufferController15configureReportEP19IOReportChannelListjPvS2_",configureReport, this->oconfigureReport},
 				{"__ZN19AppleIntelPowerWell4initEP31AppleIntelFramebufferController",AppleIntelPowerWellinit, this->oAppleIntelPowerWellinit},
-				//{"__ZN31AppleIntelFramebufferController16hwRegsNeedUpdateEP21AppleIntelFramebufferP21AppleIntelDisplayPathP10CRTCParamsPK29IODetailedTimingInformationV2PN16AppleIntelScaler12SCALERPARAMSE",hwRegsNeedUpdate, this->ohwRegsNeedUpdate},
 				{"__ZN31AppleIntelFramebufferController15hwSetPanelPowerEj",hwSetPanelPower, this->ohwSetPanelPower},
 				{"__ZN31AppleIntelFramebufferController11SetupParamsEP21AppleIntelFramebufferP21AppleIntelDisplayPathP10CRTCParamsPK29IODetailedTimingInformationV2",SetupParams,	this->oSetupParams},
 				{"__ZN31AppleIntelFramebufferController19setupPipeWatermarksEP21AppleIntelFramebufferP21AppleIntelDisplayPathP10CRTCParams",setupPipeWatermarks, this->osetupPipeWatermarks},
@@ -309,7 +305,6 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 				{"__ZN24AppleIntelBaseController11initCDClockEv",initCDClock, this->oinitCDClock},
 				//{"__ZN24AppleIntelBaseController15configureReportEP19IOReportChannelListjPvS2_",configureReport, this->oconfigureReport},
 				{"__ZN19AppleIntelPowerWell4initEP24AppleIntelBaseController",AppleIntelPowerWellinit, this->oAppleIntelPowerWellinit},
-				//{"__ZN24AppleIntelBaseController16hwRegsNeedUpdateEP21AppleIntelFramebufferP21AppleIntelDisplayPathP10CRTCParamsPK29IODetailedTimingInformationV2PN16AppleIntelScaler12SCALERPARAMSE",hwRegsNeedUpdate, this->ohwRegsNeedUpdate},
 				{"__ZN24AppleIntelBaseController15hwSetPanelPowerEj",hwSetPanelPower, this->ohwSetPanelPower},
 				{"__ZN24AppleIntelBaseController11SetupParamsEP21AppleIntelFramebufferP21AppleIntelDisplayPathP10CRTCParamsPK29IODetailedTimingInformationV2",SetupParams,	this->oSetupParams},
 				{"__ZN24AppleIntelBaseController19setupPipeWatermarksEP21AppleIntelFramebufferP21AppleIntelDisplayPathP10CRTCParams",setupPipeWatermarks, this->osetupPipeWatermarks},
@@ -725,9 +720,8 @@ uint64_t  Gen11::getOSInformation2(void *that)
 		pinfo[p].connectors[i].flags=NBlue::callback->i915b->display->bconnectors[i].flags;
 	}
 	
-	//pinfo[p].connectors[1].type=ConnectorDummy;
+	pinfo[p].connectors[1].type=ConnectorDummy;
 	pinfo[p].connectors[0].pipe=1;
-	pinfo[p].connectors[1].pipe=2;
 	
 	OSArray *connectorArray = OSArray::withCapacity(6);
 	for (int i = 0; i < 6; i++) {
@@ -787,7 +781,7 @@ uint64_t  Gen11::getOSInformation(void *that)
 		pinfo[p].connectors[i].flags=NBlue::callback->i915b->display->bconnectors[i].flags;
 	}
 	
-	//pinfo[p].connectors[1].type=ConnectorDummy;
+	pinfo[p].connectors[1].type=ConnectorDummy;
 	//pinfo[p].connectors[0].pipe=1;
 	
 		
@@ -2216,8 +2210,11 @@ static void wa_init_finish(struct i915_wa_list *wal)
 		return;
 }
 
+
+
+
 static IOReturn __intel_de_wait_for_register(struct intel_display *display,
-											 uint32_t reg,
+											  uint32_t reg,
 											  uint32_t mask,
 											  uint32_t value,
 											  uint32_t timeout_us,
@@ -2226,7 +2223,10 @@ static IOReturn __intel_de_wait_for_register(struct intel_display *display,
 {
 	AbsoluteTime deadline, now;
 	uint64_t timeout_ns = (uint64_t)timeout_us * NSEC_PER_USEC;
-	nanoseconds_to_absolutetime(timeout_ns, &deadline);
+	uint64_t delta_abs;
+	
+	nanoseconds_to_absolutetime(timeout_ns, &delta_abs);
+	clock_absolutetime_interval_to_deadline(delta_abs, &deadline);
 	
 	uint32_t wait_us = 10;
 	const uint32_t wait_max_us = 1000;
@@ -2241,6 +2241,7 @@ static IOReturn __intel_de_wait_for_register(struct intel_display *display,
 	for (;;) {
 		now = mach_absolute_time();
 		
+		__asm__ volatile("" ::: "memory");
 		
 		reg_value = intel_de_read(display, reg);
 		
@@ -2254,10 +2255,10 @@ static IOReturn __intel_de_wait_for_register(struct intel_display *display,
 			break;
 		}
 		
-		if (!is_atomic && wait_us >= 1000) {
-			IOSleep(wait_us / 1000);
+		if (is_atomic || wait_us < 1000) {
+			IOPause((unsigned int)(wait_us * NSEC_PER_USEC));
 		} else {
-			IODelay(wait_us);
+			IOSleep(wait_us / 1000);
 		}
 		
 		if (wait_us < wait_max_us) {
@@ -2576,7 +2577,6 @@ void  Gen11::checkWOPCMSettings(void *that,unsigned long param_1,void *param_2)
 void Gen11::SafeForceWake(void *that,bool param_1,uint param_2)
 {
 	FunctionCast(SafeForceWake, callback->oSafeForceWake)( that,param_1,param_2);
-	//IOSleep(1);
 }
 
 void Gen11::IGSharedMappedBufferfree(void *param_1)
@@ -6344,16 +6344,13 @@ void Gen11::setupPlane2(void *that,void *param_1)
 	//getMember<uint32_t>(that, 0x118)=0xd;
 }
 
-void Gen11::SetupParams (void *that,void *param_1,void *param_2,CRTCParams *param_3,void *param_4)
-{
-	if (getMember<uint32_t>(param_1, 0x1dc) == 0) setpc=1;
-	if (!setpc) return FunctionCast(SetupParams, callback->oSetupParams)(that ,param_1,param_2,param_3,param_4);
-	SetupParams2(param_2, param_3);
-	setupPipeWatermarks(that ,param_1,param_2,param_3);
-}
+
 
 void Gen11::setupPipeWatermarks (void *that,void *param_1,void *param_2,CRTCParams *param_3)
 {
+	if (setpc) {
+		SetupParams2(param_2, param_3);
+	}
 	FunctionCast(setupPipeWatermarks, callback->osetupPipeWatermarks)(that ,param_1,param_2,param_3);
 }
 
@@ -7132,14 +7129,18 @@ intel_dp_update_link_train(struct intel_dp *intel_dp,
 	return ret >= 0;
 }
 
+
 static inline void fsleep(unsigned long usecs)
 {
 	if (usecs <= 10)
-		IODelay(usecs);
+		// IODelay: takes microseconds (unsigned int)
+		IODelay((unsigned int)usecs);
 	else if (usecs < USLEEP_RANGE_UPPER_BOUND)
-		IOPause((uint64_t)usecs * NSEC_PER_USEC);
+		// IOPause: takes nanoseconds (unsigned int).
+		IOPause((unsigned int)(usecs * NSEC_PER_USEC));
 	else
-		IOSleep((usecs + 999) / 1000);
+		// IOSleep: takes milliseconds (unsigned int)
+		IOSleep((unsigned int)((usecs + 999) / 1000));
 }
 
 
@@ -7924,6 +7925,7 @@ void intel_dp_set_power(struct intel_dp *intel_dp, u8 mode)
 			if (ret == 1)
 				break;
 			IOSleep(1);
+			//msleep(1);
 		}
 
 	}
@@ -8769,40 +8771,7 @@ static bool pipe_scanline_is_moving(struct intel_display *display, enum pipe pip
 	return line1 != line2;
 }
 
-int wait_for_pipe_scanline_moving(struct intel_display *display)
-{
 
-			AbsoluteTime deadline, now;
-			uint32_t wait_us = 2;
-			bool is_moving=false;
-			
-			uint64_t timeout_ns = (uint64_t)100 * 1000 * NSEC_PER_USEC;
-			nanoseconds_to_absolutetime(timeout_ns, &deadline);
-
-			for (;;) {
-				now = mach_absolute_time();
-				
-				is_moving = pipe_scanline_is_moving(display, display->pipe0);
-				
-				if (is_moving ) {
-					return 0;
-				}
-
-				if (CMP_ABSOLUTETIME(&now, &deadline)) {
-					return 1;
-				}
-
-				if (wait_us < 1000) {
-					IODelay(wait_us);
-				} else {
-					IOSleep(wait_us / 1000);
-				}
-
-				if (wait_us < 10000) {
-					wait_us <<= 1;
-				}
-			}
-}
 
 
 void intel_enable_transcoder(struct intel_display *display, struct intel_crtc_state *new_crtc_state)
@@ -9109,66 +9078,71 @@ uint64_t Gen11::getLinkConfig(void *that,IOFBDPLinkConfig *param_1)
 	return ret;
 }
 
+void Gen11::SetupParams (void *that,void *param_1,void *param_2,CRTCParams *param_3,void *param_4)
+{
+	if (!kexticl && getMember<uint32_t>(param_1, 0x1dc) == 0) setpc=1;
+	struct intel_display *display = NBlue::callback->i915b->display;
+	void *port=getMember<void *>(param_2, kexticl ? 0x4d20 : 0x3648);
+	getMember<uint8_t>(port, kexticl ? 0x10 : 0x118)=0;//asr
+	getMember<uint8_t>(port, kexticl ? 0x11 : 0x119)=0;//Downspread
+	PortConfig *pc=(PortConfig*)getMember<void*>(port, kexticl ? 0x544 : 0x548);
+	
+	if (!dpcdconf)
+	{
+		dpcdconf=true;
+		struct intel_dp *intel_dp=&display->intel_dp0;
+		struct intel_crtc_state *crtc_state=&display->crtc_state0;
+		
+		//dpcd_access_needs_probe
+		drm_dp_read_dpcd_caps(intel_dp,intel_dp->dpcd);
+		
+		readAUX(linkp,DP_EDP_DPCD_REV,&intel_dp->edp_dpcd, sizeof(intel_dp->edp_dpcd));
+		
+		drm_dp_read_downstream_info(intel_dp, intel_dp->dpcd,intel_dp->downstream_ports);
+		
+		intel_dp->mst_detect = intel_dp_mst_detect(display, intel_dp);
+		intel_dp->is_mst = intel_dp->mst_detect != DRM_DP_SST;
+		if (!intel_dp->is_mst) intel_dp->mst_detect = DRM_DP_SST;
 
+		memset(intel_dp->lttpr_common_caps, 0, sizeof(intel_dp->lttpr_common_caps));
+		intel_dp->use_max_params = intel_dp->edp_dpcd[0] < DP_EDP_14;
+		
+		intel_dp_init_source_oui(intel_dp);
+		
+		readAUX(linkp, DP_RECEIVER_ALPM_CAP,&intel_dp->alpm_dpcd,1);
+		
+		/*intel_psr_init_dpcd(intel_dp);
+		intel_edp_set_sink_rates(intel_dp);
+		intel_dp_set_max_sink_lane_count(intel_dp);
+		intel_dp_detect_dsc_caps(intel_dp, connector);
+		*/
+		//hsw_get_pipe_config
+		//intel_ddi_init
+		intel_get_transcoder_timings(display,crtc_state);
+		icl_ddi_combo_get_config(display, crtc_state);
+		intel_ddi_mso_get_config(display, crtc_state);
+		intel_dp_compute_config(display, crtc_state);
+		intel_ddi_compute_config_late(crtc_state);
+		
+		if (hsw_panel_transcoders(display) & BIT(crtc_state->cpu_transcoder)) {
+			u32 tmp = intel_de_read(display,
+						TRANS_DDI_FUNC_CTL(display, crtc_state->cpu_transcoder));
+
+			if ((tmp & TRANS_DDI_EDP_INPUT_MASK) == TRANS_DDI_EDP_INPUT_A_ONOFF)
+				crtc_state->pch_pfit.force_thru = true;
+		}
+
+		
+	}
+	FunctionCast(SetupParams, callback->oSetupParams)(that ,param_1,param_2,param_3,param_4);
+
+}
 
 void Gen11::SetupParams2 (void *param_2, CRTCParams *param_3)
 {
 	struct intel_display *display = NBlue::callback->i915b->display;
 	if (setpc){
 		setpc=0;
-		
-		void *port=getMember<void *>(param_2, kexticl ? 0x4d20 : 0x3648);
-		getMember<uint8_t>(port, kexticl ? 0x10 : 0x118)=0;//asr
-		getMember<uint8_t>(port, kexticl ? 0x11 : 0x119)=0;//Downspread
-		
-		
-		if (!dpcdconf)
-		{
-			dpcdconf=true;
-			struct intel_dp *intel_dp=&display->intel_dp0;
-			struct intel_crtc_state *crtc_state=&display->crtc_state0;
-			
-			//dpcd_access_needs_probe
-			drm_dp_read_dpcd_caps(intel_dp,intel_dp->dpcd);
-			
-			readAUX(linkp,DP_EDP_DPCD_REV,&intel_dp->edp_dpcd, sizeof(intel_dp->edp_dpcd));
-			
-			drm_dp_read_downstream_info(intel_dp, intel_dp->dpcd,intel_dp->downstream_ports);
-			
-			intel_dp->mst_detect = intel_dp_mst_detect(display, intel_dp);
-			intel_dp->is_mst = intel_dp->mst_detect != DRM_DP_SST;
-			if (!intel_dp->is_mst) intel_dp->mst_detect = DRM_DP_SST;
-
-			memset(intel_dp->lttpr_common_caps, 0, sizeof(intel_dp->lttpr_common_caps));
-			intel_dp->use_max_params = intel_dp->edp_dpcd[0] < DP_EDP_14;
-			
-			intel_dp_init_source_oui(intel_dp);
-			
-			readAUX(linkp, DP_RECEIVER_ALPM_CAP,&intel_dp->alpm_dpcd,1);
-			
-			/*intel_psr_init_dpcd(intel_dp);
-			intel_edp_set_sink_rates(intel_dp);
-			intel_dp_set_max_sink_lane_count(intel_dp);
-			intel_dp_detect_dsc_caps(intel_dp, connector);
-			*/
-			//hsw_get_pipe_config
-			//intel_ddi_init
-			intel_get_transcoder_timings(display,crtc_state);
-			icl_ddi_combo_get_config(display, crtc_state);
-			intel_ddi_mso_get_config(display, crtc_state);
-			intel_dp_compute_config(display, crtc_state);
-			intel_ddi_compute_config_late(crtc_state);
-			
-			if (hsw_panel_transcoders(display) & BIT(crtc_state->cpu_transcoder)) {
-				u32 tmp = intel_de_read(display,
-							TRANS_DDI_FUNC_CTL(display, crtc_state->cpu_transcoder));
-
-				if ((tmp & TRANS_DDI_EDP_INPUT_MASK) == TRANS_DDI_EDP_INPUT_A_ONOFF)
-					crtc_state->pch_pfit.force_thru = true;
-			}
-
-			
-		}
 		
 		param_3->TRANS_CLK_SEL=TGL_TRANS_CLK_SEL_PORT(display->port0);
 		param_3->TRANS_MSA_MISC =intel_ddi_set_dp_msa(display, false);
@@ -9416,29 +9390,6 @@ static void gen9_wait_for_power_well_fuses(struct intel_display *display,
 
 			intel_de_wait_for_set_ms(display, SKL_FUSE_STATUS,
 						 SKL_FUSE_PG_DIST_STATUS(pg), 1);
-}
-
-int intel_de_wait_us(struct intel_display *display, u32 reg,
-			 u32 mask, u32 value, unsigned int timeout_us,
-			 u32 *out_value)
-{
-	int ret;
-
-	//intel_dmc_wl_get(display, reg);
-
-	ret = intel_de_wait_for_register(display, reg, mask, value,
-					 timeout_us, 0,
-					 out_value, false);
-
-//	intel_dmc_wl_put(display, reg);
-
-	return ret;
-}
-
-int intel_de_wait_for_set_us(struct intel_display *display, u32 reg,
-				 u32 mask, unsigned int timeout_us)
-{
-	return intel_de_wait_us(display, reg, mask, mask, timeout_us, NULL);
 }
 
 static int cnp_rawclk(struct intel_display *display)
@@ -11577,6 +11528,7 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	intel_de_write(display, DMA_ADDR_1_HIGH,DMA_ADDRESS_SPACE_WOPCM);
 	intel_de_write(display, DMA_COPY_SIZE,sizeof(struct uc_css_header) + ucode_size);
 	intel_de_write(display, DMA_CTRL,REG_MASKED_FIELD_ENABLE(dma_flags | START_DMA));
+	
 	dmaRetry = 1000;
 	while (intel_de_read(display, DMA_CTRL) & START_DMA) {
 		IODelay(100);
