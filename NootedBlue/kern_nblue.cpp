@@ -2214,19 +2214,16 @@ static void print_ddi_port(const struct intel_bios_encoder_data *devdata)
 	}
 	
 		
-		ConnectorType type=ConnectorDummy;
+		u32 type=ConnectorDummy;
 		if (is_dp) type=ConnectorDP;
 		if (is_hdmi) type=ConnectorHDMI;
-		//if (is_edp) type=ConnectorLVDS;
+		//if (is_edp) type+=ConnectorLVDS;
 	
 		u32 flags=CNAlterAppertureRequirements;
 		if (is_dp) flags+=CNFlagDP;
-		if (is_edp) flags+=CNFlagInternalOverride;
-		if (is_edp) flags+=CNUseMiscIoPowerWell;
-		if (is_edp) flags+=CNFlagNoHPD;
+		if (is_edp) flags+=CNFlagForceEDID;
 		if (is_hdmi) flags+=CNFlagHDMI;
-		//if (is_edp) flags=CNConnectorAlwaysConnected|CNSupport32BPP;
-		
+	
 		display->bconnectors[port].busId=child->i2c_pin;
 		display->bconnectors[port].pipe=port;
 		display->bconnectors[port].type=type;

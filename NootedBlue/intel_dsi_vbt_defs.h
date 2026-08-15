@@ -207,7 +207,7 @@ do {									\
 #define  PANEL_POWER_CYCLE_DELAY_MASK	REG_GENMASK(4, 0)
 #define  BXT_POWER_CYCLE_DELAY_MASK	REG_GENMASK(8, 4)
 
-enum ConnectorType : uint32_t {
+enum ConnectorType {
 	ConnectorZero       = 0x0,
 	ConnectorDummy      = 0x1,
 	ConnectorLVDS       = 0x2,
@@ -223,7 +223,7 @@ struct PACKED ConnectorInfo {
 	uint32_t busId;
 	uint32_t pipe;
 	uint32_t pad;
-	ConnectorType type;
+	uint32_t type;
 	uint32_t flags;
 };
 

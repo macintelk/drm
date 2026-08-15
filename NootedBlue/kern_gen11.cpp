@@ -255,6 +255,9 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			//{"__ZN19AppleIntelPowerWell18enablePowerWellAuxEj",enablePowerWellAux, this->oenablePowerWellAux},
 			
 			
+			{"__ZN14AppleIntelPort9setupPortEv",fsetupPort, this->ofsetupPort},
+			{"__ZN14AppleIntelPort18resetSoftwareStateEv",fresetSoftwareState, this->ofresetSoftwareState},
+			
 			//{"__ZN24AppleIntelBaseController21getCallbackCapabilityEP24AGDCCallbackCapability_t",getCallbackCapability, this->ogetCallbackCapability},
 			//{"__ZN24AppleIntelBaseController16GetGPUCapabilityEP19AGDCGPUCapability_t",GetGPUCapability, this->oGetGPUCapability},
 			
@@ -1212,10 +1215,13 @@ uint32_t Gen11::configureReport	(void *that,void *param_1,uint param_2,void *par
 		wrapSetAttributeForConnection(frame0, 0, 'prob', 1);
 		IOSleep(1);*/
 		
-		//IODelay(1000);
-		//getMember<uint32_t>(that, 0x4284)=1;//sleepmode
-		//fsetAttribute(that, 'powr',2);
-
+		/*getMember<uint32_t>(frame0, 0x4284)=1;//sleepmode
+		fsetAttribute(frame0, 'powr',0);
+		IOSleep(100);
+		getMember<uint32_t>(frame0, 0x4284)=1;//sleepmode
+		fsetAttribute(frame0, 'powr',2);
+		IOSleep(100);*/
+		
 	}
 	
 	
@@ -4149,7 +4155,8 @@ unsigned long  Gen11::AppleIntelPortHALinit(void *that,void *param_1)
 	if (kexticl) {
 		getMember<uint32_t>(that, 0x584)=0x60540;
 		getMember<uint32_t>(that, 0x588)=0x60544;
-	}
+	} else fresetSoftwareState(that);
+	
 	if (linkp==nullptr) linkp=that;
 	return ret;
 }
@@ -9049,6 +9056,21 @@ uint64_t  Gen11::linkTraining(void *that,void *param_1)
 	return -1;
 }
 
+void  Gen11::fresetSoftwareState(void *that)
+{
+	FunctionCast(fresetSoftwareState, callback->ofresetSoftwareState)(that );
+
+}
+
+uint64_t Gen11::fsetupPort(void *that)
+{
+	auto ret=FunctionCast(fsetupPort, callback->ofsetupPort)(that );
+	PortConfig *pc=(PortConfig*)getMember<void*>(that, kexticl ? 0x544 : 0x548);
+
+	
+	return ret;
+}
+
 uint64_t Gen11::getLinkConfig(void *that,IOFBDPLinkConfig *param_1)
 {
 	struct intel_display *display = NBlue::callback->i915b->display;
@@ -9083,9 +9105,9 @@ void Gen11::SetupParams (void *that,void *param_1,void *param_2,CRTCParams *para
 	if (!kexticl && getMember<uint32_t>(param_1, 0x1dc) == 0) setpc=1;
 	struct intel_display *display = NBlue::callback->i915b->display;
 	void *port=getMember<void *>(param_2, kexticl ? 0x4d20 : 0x3648);
-	getMember<uint8_t>(port, kexticl ? 0x10 : 0x118)=0;//asr
-	getMember<uint8_t>(port, kexticl ? 0x11 : 0x119)=0;//Downspread
-	PortConfig *pc=(PortConfig*)getMember<void*>(port, kexticl ? 0x544 : 0x548);
+	
+	
+	
 	
 	if (!dpcdconf)
 	{

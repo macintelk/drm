@@ -120,9 +120,9 @@
 		<key>DPM</key>
 		<integer>1</integer>
 		<key>DSCCapReporting</key>
-		<integer>1</integer>
+		<integer>0</integer>
 		<key>DSCSupport</key>
-		<integer>1</integer>
+		<integer>0</integer>
 		<key>DisableApertureAccess</key>
 		<integer>0</integer>
 		<key>DisableHigherWMLevels</key>

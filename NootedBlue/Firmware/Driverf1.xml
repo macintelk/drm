@@ -152,7 +152,7 @@
 		<key>EnableTconScaler</key>
 		<integer>0</integer>
 		<key>FECSupport</key>
-		<integer>1</integer>
+		<integer>0</integer>
 		<key>FastDisplayDetectDisable</key>
 		<integer>0</integer>
 		<key>ForceAccelBacked</key>
