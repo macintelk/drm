@@ -117,6 +117,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			{"__ZN19AppleIntelPowerWell19disablePowerWellAuxEj",disablePowerWellAux, this->odisablePowerWellAux},
 			{"__ZN19AppleIntelPowerWell19disablePowerWellDDIEj",disablePowerWellDDI, this->odisablePowerWellDDI},
 			{"__ZN19AppleIntelPowerWell18disablePowerWellPGEj",disablePowerWellPG, this->odisablePowerWellPG},
+			{"__ZN20IntelFBClientControl11doAttributeEjPmmS0_S0_P25IOExternalMethodArguments",wrapFBClientDoAttribute,	this->orgFBClientDoAttribute},
 			
 			
 			//{"__ZN31AppleIntelFramebufferController16hwRegsNeedUpdateEP21AppleIntelFramebufferP21AppleIntelDisplayPathP10CRTCParamsPK29IODetailedTimingInformationV2PN16AppleIntelScaler12SCALERPARAMSE",hwRegsNeedUpdate, this->ohwRegsNeedUpdate},
@@ -253,8 +254,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			{"__ZN14AppleIntelPort19displayPortReadEDIDEjjPhj",displayPortReadEDID, this->odisplayPortReadEDID},
 			//{"__ZN21AppleIntelFramebuffer28setupInitialTransactionStateEj",fsetupInitialTransactionState, this->ofsetupInitialTransactionState},
 			//{"__ZN19AppleIntelPowerWell18enablePowerWellAuxEj",enablePowerWellAux, this->oenablePowerWellAux},
-			
-			
+			{"__ZN20IntelFBClientControl11doAttributeEjPmmS0_S0_P25IOExternalMethodArguments",wrapFBClientDoAttribute,	this->orgFBClientDoAttribute},
 			{"__ZN14AppleIntelPort9setupPortEv",fsetupPort, this->ofsetupPort},
 			{"__ZN14AppleIntelPort18resetSoftwareStateEv",fresetSoftwareState, this->ofresetSoftwareState},
 			
@@ -825,6 +825,8 @@ unsigned long Gen11::wrapPavpSessionCallback( void *intelAccelerator, int32_t se
 
 	return FunctionCast(wrapPavpSessionCallback, callback->orgPavpSessionCallback)(intelAccelerator, sessionCommand, sessionAppId, a4, flag);
 }
+
+
 
 int Gen11::dozero()
 {
@@ -2618,6 +2620,15 @@ unsigned short Gen11::acquireDoorbell(void* self, void* param_1, bool param_2)
 	return FunctionCast(acquireDoorbell, callback->oacquireDoorbell)( self,param_1,param_2);
 }
 
+IOReturn Gen11::wrapFBClientDoAttribute(void *fbclient, uint32_t attribute, unsigned long *unk1, unsigned long unk2, unsigned long *unk3, unsigned long *unk4,  void *externalMethodArguments) {
+	
+	if (attribute == 0x923) {
+		FunctionCast(wrapFBClientDoAttribute, callback->orgFBClientDoAttribute)(fbclient, attribute, unk1, unk2, unk3, unk4,  externalMethodArguments);
+		return kIOReturnUnsupported;
+	}
+	
+	return FunctionCast(wrapFBClientDoAttribute, callback->orgFBClientDoAttribute)(fbclient, attribute, unk1, unk2, unk3, unk4,  externalMethodArguments);
+}
 
 void Gen11::releaseDoorbell(void* self, void* ctxDesc)
 {
@@ -4155,7 +4166,7 @@ unsigned long  Gen11::AppleIntelPortHALinit(void *that,void *param_1)
 	if (kexticl) {
 		getMember<uint32_t>(that, 0x584)=0x60540;
 		getMember<uint32_t>(that, 0x588)=0x60544;
-	} else fresetSoftwareState(that);
+	} //else fresetSoftwareState(that);
 	
 	if (linkp==nullptr) linkp=that;
 	return ret;

@@ -942,6 +942,10 @@ public:
 	static void  fresetSoftwareState(void *that);
 	mach_vm_address_t ofresetSoftwareState {};
 	
+	static IOReturn wrapFBClientDoAttribute(void *fbclient, uint32_t attribute, unsigned long *unk1, unsigned long unk2, unsigned long *unk3, unsigned long *unk4, void *externalMethodArguments);
+	mach_vm_address_t orgFBClientDoAttribute {};
+	
+
 	
 public:
 
