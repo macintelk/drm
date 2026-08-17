@@ -4,6 +4,8 @@
 #pragma once
 #include <Headers/kern_patcher.hpp>
 #include <Headers/kern_util.hpp>
+#include <Headers/kern_devinfo.hpp>
+#include <Headers/kern_user.hpp>
 
 class DYLDPatch {
 	const void *find {nullptr}, *findMask {nullptr};
@@ -130,3 +132,11 @@ static const UInt8 klibMTLIGCCompilerPluginPatched7[] =  {0x90, 0x90, 0x41, 0x0f
 static const char kHEVCEncBoardIdOriginal[] = "vendor8bit\0IOService\0board-id";
 static const char kHEVCEncBoardIdPatched[] = "vendor8bit\0IOService\0hwgva-id";
 
+
+
+#define procdisplaypolicyd "/usr/libexec/displaypolicyd"
+#define binarydisplaypolicyd procdisplaypolicyd
+
+//NOTICE: EDID read
+static const uint8_t displaypolicydf3[] = {0x0f, 0x84, 0xd7, 0x00, 0x00, 0x00, 0x39, 0x8b, 0x5c, 0xcc, 0x0f, 0x00, 0x0f, 0x85, 0xcb, 0x00, 0x00, 0x00};
+static const uint8_t displaypolicydr3[] = {0x48, 0xe9, 0xd7, 0x00, 0x00, 0x00, 0x39, 0x8b, 0x5c, 0xcc, 0x0f, 0x00, 0x0f, 0x85, 0xcb, 0x00, 0x00, 0x00};

@@ -254,7 +254,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			{"__ZN14AppleIntelPort19displayPortReadEDIDEjjPhj",displayPortReadEDID, this->odisplayPortReadEDID},
 			//{"__ZN21AppleIntelFramebuffer28setupInitialTransactionStateEj",fsetupInitialTransactionState, this->ofsetupInitialTransactionState},
 			//{"__ZN19AppleIntelPowerWell18enablePowerWellAuxEj",enablePowerWellAux, this->oenablePowerWellAux},
-			{"__ZN20IntelFBClientControl11doAttributeEjPmmS0_S0_P25IOExternalMethodArguments",wrapFBClientDoAttribute,	this->orgFBClientDoAttribute},
+			//{"__ZN20IntelFBClientControl11doAttributeEjPmmS0_S0_P25IOExternalMethodArguments",wrapFBClientDoAttribute,	this->orgFBClientDoAttribute},
 			{"__ZN14AppleIntelPort9setupPortEv",fsetupPort, this->ofsetupPort},
 			{"__ZN14AppleIntelPort18resetSoftwareStateEv",fresetSoftwareState, this->ofresetSoftwareState},
 			
@@ -271,14 +271,14 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		};
 
 		PANIC_COND(!patcher.routeMultipleLong(index, requests, address, size), "nblue","Failed to route dp symbols");
-
+		
 		
 		if (isprod) {
 			KernelPatcher::RouteRequest requestsp[] = {
 				{"__ZN31AppleIntelFramebufferController10enablePipeEP21AppleIntelFramebufferP21AppleIntelDisplayPathPK29IODetailedTimingInformationV2",enablePipe, this->oenablePipe},
 				{"__ZN31AppleIntelFramebufferController13probeBootPipeEPbPN17AppleIntelPortHAL3DDIE",probeBootPipe, this->oprobeBootPipe},
 				{"__ZN31AppleIntelFramebufferController11initCDClockEv",initCDClock, this->oinitCDClock},
-				//{"__ZN31AppleIntelFramebufferController15configureReportEP19IOReportChannelListjPvS2_",configureReport, this->oconfigureReport},
+				{"__ZN31AppleIntelFramebufferController15configureReportEP19IOReportChannelListjPvS2_",configureReport, this->oconfigureReport},
 				{"__ZN19AppleIntelPowerWell4initEP31AppleIntelFramebufferController",AppleIntelPowerWellinit, this->oAppleIntelPowerWellinit},
 				{"__ZN31AppleIntelFramebufferController15hwSetPanelPowerEj",hwSetPanelPower, this->ohwSetPanelPower},
 				{"__ZN31AppleIntelFramebufferController11SetupParamsEP21AppleIntelFramebufferP21AppleIntelDisplayPathP10CRTCParamsPK29IODetailedTimingInformationV2",SetupParams,	this->oSetupParams},
@@ -306,7 +306,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 				{"__ZN24AppleIntelBaseController10enablePipeEP21AppleIntelFramebufferP21AppleIntelDisplayPathPK29IODetailedTimingInformationV2",enablePipe, this->oenablePipe},
 				{"__ZN24AppleIntelBaseController13probeBootPipeEPbPN17AppleIntelPortHAL3DDIE",probeBootPipe, this->oprobeBootPipe},
 				{"__ZN24AppleIntelBaseController11initCDClockEv",initCDClock, this->oinitCDClock},
-				//{"__ZN24AppleIntelBaseController15configureReportEP19IOReportChannelListjPvS2_",configureReport, this->oconfigureReport},
+				{"__ZN24AppleIntelBaseController15configureReportEP19IOReportChannelListjPvS2_",configureReport, this->oconfigureReport},
 				{"__ZN19AppleIntelPowerWell4initEP24AppleIntelBaseController",AppleIntelPowerWellinit, this->oAppleIntelPowerWellinit},
 				{"__ZN24AppleIntelBaseController15hwSetPanelPowerEj",hwSetPanelPower, this->ohwSetPanelPower},
 				{"__ZN24AppleIntelBaseController11SetupParamsEP21AppleIntelFramebufferP21AppleIntelDisplayPathP10CRTCParamsPK29IODetailedTimingInformationV2",SetupParams,	this->oSetupParams},
@@ -410,7 +410,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		
 		if (isprod){
 			LookupPatchPlus const patchesp[] = {// tgl production kext
-				//{&kextG11FBT, f5, r5, arrsize(f5),	1},
+				{&kextG11FBT, f5, r5, arrsize(f5),	1},
 				{&kextG11FBT, f7p, r7p, arrsize(f7p),	1},
 				{&kextG11FBT, f9p, r9p, arrsize(f9p),	1},
 				{&kextG11FBT, f13p, r13p, arrsize(f13p),	1},
@@ -725,6 +725,7 @@ uint64_t  Gen11::getOSInformation2(void *that)
 	
 	pinfo[p].connectors[1].type=ConnectorDummy;
 	pinfo[p].connectors[0].pipe=1;
+	pinfo[p].connectors[0].flags-=CNConnectorAlwaysConnected;
 	
 	OSArray *connectorArray = OSArray::withCapacity(6);
 	for (int i = 0; i < 6; i++) {
@@ -1217,13 +1218,11 @@ uint32_t Gen11::configureReport	(void *that,void *param_1,uint param_2,void *par
 		wrapSetAttributeForConnection(frame0, 0, 'prob', 1);
 		IOSleep(1);*/
 		
-		/*getMember<uint32_t>(frame0, 0x4284)=1;//sleepmode
-		fsetAttribute(frame0, 'powr',0);
-		IOSleep(100);
+		getMember<uint32_t>(frame0, 0x4284)=2;//sleepmode
+		fsetAttribute(frame0, 'powr',1);
 		getMember<uint32_t>(frame0, 0x4284)=1;//sleepmode
 		fsetAttribute(frame0, 'powr',2);
-		IOSleep(100);*/
-		
+
 	}
 	
 	
@@ -6286,7 +6285,7 @@ void Gen11::enablePipe(void *that,void *param_1, void *param_2,void *param_3)
 	
 	intel_dmc_enable_pipe(&display->crtc_state0,pipe);
 
-	gen11_irq_postinstall(i915);
+	//gen11_irq_postinstall(i915);
 	
 	icl_set_pipe_chicken();
 
