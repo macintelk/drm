@@ -36,6 +36,7 @@ void DYLDPatches::wrapCsValidatePage(vnode *vp, memory_object_t pager, memory_ob
 	FunctionCast(wrapCsValidatePage, callback->orgCsValidatePage)(vp, pager, page_offset, data, validated_p, tainted_p,
 		nx_p);
 
+
 	char path[PATH_MAX];
 	int pathlen = PATH_MAX;
 	if (vn_getpath(vp, path, &pathlen) != 0) { return; }

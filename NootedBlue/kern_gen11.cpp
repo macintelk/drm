@@ -254,7 +254,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			{"__ZN14AppleIntelPort19displayPortReadEDIDEjjPhj",displayPortReadEDID, this->odisplayPortReadEDID},
 			//{"__ZN21AppleIntelFramebuffer28setupInitialTransactionStateEj",fsetupInitialTransactionState, this->ofsetupInitialTransactionState},
 			//{"__ZN19AppleIntelPowerWell18enablePowerWellAuxEj",enablePowerWellAux, this->oenablePowerWellAux},
-			//{"__ZN20IntelFBClientControl11doAttributeEjPmmS0_S0_P25IOExternalMethodArguments",wrapFBClientDoAttribute,	this->orgFBClientDoAttribute},
+
 			{"__ZN14AppleIntelPort9setupPortEv",fsetupPort, this->ofsetupPort},
 			{"__ZN14AppleIntelPort18resetSoftwareStateEv",fresetSoftwareState, this->ofresetSoftwareState},
 			
@@ -271,7 +271,6 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		};
 
 		PANIC_COND(!patcher.routeMultipleLong(index, requests, address, size), "nblue","Failed to route dp symbols");
-		
 		
 		if (isprod) {
 			KernelPatcher::RouteRequest requestsp[] = {
@@ -725,7 +724,7 @@ uint64_t  Gen11::getOSInformation2(void *that)
 	
 	pinfo[p].connectors[1].type=ConnectorDummy;
 	pinfo[p].connectors[0].pipe=1;
-	//pinfo[p].connectors[0].flags-=CNConnectorAlwaysConnected;
+	pinfo[p].connectors[0].flags+=CNAlterAppertureRequirements;
 	
 	OSArray *connectorArray = OSArray::withCapacity(6);
 	for (int i = 0; i < 6; i++) {
@@ -867,7 +866,6 @@ bool Gen11::dofalse()
 
 void Gen11::FBMemMgr_Init(void *that)
 {
-	
 	FunctionCast(FBMemMgr_Init, callback->oFBMemMgr_Init)(that);
 	ccont2=that;
 	callback->rmmioPtr=(getMember<volatile UInt32 *>(that, kexticl ? 0x9b8 : 0x9b0));
@@ -1222,6 +1220,7 @@ uint32_t Gen11::configureReport	(void *that,void *param_1,uint param_2,void *par
 		fsetAttribute(frame0, 'powr',1);
 		getMember<uint32_t>(frame0, 0x4284)=1;//sleepmode
 		fsetAttribute(frame0, 'powr',2);
+		
 
 	}
 	
@@ -2622,7 +2621,6 @@ unsigned short Gen11::acquireDoorbell(void* self, void* param_1, bool param_2)
 IOReturn Gen11::wrapFBClientDoAttribute(void *fbclient, uint32_t attribute, unsigned long *unk1, unsigned long unk2, unsigned long *unk3, unsigned long *unk4,  void *externalMethodArguments) {
 	
 	if (attribute == 0x923) {
-		FunctionCast(wrapFBClientDoAttribute, callback->orgFBClientDoAttribute)(fbclient, attribute, unk1, unk2, unk3, unk4,  externalMethodArguments);
 		return kIOReturnUnsupported;
 	}
 	
@@ -9112,7 +9110,7 @@ uint64_t Gen11::getLinkConfig(void *that,IOFBDPLinkConfig *param_1)
 
 void Gen11::SetupParams (void *that,void *param_1,void *param_2,CRTCParams *param_3,void *param_4)
 {
-	//if (!kexticl && getMember<uint32_t>(param_1, 0x1dc) == 0) setpc=1;
+	if (!kexticl && getMember<uint32_t>(param_1, 0x1dc) == 0) setpc=1;
 	struct intel_display *display = NBlue::callback->i915b->display;
 	void *port=getMember<void *>(param_2, kexticl ? 0x4d20 : 0x3648);
 	
@@ -11603,6 +11601,7 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	if (!success)
 	panic("auth %x bootrom %x ukernel %x guc_wopcm_base %x guc_wopcm_size %x",auth,bootrom,ukernel,gt->wopcm.guc.base,gt->wopcm.guc.size);
 
+	
 	
 	return success ? 1 : 0;
 
