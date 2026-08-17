@@ -30,6 +30,7 @@ void DYLDPatches::processPatcher(KernelPatcher &patcher) {
 		"Failed to route kernel symbols");
 }
 
+
 void DYLDPatches::wrapCsValidatePage(vnode *vp, memory_object_t pager, memory_object_offset_t page_offset,
 	const void *data, int *validated_p, int *tainted_p, int *nx_p) {
 	FunctionCast(wrapCsValidatePage, callback->orgCsValidatePage)(vp, pager, page_offset, data, validated_p, tainted_p,
@@ -38,33 +39,28 @@ void DYLDPatches::wrapCsValidatePage(vnode *vp, memory_object_t pager, memory_ob
 	char path[PATH_MAX];
 	int pathlen = PATH_MAX;
 	if (vn_getpath(vp, path, &pathlen) != 0) { return; }
-	static bool patcharr[10]={0,0,0,0,0,0,0,0,0,0};
+	
 
 	
 	if (!UserPatcher::matchSharedCachePath(path)) {
 		
-		if (!patcharr[0])
 		if ((!strncmp(path, binarydisplaypolicyd, arrsize(binarydisplaypolicyd))) )
 		{
 			const DYLDPatch patches[] = {
 				{displaypolicydf3, displaypolicydr3, "displaypolicyd edid read"},
 			};
 			DYLDPatch::applyAll(patches, const_cast<void *>(data), PAGE_SIZE);
-			patcharr[0]=true;
 			return;
 		}
 		
-		if (!patcharr[1])
 	    if ((!strncmp(path, kCoreLSKDMSEPath, arrsize(kCoreLSKDMSEPath))) ||
 			(!strncmp(path, kCoreLSKDPath, arrsize(kCoreLSKDPath)))) {
 			const DYLDPatch patch = {kCoreLSKDOriginal, kCoreLSKDPatched, "CoreLSKD streaming CPUID to Haswell"};
 			patch.apply(const_cast<void *>(data), PAGE_SIZE);
-			patcharr[1]=true;
 			return;
 		}
 		
-		if (!patcharr[2])
-		{
+
 			int ok=0;
 			int sle=0;
 			vnode_t vnode = NULLVP;
@@ -92,7 +88,6 @@ void DYLDPatches::wrapCsValidatePage(vnode *vp, memory_object_t pager, memory_ob
 						{klibMTLIGCCompilerPluginOriginal7, klibMTLIGCCompilerPluginPatched7, "klibMTLIGCCompilerPluginOriginal7"},
 					};
 					DYLDPatch::applyAll(patches, const_cast<void *>(data), PAGE_SIZE);
-					patcharr[2]=true;
 					return;
 				}
 			}
@@ -108,19 +103,16 @@ void DYLDPatches::wrapCsValidatePage(vnode *vp, memory_object_t pager, memory_ob
 						{klibMTLIGCCompilerPluginOriginal7, klibMTLIGCCompilerPluginPatched7, "klibMTLIGCCompilerPluginOriginal7"},
 					};
 					DYLDPatch::applyAll(patches, const_cast<void *>(data), PAGE_SIZE);
-					patcharr[2]=true;
 					return;
 				}
 			}
-		}
+		
 		
 		return;
 	}
 
 	
-	if (!patcharr[3])
-	{
-		patcharr[3]=true;
+
 		if (UNLIKELY(KernelPatcher::findAndReplace(const_cast<void *>(data), PAGE_SIZE, kVideoToolboxDRMModelOriginal,
 												   arrsize(kVideoToolboxDRMModelOriginal), BaseDeviceInfo::get().modelIdentifier, 20))) {
 			DBGLOG("DYLD", "Applied 'VideoToolbox DRM model check' patch");
@@ -132,6 +124,6 @@ void DYLDPatches::wrapCsValidatePage(vnode *vp, memory_object_t pager, memory_ob
 		};
 		DYLDPatch::applyAll(patches, const_cast<void *>(data), PAGE_SIZE);
 		
-	}
+	
 	
 }

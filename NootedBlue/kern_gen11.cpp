@@ -117,7 +117,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			{"__ZN19AppleIntelPowerWell19disablePowerWellAuxEj",disablePowerWellAux, this->odisablePowerWellAux},
 			{"__ZN19AppleIntelPowerWell19disablePowerWellDDIEj",disablePowerWellDDI, this->odisablePowerWellDDI},
 			{"__ZN19AppleIntelPowerWell18disablePowerWellPGEj",disablePowerWellPG, this->odisablePowerWellPG},
-			{"__ZN20IntelFBClientControl11doAttributeEjPmmS0_S0_P25IOExternalMethodArguments",wrapFBClientDoAttribute,	this->orgFBClientDoAttribute},
+			//{"__ZN20IntelFBClientControl11doAttributeEjPmmS0_S0_P25IOExternalMethodArguments",wrapFBClientDoAttribute,	this->orgFBClientDoAttribute},
 			
 			
 			//{"__ZN31AppleIntelFramebufferController16hwRegsNeedUpdateEP21AppleIntelFramebufferP21AppleIntelDisplayPathP10CRTCParamsPK29IODetailedTimingInformationV2PN16AppleIntelScaler12SCALERPARAMSE",hwRegsNeedUpdate, this->ohwRegsNeedUpdate},
@@ -238,8 +238,8 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			{"__ZN21AppleIntelFramebuffer12getAttributeEjPm",fgetAttribute, this->ofgetAttribute},
 			{"__ZN21AppleIntelFramebuffer12setAttributeEjm",fsetAttribute, this->ofsetAttribute},
 			{"__ZN21AppleIntelFramebuffer19getPixelInformationEiiiP18IOPixelInformation",fgetPixelInformation, this->ofgetPixelInformation},
-			//{"__ZN15AppleIntelPlane18configurePlaneiCSCEP19FlipTransactionArgs10IGColorCtl",dovoid},
-			//{"__ZN15AppleIntelPlane17configurePlaneCUSEP19FlipTransactionArgs10IGColorCtl",dovoid},
+			{"__ZN15AppleIntelPlane18configurePlaneiCSCEP19FlipTransactionArgs10IGColorCtl",dovoid},
+			{"__ZN15AppleIntelPlane17configurePlaneCUSEP19FlipTransactionArgs10IGColorCtl",dovoid},
 			{"__ZN21AppleIntelDisplayPath8initHDCPEv", dovoid},
 			{"__ZN17AppleIntelPortHAL4initEP10PortConfig",AppleIntelPortHALinit, this->oAppleIntelPortHALinit},
 			{"__ZN21AppleIntelDisplayPath13getLinkConfigEP16IOFBDPLinkConfig",getLinkConfig, this->ogetLinkConfig},
@@ -9539,8 +9539,6 @@ void  Gen11::enableDisplayEngine(void *that0)
 		}
 	}
 
-	
-	//icl_set_pipe_chicken();
 	
 	if (DISPLAY_VER(display) == 12)
 		intel_de_rmw(display, CLKREQ_POLICY, CLKREQ_POLICY_MEM_UP_OVRD, 0);
