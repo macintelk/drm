@@ -724,7 +724,6 @@ uint64_t  Gen11::getOSInformation2(void *that)
 	
 	pinfo[p].connectors[1].type=ConnectorDummy;
 	pinfo[p].connectors[0].pipe=1;
-	pinfo[p].connectors[0].flags+=CNAlterAppertureRequirements;
 	
 	OSArray *connectorArray = OSArray::withCapacity(6);
 	for (int i = 0; i < 6; i++) {

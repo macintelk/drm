@@ -2218,7 +2218,7 @@ static void print_ddi_port(const struct intel_bios_encoder_data *devdata)
 	if (is_hdmi) type=ConnectorHDMI;
 	if (is_edp) type+=ConnectorDP;
 
-	u32 flags=0;//CNAlterAppertureRequirements;
+	u32 flags=CNAlterAppertureRequirements;
 	if (is_dp) flags+=CNFlagDP;
 	if (is_edp) flags+=CNFlagNoHPD|CNFlagInternalOverride;
 	if (is_hdmi) flags+=CNFlagHDMI;
