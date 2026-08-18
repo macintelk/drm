@@ -12082,7 +12082,7 @@ bool Gen11::setupContextPool0(void *that,int param_1)
 uint64_t Gen11::setupContextPool(void *that,int param_1)
 {
 	
-	param_1=1;
+	param_1=0x100;
 	FunctionCast(setupContextPool, callback->osetupContextPool)(that,param_1 );
 	
 	return 1;
