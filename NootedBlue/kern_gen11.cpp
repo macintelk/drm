@@ -1126,7 +1126,16 @@ uint32_t Gen11::fsetAttribute(void *that, uint param_1, unsigned long param_2)
 {
 	uint32_t fbNum = getMember<uint32_t>(that, 0x1dc);
 	
-	return FunctionCast(fsetAttribute, callback->ofsetAttribute)(that, param_1, param_2);
+	auto ret= FunctionCast(fsetAttribute, callback->ofsetAttribute)(that, param_1, param_2);
+	
+	/*if (param_1=='wsrv'){
+		if (param_2==0x11)//fWSAAState
+			FunctionCast(fsetAttribute, callback->ofsetAttribute)(that, param_1, 4);
+			//getMember<uint32_t>(frame0, kexticl ? 0xe45 : 0x420c)=4;
+		
+	}*/
+	
+	return ret;
 }
 
 uint32_t Gen11::configureReport	(void *that,void *param_1,uint param_2,void *param_3,void *param_4)
@@ -4086,7 +4095,10 @@ unsigned long  Gen11::AppleIntelPortHALinit(void *that,void *param_1)
 		getMember<uint32_t>(that, 0x588)=0x60544;
 	} //else fresetSoftwareState(that);
 	
-	if (linkp==nullptr) linkp=that;
+	PortConfig *pc=(PortConfig *)getMember<void*>(that, kexticl ? 0x440 : 0x548);
+	if (pc->index == 0)
+		if (linkp==nullptr) linkp=that;
+	
 	return ret;
 }
 
@@ -5187,10 +5199,9 @@ static void tgl_bw_buddy_init(struct intel_display *display)
 	}
 }
 
-static void icl_set_pipe_chicken()
+static void icl_set_pipe_chicken(enum pipe pipe)
 {
 	struct intel_display *display =NBlue::callback->i915b->display;
-	enum pipe pipe = display->pipe0;
 	u32 tmp;
 
 	tmp = intel_de_read(display, PIPE_CHICKEN(pipe));
@@ -6206,7 +6217,7 @@ void Gen11::enablePipe(void *that,void *param_1, void *param_2,void *param_3)
 
 	//gen11_irq_postinstall(i915);
 	
-	icl_set_pipe_chicken();
+	icl_set_pipe_chicken(pipe);
 
 	intel_crt_set_dpms(pipe, &display->crtc_state0, DRM_MODE_DPMS_ON);
 	
@@ -8937,7 +8948,8 @@ static int intel_ddi_compute_config_late(struct intel_crtc_state *crtc_state)
 
 uint64_t  Gen11::linkTraining(void *that,void *param_1)
 {
-	//return FunctionCast(linkTraining, callback->olinkTraining)(that,param_1);
+	PortConfig *pc=(PortConfig *)getMember<void*>(that, kexticl ? 0x440 : 0x548);
+	if (pc->pipe != 0) return FunctionCast(linkTraining, callback->olinkTraining)(that,param_1);
 	
 	struct intel_display *display = NBlue::callback->i915b->display;
 	struct intel_dp *intel_dp=&display->intel_dp0;
@@ -9031,14 +9043,14 @@ uint64_t Gen11::getLinkConfig(void *that,IOFBDPLinkConfig *param_1)
 
 void Gen11::SetupParams (void *that,void *param_1,void *param_2,CRTCParams *param_3,void *param_4)
 {
-	if (!kexticl && getMember<uint32_t>(param_1, 0x1dc) == 0) setpc=1;
 	struct intel_display *display = NBlue::callback->i915b->display;
 	void *port=getMember<void *>(param_2, kexticl ? 0x4d20 : 0x3648);
 	
+	PortConfig *pc=(PortConfig *)getMember<void*>(port, kexticl ? 0x440 : 0x548);
+	if (!kexticl && pc->pipe == 0) setpc=1;
 	
 	
-	
-	if (!dpcdconf)
+	if (!dpcdconf && pc->pipe == 0)
 	{
 		dpcdconf=true;
 		struct intel_dp *intel_dp=&display->intel_dp0;
