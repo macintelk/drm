@@ -95,11 +95,11 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			{"__ZN15AppleIntelPlane10setupPlaneEP21AppleIntelDisplayPathi",setupPlane, this->osetupPlane},
 			{"__ZN14AppleIntelPort8writeAUXEjPvj",writeAUX, this->owriteAUX},
 			{"__ZN14AppleIntelPort7readAUXEjPvj",readAUX, this->oreadAUX},
-			{"__ZN31AppleIntelFramebufferController15enableVDDForAuxEP14AppleIntelPort",enableVDDForAux2, this->oenableVDDForAux2},
-			{"__ZN31AppleIntelFramebufferController16disableVDDForAuxEP14AppleIntelPort",disableVDDForAux2, this->odisableVDDForAux2},
+			//{"__ZN31AppleIntelFramebufferController15enableVDDForAuxEP14AppleIntelPort",enableVDDForAux2, this->oenableVDDForAux2},
+			//{"__ZN31AppleIntelFramebufferController16disableVDDForAuxEP14AppleIntelPort",disableVDDForAux2, this->odisableVDDForAux2},
 			{"__ZN31AppleIntelFramebufferController15hwSetPanelPowerEj",hwSetPanelPower, this->ohwSetPanelPower},
 			{"__ZN14AppleIntelPort12linkTrainingEP18AGDCDPPortConfig_t",linkTraining, this->olinkTraining},
-			{"__ZN21AppleIntelFramebuffer19getPixelInformationEiiiP18IOPixelInformation",fgetPixelInformation, this->ofgetPixelInformation},
+			//{"__ZN21AppleIntelFramebuffer19getPixelInformationEiiiP18IOPixelInformation",fgetPixelInformation, this->ofgetPixelInformation},
 			{"__ZN21AppleIntelDisplayPath8initHDCPEv", dovoid},
 			//{"__ZN15AppleIntelPlane17configurePlaneCUSEP19FlipTransactionArgs10IGColorCtl",dovoid},
 			//{"__ZN15AppleIntelPlane18configurePlaneiCSCEP19FlipTransactionArgs10IGColorCtl",dovoid},
@@ -118,7 +118,6 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			{"__ZN19AppleIntelPowerWell19disablePowerWellDDIEj",disablePowerWellDDI, this->odisablePowerWellDDI},
 			{"__ZN19AppleIntelPowerWell18disablePowerWellPGEj",disablePowerWellPG, this->odisablePowerWellPG},
 			//{"__ZN20IntelFBClientControl11doAttributeEjPmmS0_S0_P25IOExternalMethodArguments",wrapFBClientDoAttribute,	this->orgFBClientDoAttribute},
-			
 			
 			//{"__ZN31AppleIntelFramebufferController16hwRegsNeedUpdateEP21AppleIntelFramebufferP21AppleIntelDisplayPathP10CRTCParamsPK29IODetailedTimingInformationV2PN16AppleIntelScaler12SCALERPARAMSE",hwRegsNeedUpdate, this->ohwRegsNeedUpdate},
 			/*{"__ZN21AppleIntelFramebuffer31frameBufferNotificationcallbackEP8OSObjectPvP13IOFramebufferiS2_",aframeBufferNotificationcallback, this->oaframeBufferNotificationcallback},
@@ -237,7 +236,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			{"__ZN14AppleIntelPort7readAUXEjPvj",readAUX, this->oreadAUX},
 			{"__ZN21AppleIntelFramebuffer12getAttributeEjPm",fgetAttribute, this->ofgetAttribute},
 			{"__ZN21AppleIntelFramebuffer12setAttributeEjm",fsetAttribute, this->ofsetAttribute},
-			{"__ZN21AppleIntelFramebuffer19getPixelInformationEiiiP18IOPixelInformation",fgetPixelInformation, this->ofgetPixelInformation},
+			//{"__ZN21AppleIntelFramebuffer19getPixelInformationEiiiP18IOPixelInformation",fgetPixelInformation, this->ofgetPixelInformation},
 			{"__ZN15AppleIntelPlane18configurePlaneiCSCEP19FlipTransactionArgs10IGColorCtl",dovoid},
 			{"__ZN15AppleIntelPlane17configurePlaneCUSEP19FlipTransactionArgs10IGColorCtl",dovoid},
 			{"__ZN21AppleIntelDisplayPath8initHDCPEv", dovoid},
@@ -255,8 +254,8 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			//{"__ZN21AppleIntelFramebuffer28setupInitialTransactionStateEj",fsetupInitialTransactionState, this->ofsetupInitialTransactionState},
 			//{"__ZN19AppleIntelPowerWell18enablePowerWellAuxEj",enablePowerWellAux, this->oenablePowerWellAux},
 
-			{"__ZN14AppleIntelPort9setupPortEv",fsetupPort, this->ofsetupPort},
-			{"__ZN14AppleIntelPort18resetSoftwareStateEv",fresetSoftwareState, this->ofresetSoftwareState},
+			//{"__ZN14AppleIntelPort9setupPortEv",fsetupPort, this->ofsetupPort},
+			//{"__ZN14AppleIntelPort18resetSoftwareStateEv",fresetSoftwareState, this->ofresetSoftwareState},
 			
 			//{"__ZN24AppleIntelBaseController21getCallbackCapabilityEP24AGDCCallbackCapability_t",getCallbackCapability, this->ogetCallbackCapability},
 			//{"__ZN24AppleIntelBaseController16GetGPUCapabilityEP19AGDCGPUCapability_t",GetGPUCapability, this->oGetGPUCapability},
@@ -287,8 +286,8 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 				{"__ZN31AppleIntelFramebufferController18setAsyncSliceCountE13IGSliceConfig",setAsyncSliceCount, this->osetAsyncSliceCount},
 				{"__ZN31AppleIntelFramebufferController9hwGetCRTCEP21AppleIntelFramebufferP21AppleIntelDisplayPath",hwGetCRTC, this->ohwGetCRTC},
 				{"__ZN31AppleIntelFramebufferController21hwSetPanelPowerConfigEj", hwSetPanelPowerConfig,this->ohwSetPanelPowerConfig},
-				{"__ZN31AppleIntelFramebufferController15enableVDDForAuxEP14AppleIntelPort",enableVDDForAux, this->oenableVDDForAux},
-				{"__ZN31AppleIntelFramebufferController16disableVDDForAuxEv",disableVDDForAux, this->odisableVDDForAux},
+				//{"__ZN31AppleIntelFramebufferController15enableVDDForAuxEP14AppleIntelPort",enableVDDForAux, this->oenableVDDForAux},
+				//{"__ZN31AppleIntelFramebufferController16disableVDDForAuxEv",disableVDDForAux, this->odisableVDDForAux},
 				{"__ZN21AppleIntelFramebuffer4initEP31AppleIntelFramebufferControllerj",AppleIntelFramebufferinit, this->oAppleIntelFramebufferinit},
 				{"__ZN31AppleIntelFramebufferController13FBMemMgr_InitEv", FBMemMgr_Init,this->oFBMemMgr_Init},
 				{"__ZN31AppleIntelFramebufferController23initPlatformWorkaroundsEv",initPlatformWorkarounds, this->oinitPlatformWorkarounds},
@@ -315,8 +314,8 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 				{"__ZN24AppleIntelBaseController18setAsyncSliceCountE13IGSliceConfig",setAsyncSliceCount, this->osetAsyncSliceCount},
 				{"__ZN24AppleIntelBaseController9hwGetCRTCEP21AppleIntelFramebufferP21AppleIntelDisplayPath",hwGetCRTC, this->ohwGetCRTC},
 				{"__ZN24AppleIntelBaseController21hwSetPanelPowerConfigEj", hwSetPanelPowerConfig,this->ohwSetPanelPowerConfig},
-				{"__ZN24AppleIntelBaseController15enableVDDForAuxEP14AppleIntelPort",enableVDDForAux, this->oenableVDDForAux},
-				{"__ZN24AppleIntelBaseController16disableVDDForAuxEv",disableVDDForAux, this->odisableVDDForAux},
+				//{"__ZN24AppleIntelBaseController15enableVDDForAuxEP14AppleIntelPort",enableVDDForAux, this->oenableVDDForAux},
+				//{"__ZN24AppleIntelBaseController16disableVDDForAuxEv",disableVDDForAux, this->odisableVDDForAux},
 				{"__ZN21AppleIntelFramebuffer4initEP24AppleIntelBaseControllerj",AppleIntelFramebufferinit, this->oAppleIntelFramebufferinit},
 				{"__ZN24AppleIntelBaseController13FBMemMgr_InitEv", FBMemMgr_Init,this->oFBMemMgr_Init},
 				{"__ZN24AppleIntelBaseController23initPlatformWorkaroundsEv",initPlatformWorkarounds, this->oinitPlatformWorkarounds},
@@ -722,8 +721,10 @@ uint64_t  Gen11::getOSInformation2(void *that)
 		pinfo[p].connectors[i].flags=NBlue::callback->i915b->display->bconnectors[i].flags;
 	}
 	
-	pinfo[p].connectors[1].type=ConnectorDummy;
+	//pinfo[p].connectors[1].type=ConnectorDummy;
 	pinfo[p].connectors[0].pipe=1;
+	pinfo[p].connectors[0].flags-=CNConnectorAlwaysConnected;
+	
 	
 	OSArray *connectorArray = OSArray::withCapacity(6);
 	for (int i = 0; i < 6; i++) {
@@ -783,7 +784,7 @@ uint64_t  Gen11::getOSInformation(void *that)
 		pinfo[p].connectors[i].flags=NBlue::callback->i915b->display->bconnectors[i].flags;
 	}
 	
-	pinfo[p].connectors[1].type=ConnectorDummy;
+	//pinfo[p].connectors[1].type=ConnectorDummy;
 	//pinfo[p].connectors[0].pipe=1;
 	
 		
@@ -1106,10 +1107,7 @@ IOReturn Gen11::fgetAttributeForConnection(void* framebuffer, int32_t connectInd
 {
 	const auto ret = FunctionCast(fgetAttributeForConnection, callback->ofgetAttributeForConnection)(
 																										   framebuffer, connectIndex, attribute, value);
-	
-	
-		
-		
+
 	if (attribute != 'bklt') { return ret; }
 	
 	u32 v=NBlue::callback->i915b->display->panel.backlight.level;
@@ -1124,72 +1122,10 @@ IOReturn Gen11::fgetAttributeForConnection(void* framebuffer, int32_t connectInd
 
 
 
-static uint32_t oldWSAAState = 0;
 uint32_t Gen11::fsetAttribute(void *that, uint param_1, unsigned long param_2)
 {
-	if (0)
-	if (param_1 == 'wsrv')
-	{
-		uint32_t fbNum = getMember<uint32_t>(that, 0x1dc);
-		
-		if (fbNum == 1)
-		{
-			getMember<uint32_t>(that, kexticl ? 0x8a20 : 0x44e0)=0x7fffffff;//IgnoreConnection
-			return 0xe00002c7; // kIOReturnNoDevice
-		}
-		oldWSAAState=getMember<uint32_t>(that, kexticl ? 0x85dc : 0x420c);
-		oldWSAAState = oldWSAAState & 0xffffffef;
-		FunctionCast(fsetAttribute, callback->ofsetAttribute)(that, param_1, param_2);
-		IOSleep(1);
-		
-		if (0)
-		if (!kexticl)
-		if (param_2==0x11)
-		{
-			
-			getMember<uint8_t>(ccont2, kexticl ? 0xe45 : 0xe5f)=0;//wservp1
-			
-			void* dpath=getMember<void*>(that, kexticl ? 0xe45 : 0x4a08);
-			void *pla=getMember<void*>(dpath, kexticl ? 0xe45 : 0x32c8);
-			
-			/*getMember<uint32_t>(that, 0x49e0)=1;//sleepwake
-			getMember<uint32_t>(that, 0x4284)=1;//sleepmode
-			FunctionCast(fsetAttribute, callback->ofsetAttribute)(frame0, 'powr',2);
-			IOSleep(1);
-			*/
-			
-			getMember<int32_t>(that, kexticl ? 0xe45 : 0x4004)=-2;//fTransactionState
-			//getMember<int32_t>(that, kexticl ? 0xe45 : 0x4008)=-1;//fTransactionState2
-			
-			getMember<uint32_t>(that, kexticl ? 0xe45 : 0x4210)=1;//fWSAAState2
-			getMember<uint8_t>(pla, kexticl ? 0xe45 : 0x84)=1;//planeconfigured
-			getMember<uint32_t>(that, kexticl ? 0xe45 : 0x4214)=1;//fWSAAState3
-			updatePlane(pla,true);
-			getMember<uint32_t>(that, kexticl ? 0xe45 : 0x4214)=0;//fWSAAState3
-			getMember<uint32_t>(that, kexticl ? 0xe45 : 0x49e0)=4;//sleepwake
-			IOSleep(1);
-			
-			
-			getMember<uint32_t>(that, kexticl ? 0xe45 : 0x4214)=1;//fWSAAState3
-			RestoreTransactions(that,true);
-			getMember<uint32_t>(that, kexticl ? 0xe45 : 0x4214)=0;//fWSAAState3
-			IOSleep(1);
-			
-			getMember<uint32_t>(that, kexticl ? 0xe45 : 0x420c)=0x4;//fWSAAState
-			
-			//getMember<uint8_t>(that, 0x44de)=1;//IOFBNeedsRefresh
-			//getMember<uint8_t>(that, 0x4b8c)=0;//unplugged
-			//getMember<uint8_t>(that, 0x1e0)=1;//fOnline
-			
-
-			
-			
-		}
-
-		return 0;
-		
-	}
-
+	uint32_t fbNum = getMember<uint32_t>(that, 0x1dc);
+	
 	return FunctionCast(fsetAttribute, callback->ofsetAttribute)(that, param_1, param_2);
 }
 
@@ -1202,25 +1138,11 @@ uint32_t Gen11::configureReport	(void *that,void *param_1,uint param_2,void *par
 	{
 		Report=0;
 
-		/*getMember<uint32_t>(frame0, 0x4284)=2;//sleepmode
-		
-		getMember<uint8_t>(frame0, 0x1e0)=1;//fOnline
-		getMember<uint8_t>(frame0, 0x1e1)=0;//newOnlineState
-		getMember<uint8_t>(ccont2, 0xe61)=1;//lidisclosed
-		wrapSetAttributeForConnection(frame0, 0, 'prob', 1);
-		IOSleep(1);
-		getMember<uint8_t>(frame0, 0x1e0)=0;//fOnline
-		getMember<uint8_t>(frame0, 0x1e1)=1;//newOnlineState
-		getMember<uint8_t>(ccont2, 0xe61)=0;//lidisclosed
-		wrapSetAttributeForConnection(frame0, 0, 'prob', 1);
-		IOSleep(1);*/
-		
-		getMember<uint32_t>(frame0, 0x4284)=2;//sleepmode
-		fsetAttribute(frame0, 'powr',1);
-		getMember<uint32_t>(frame0, 0x4284)=1;//sleepmode
+		getMember<uint32_t>(frame0, kexticl ? 0x87c4 : 0x4284)=2;//sleepmode
+		fsetAttribute(frame0, 'powr',0);
+		getMember<uint32_t>(frame0, kexticl ? 0x87c4 : 0x4284)=0;//sleepmode
 		fsetAttribute(frame0, 'powr',2);
 		
-
 	}
 	
 	
@@ -12072,7 +11994,7 @@ uint64_t Gen11::setupAdditionalDataStructs(void *that) {
 bool Gen11::setupContextPool0(void *that,int param_1)
 {
 	
-	param_1=1;
+	param_1=0x100;
 	FunctionCast(setupContextPool0, callback->osetupContextPool0)(that,param_1 );
 	
 	return true;
