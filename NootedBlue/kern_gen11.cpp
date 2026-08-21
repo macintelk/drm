@@ -237,8 +237,8 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			{"__ZN21AppleIntelFramebuffer12getAttributeEjPm",fgetAttribute, this->ofgetAttribute},
 			{"__ZN21AppleIntelFramebuffer12setAttributeEjm",fsetAttribute, this->ofsetAttribute},
 			//{"__ZN21AppleIntelFramebuffer19getPixelInformationEiiiP18IOPixelInformation",fgetPixelInformation, this->ofgetPixelInformation},
-			{"__ZN15AppleIntelPlane18configurePlaneiCSCEP19FlipTransactionArgs10IGColorCtl",dovoid},
-			{"__ZN15AppleIntelPlane17configurePlaneCUSEP19FlipTransactionArgs10IGColorCtl",dovoid},
+			//{"__ZN15AppleIntelPlane18configurePlaneiCSCEP19FlipTransactionArgs10IGColorCtl",dovoid},
+			//{"__ZN15AppleIntelPlane17configurePlaneCUSEP19FlipTransactionArgs10IGColorCtl",dovoid},
 			{"__ZN21AppleIntelDisplayPath8initHDCPEv", dovoid},
 			{"__ZN17AppleIntelPortHAL4initEP10PortConfig",AppleIntelPortHALinit, this->oAppleIntelPortHALinit},
 			{"__ZN21AppleIntelDisplayPath13getLinkConfigEP16IOFBDPLinkConfig",getLinkConfig, this->ogetLinkConfig},
@@ -256,6 +256,12 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 
 			//{"__ZN14AppleIntelPort9setupPortEv",fsetupPort, this->ofsetupPort},
 			//{"__ZN14AppleIntelPort18resetSoftwareStateEv",fresetSoftwareState, this->ofresetSoftwareState},
+			
+			
+			{"__ZN15AppleIntelPlane11enablePlaneEb",enablePlane, this->oenablePlane},
+			//{"__ZN21AppleIntelFramebuffer22PerformFlipTransactionEP30IOAccelDisplayPipeTransaction2yP21FlipTransactionParams",PerformFlipTransaction, this->oPerformFlipTransaction},
+			//{"__ZN21AppleIntelFramebuffer21PreProcessTransactionEj",PreProcessTransaction, this->oPreProcessTransaction},
+			{"__ZN15AppleIntelPlane14configurePlaneEP19FlipTransactionArgs",configurePlane, this->oconfigurePlane},
 			
 			//{"__ZN24AppleIntelBaseController21getCallbackCapabilityEP24AGDCCallbackCapability_t",getCallbackCapability, this->ogetCallbackCapability},
 			//{"__ZN24AppleIntelBaseController16GetGPUCapabilityEP19AGDCGPUCapability_t",GetGPUCapability, this->oGetGPUCapability},
@@ -408,7 +414,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		
 		if (isprod){
 			LookupPatchPlus const patchesp[] = {// tgl production kext
-				{&kextG11FBT, f5, r5, arrsize(f5),	1},
+				//{&kextG11FBT, f5, r5, arrsize(f5),	1},
 				{&kextG11FBT, f7p, r7p, arrsize(f7p),	1},
 				{&kextG11FBT, f9p, r9p, arrsize(f9p),	1},
 				{&kextG11FBT, f13p, r13p, arrsize(f13p),	1},
@@ -700,7 +706,7 @@ uint64_t  Gen11::getOSInformation2(void *that)
 	
 		pinfo[p].camelliaVersion=0;
 	
-		pinfo[p].fMobile=1;
+		pinfo[p].fislaptop=1;
 		pinfo[p].fPipeCount=3;
 		pinfo[p].fPortCount=3;
 		pinfo[p].fInfoFramebufferCount=2;
@@ -762,7 +768,7 @@ uint64_t  Gen11::getOSInformation(void *that)
 		pinfo[p].cameliav=0;
 		//CamelliaTcon2=2 BanksiaTcon=3
 	
-		pinfo[p].fMobile=1;
+		pinfo[p].fislaptop=1;
 		pinfo[p].fPipeCount=3;
 		pinfo[p].fInfoPortCount=3;
 		pinfo[p].fInfoFramebufferCount=2;
@@ -1128,12 +1134,13 @@ uint32_t Gen11::fsetAttribute(void *that, uint param_1, unsigned long param_2)
 	
 	auto ret= FunctionCast(fsetAttribute, callback->ofsetAttribute)(that, param_1, param_2);
 	
-	/*if (param_1=='wsrv'){
-		if (param_2==0x11)//fWSAAState
-			FunctionCast(fsetAttribute, callback->ofsetAttribute)(that, param_1, 4);
-			//getMember<uint32_t>(frame0, kexticl ? 0xe45 : 0x420c)=4;
-		
-	}*/
+	if (param_1=='wsrv'){
+		if (param_2==0x11){
+			//FunctionCast(fsetAttribute, callback->ofsetAttribute)(that, param_1, 4);
+			getMember<uint32_t>(frame0, kexticl ? 0xe45 : 0x4210)=1;///fWSAAState2
+			getMember<uint32_t>(frame0, kexticl ? 0xe45 : 0x420c)=4;///fWSAAState
+		}
+	}
 	
 	return ret;
 }
@@ -1213,10 +1220,7 @@ void Gen11::fsetupInitialTransactionState(void *that,uint param_1)
 	 FunctionCast(fsetupInitialTransactionState, callback->ofsetupInitialTransactionState)(that, param_1);
 }
 
-void Gen11::updatePlane(void *that,bool param_1)
-{
-	return FunctionCast(updatePlane, callback->oupdatePlane)(that, param_1);
-}
+
 
 void Gen11::RestoreTransactions(void *that,bool param_1)
 {
@@ -1246,9 +1250,92 @@ int Gen11::probeBootPipe(void *that,bool *param_1,void *param_2)
 	return FunctionCast(probeBootPipe, callback->oprobeBootPipe)(that, param_1,param_2);
 }
 
+uint64_t Gen11::PreProcessTransaction(void *that,uint param_1)
+{
+	auto ret= FunctionCast(PreProcessTransaction, callback->oPreProcessTransaction)(that, param_1);
+	return ret;
+}
+
+void Gen11::updatePlane(void *that,bool param_1)
+{
+	FunctionCast(updatePlane, callback->oupdatePlane)(that, param_1);
+}
+
+void Gen11::setupPlane(void *that,void *param_1,int param_2)
+{//icl
+	FunctionCast(setupPlane, callback->osetupPlane)(that ,param_1,param_2);
+	//skl_get_initial_plane_config
+	//PLANE_CTL_1_A (0x00070180): 0x84000400
+	//PLANE_STRIDE_1_A (0x00070188): 0x0000000d
+	
+	//getMember<uint32_t>(that, 0x100)=0x84000400;
+	//getMember<uint32_t>(that, 0x118)=0xd;
+}
+
+void Gen11::setupPlane2(void *that,void *param_1)
+{ //tgl
+	FunctionCast(setupPlane2, callback->osetupPlane2)(that ,param_1);
+	
+	//PLANE_CTL_1_A (0x00070180): 0x84000400
+	//PLANE_STRIDE_1_A (0x00070188): 0x0000000d
+	
+	//getMember<uint32_t>(that, 0x100)=0x84000400;
+	//getMember<uint32_t>(that, 0x118)=0xd;
+}
+
+void  Gen11::configurePlane(void *that,void *param_1)
+{
+	/*
+	u32 Stride=getMember<uint32_t>(param_1, kexticl ? 0xe45 : 0x8);
+	u32 Stride2=getMember<uint32_t>(that, kexticl ? 0xe45 : 0x18);
+	u32 PLANE_SURF=getMember<uint32_t>(that, kexticl ? 0xe45 : 0x120);
+	u32 SurfAddress=getMember<uint32_t>(param_1, kexticl ? 0xe45 : 0);
+	u32 AuxOffset=getMember<uint32_t>(param_1, kexticl ? 0xe45 : 0x40);
+	u8 wservp1=getMember<uint8_t>(ccont2, kexticl ? 0xe45 : 0xe5f);
+	u32 planeID=getMember<uint32_t>(that, kexticl ? 0xe45 : 0x7c);
+	u8 CompressionMode=getMember<uint8_t>(param_1, kexticl ? 0xe45 : 0x32);
+	u32 PLANE_OFFSET=getMember<uint32_t>(that, kexticl ? 0xe45 : 0x110);
+	u32 caps=getMember<uint32_t>(param_1, kexticl ? 0xe45 : 0x2c);
+	u32 planeoptions=getMember<uint32_t>(param_1, kexticl ? 0xe45 : 0x50);
+	*/
+
+	//getMember<uint32_t>(param_1, kexticl ? 0xe45 : 0)=0x418cb000;
+	
+	FunctionCast(configurePlane, callback->oconfigurePlane)(that, param_1);
+	enablePlane(that,true);
+}
+
+
+int Gen11::PerformFlipTransaction(void *that,void *param_1,unsigned long long param_2, void *param_3)
+{
+	
+	
+	
+	u32 fWSAAState=getMember<uint32_t>(that, kexticl ? 0xe45 : 0x420c);//fWSAAState
+	u8 fOnline=getMember<uint8_t>(that, kexticl ? 0xe45 : 0x1e0);//fOnline
+	int fTransactionState=getMember<int>(that, kexticl ? 0xe45 : 0x4004);
+	u32 fWSAAState2=getMember<uint32_t>(that, kexticl ? 0xe45 : 0x4210);
+	
+	void *FlipTransactionArgs =getMember<void*>(param_3, 0x8);
+	void* dpath=getMember<void*>(that, kexticl ? 0xe45 : 0x4a08);
+	void *pla=getMember<void*>(dpath, kexticl ? 0xe45 : 0x32c8);
+	
+	auto ret= FunctionCast(PerformFlipTransaction, callback->oPerformFlipTransaction)(that, param_1,param_2,param_3);
+	
+	//if (fTransactionState==0 && fWSAAState2==2 && *(u8*)param_3) panic("xx");//enablePlane(pla,true);
+	
+	return ret;
+}
+
+void Gen11::enablePlane(void *that,bool param_1)
+{
+	FunctionCast(enablePlane, callback->oenablePlane)(that, param_1);
+}
+
+
 void  Gen11::disablePowerWellAux(void *that,uint param_1)
 {
-	return FunctionCast(disablePowerWellAux, callback->odisablePowerWellAux)(that, param_1);
+	FunctionCast(disablePowerWellAux, callback->odisablePowerWellAux)(that, param_1);
 }
 
 void  Gen11::enablePowerWellAux(void *that,uint param_1)
@@ -6269,27 +6356,7 @@ void Gen11::hwInitializeCState(void *that)
 	
 }
 
-void Gen11::setupPlane(void *that,void *param_1,int param_2)
-{//icl
-	FunctionCast(setupPlane, callback->osetupPlane)(that ,param_1,param_2);
-	//skl_get_initial_plane_config
-	//PLANE_CTL_1_A (0x00070180): 0x84000400
-	//PLANE_STRIDE_1_A (0x00070188): 0x0000000d
-	
-	//getMember<uint32_t>(that, 0x100)=0x84000400;
-	//getMember<uint32_t>(that, 0x118)=0xd;
-}
 
-void Gen11::setupPlane2(void *that,void *param_1)
-{ //tgl
-	FunctionCast(setupPlane2, callback->osetupPlane2)(that ,param_1);
-	
-	//PLANE_CTL_1_A (0x00070180): 0x84000400
-	//PLANE_STRIDE_1_A (0x00070188): 0x0000000d
-	
-	//getMember<uint32_t>(that, 0x100)=0x84000400;
-	//getMember<uint32_t>(that, 0x118)=0xd;
-}
 
 
 

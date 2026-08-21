@@ -283,7 +283,7 @@ struct PACKED PlatformInfo {
 		uint32_t fInfoPlatformID;
 		uint32_t fPchType;
 		uint64_t* fModelNameAddr;
-		uint8_t fMobile;
+		uint8_t fislaptop;
 		uint8_t fPipeCount;
 		uint8_t fInfoPortCount;
 		uint8_t fInfoFramebufferCount;
@@ -489,7 +489,7 @@ struct PACKED FramebufferICLLP {
 
 	uint32_t fPchType;
 	uint64_t *fModelNameAddr;
-	uint8_t  fMobile;
+	uint8_t  fislaptop;
 	uint8_t  fPipeCount;
 	uint8_t  fPortCount;
 	uint8_t  fInfoFramebufferCount;
@@ -945,7 +945,17 @@ public:
 	static IOReturn wrapFBClientDoAttribute(void *fbclient, uint32_t attribute, unsigned long *unk1, unsigned long unk2, unsigned long *unk3, unsigned long *unk4, void *externalMethodArguments);
 	mach_vm_address_t orgFBClientDoAttribute {};
 	
-
+	static int PerformFlipTransaction(void *that,void *param_1,unsigned long long param_2, void *param_3);
+	mach_vm_address_t oPerformFlipTransaction {};
+	
+	static uint64_t PreProcessTransaction(void *that,uint param_1);
+	mach_vm_address_t oPreProcessTransaction {};
+	
+	static void  configurePlane(void *that,void *param_1);
+	mach_vm_address_t oconfigurePlane {};
+	
+	static void enablePlane(void *that,bool param_1);
+	mach_vm_address_t oenablePlane {};
 	
 public:
 
