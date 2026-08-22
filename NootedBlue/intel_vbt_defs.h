@@ -12071,7 +12071,158 @@ struct guc_process_desc {
 #define _CURASURFLIVE		0x700ac /* g4x+ */
 #define CURSURFLIVE(dev_priv, pipe)	_MMIO_CURSOR2((dev_priv), (pipe), _CURASURFLIVE)
 
+#define   PLANE_CTL_ASYNC_FLIP			REG_BIT(9)
+#define   PLANE_CTL_PIPE_GAMMA_ENABLE		REG_BIT(30)
+#define   PLANE_CTL_PIPE_CSC_ENABLE		REG_BIT(23)
+	
+	
+#define   PLANE_CTL_ENABLE			REG_BIT(31)
+#define   PLANE_CTL_FORMAT_MASK_SKL		REG_GENMASK(27, 24)
+#define   PLANE_CTL_TILED_MASK			REG_GENMASK(12, 10)
+#define   PLANE_CTL_FORMAT_XRGB_8888		REG_FIELD_PREP(PLANE_CTL_FORMAT_MASK_SKL, 4)
+#define   PLANE_CTL_ORDER_RGBX			REG_BIT(20)
+#define   PLANE_CTL_TILED_Y			REG_FIELD_PREP(PLANE_CTL_TILED_MASK, 4)
 
+#define   PLANE_CTL_RENDER_DECOMPRESSION_ENABLE	REG_BIT(15)
+	
+	
+#define _SKL_PLANE(pipe, plane, reg_1_a, reg_1_b, reg_2_a, reg_2_b) \
+	_PLANE((plane), _PIPE((pipe), (reg_1_a), (reg_1_b)), _PIPE((pipe), (reg_2_a), (reg_2_b)))
+#define _SKL_PLANE_DW(pipe, plane, dw, reg_1_a, reg_1_b, reg_2_a, reg_2_b) \
+	(_SKL_PLANE((pipe), (plane), (reg_1_a), (reg_1_b), (reg_2_a), (reg_2_b)) + (dw) * 4)
+#define _MMIO_SKL_PLANE(pipe, plane, reg_1_a, reg_1_b, reg_2_a, reg_2_b) \
+	_MMIO(_SKL_PLANE((pipe), (plane), (reg_1_a), (reg_1_b), (reg_2_a), (reg_2_b)))
+#define _MMIO_SKL_PLANE_DW(pipe, plane, dw, reg_1_a, reg_1_b, reg_2_a, reg_2_b) \
+	_MMIO(_SKL_PLANE_DW((pipe), (plane), (dw), (reg_1_a), (reg_1_b), (reg_2_a), (reg_2_b)))
+
+#define _SEL_FETCH(pipe, plane, reg_1_a, reg_1_b, reg_2_a, reg_2_b, reg_5_a, reg_5_b, reg_6_a, reg_6_b) \
+	_PICK_EVEN_2RANGES((plane), PLANE_5, \
+			   _PIPE((pipe), (reg_1_a), (reg_1_b)), \
+			   _PIPE((pipe), (reg_2_a), (reg_2_b)), \
+			   _PIPE((pipe), (reg_5_a), (reg_5_b)), \
+			   _PIPE((pipe), (reg_6_a), (reg_6_b)))
+#define _MMIO_SEL_FETCH(pipe, plane, reg_1_a, reg_1_b, reg_2_a, reg_2_b, reg_5_a, reg_5_b, reg_6_a, reg_6_b) \
+	_MMIO(_SEL_FETCH((pipe), (plane), \
+			 (reg_1_a), (reg_1_b), (reg_2_a), (reg_2_b), \
+			 (reg_5_a), (reg_5_b), (reg_6_a), (reg_6_b)))
+	
+#define _PLANE(plane, a, b)		_PICK_EVEN(plane, a, b)
+
+#define _PLANE_CTL_1_A				0x70180
+#define _PLANE_CTL_2_A				0x70280
+#define _PLANE_CTL_1_B				0x71180
+#define _PLANE_CTL_2_B				0x71280
+#define PLANE_CTL(pipe, plane)		_MMIO_SKL_PLANE((pipe), (plane), \
+							_PLANE_CTL_1_A, _PLANE_CTL_1_B, \
+							_PLANE_CTL_2_A, _PLANE_CTL_2_B)
+	enum plane_id {
+		/* skl+ universal plane names */
+		PLANE_1,
+		PLANE_2,
+		PLANE_3,
+		PLANE_4,
+		PLANE_5,
+		PLANE_6,
+		PLANE_7,
+
+		PLANE_CURSOR,
+
+		I915_MAX_PLANES,
+
+		/* pre-skl plane names */
+		PLANE_PRIMARY = PLANE_1,
+		PLANE_SPRITE0,
+		PLANE_SPRITE1,
+	};
+	
+#define DRM_FORMAT_RESERVED	      ((1ULL << 56) - 1)
+#define DRM_FORMAT_MOD_VENDOR_INTEL   0x01
+#define _PLANE_COLOR_CTL_1_A			0x701cc /* GLK+ */
+#define _PLANE_COLOR_CTL_2_A			0x702cc
+#define _PLANE_COLOR_CTL_1_B			0x711cc
+#define _PLANE_COLOR_CTL_2_B			0x712cc
+#define PLANE_COLOR_CTL(pipe, plane)	_MMIO_SKL_PLANE((pipe), (plane), \
+							_PLANE_COLOR_CTL_1_A, _PLANE_COLOR_CTL_1_B, \
+							_PLANE_COLOR_CTL_2_A, _PLANE_COLOR_CTL_2_B)
+#define   PLANE_COLOR_ALPHA_MASK			REG_GENMASK(5, 4)
+#define   PLANE_COLOR_ALPHA_DISABLE			REG_FIELD_PREP(PLANE_COLOR_ALPHA_MASK, 0)
+#define   PLANE_COLOR_ALPHA_SW_PREMULTIPLY		REG_FIELD_PREP(PLANE_COLOR_ALPHA_MASK, 2)
+#define   PLANE_COLOR_ALPHA_HW_PREMULTIPLY		REG_FIELD_PREP(PLANE_COLOR_ALPHA_MASK, 3)
+	
+#define fourcc_mod_get_vendor(modifier) \
+	(((modifier) >> 56) & 0xff)
+
+#define fourcc_mod_is_vendor(modifier, vendor) \
+	(fourcc_mod_get_vendor(modifier) == DRM_FORMAT_MOD_VENDOR_## vendor)
+
+#define fourcc_mod_code(vendor, val) \
+	((((u64)DRM_FORMAT_MOD_VENDOR_## vendor) << 56) | ((val) & 0x00ffffffffffffffULL))
+#define   PLANE_CTL_FORMAT_MASK_ICL		REG_GENMASK(27, 23)
+#define I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS fourcc_mod_code(INTEL, 6)
+#define   PLANE_CTL_FLIP_HORIZONTAL		REG_BIT(8)
+#define DRM_MODE_REFLECT_X      (1<<4)
+#define DRM_MODE_REFLECT_Y      (1<<5)
+#define DRM_MODE_ROTATE_0       (1<<0)
+#define _PLANE_SURF_1_A				0x7019c
+#define _PLANE_SURF_2_A				0x7029c
+#define _PLANE_SURF_1_B				0x7119c
+#define _PLANE_SURF_2_B				0x7129c
+#define PLANE_SURF(pipe, plane)		_MMIO_SKL_PLANE((pipe), (plane), \
+							_PLANE_SURF_1_A, _PLANE_SURF_1_B, \
+							_PLANE_SURF_2_A, _PLANE_SURF_2_B)
+#define   PLANE_SURF_ADDR_MASK			REG_GENMASK(31, 12)
+#define _PLANE_OFFSET_1_A			0x701a4
+#define _PLANE_OFFSET_2_A			0x702a4
+#define _PLANE_OFFSET_1_B			0x711a4
+#define _PLANE_OFFSET_2_B			0x712a4
+#define PLANE_OFFSET(pipe, plane)	_MMIO_SKL_PLANE((pipe), (plane), \
+							_PLANE_OFFSET_1_A, _PLANE_OFFSET_1_B, \
+							_PLANE_OFFSET_2_A, _PLANE_OFFSET_2_B)
+#define   PLANE_OFFSET_Y_MASK			REG_GENMASK(31, 16)
+#define   PLANE_CTL_ALPHA_MASK			REG_GENMASK(5, 4)
+#define   PLANE_CTL_ALPHA_SW_PREMULTIPLY	REG_FIELD_PREP(PLANE_CTL_ALPHA_MASK, 2)
+#define fourcc_code(a, b, c, d) ((u32)(a) | ((u32)(b) << 8) | \
+				 ((u32)(c) << 16) | ((u32)(d) << 24))
+#define DRM_FORMAT_XRGB8888	fourcc_code('X', 'R', '2', '4')
+#define I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS fourcc_mod_code(INTEL, 6)
+#define   PLANE_CTL_MEDIA_DECOMPRESSION_ENABLE	REG_BIT(4)
+#define I915_FORMAT_MOD_Y_TILED_GEN12_MC_CCS fourcc_mod_code(INTEL, 7)
+#define I915_FORMAT_MOD_Y_TILED	fourcc_mod_code(INTEL, 2)
+#define DRM_MODE_ROTATE_0       (1<<0)
+#define DRM_MODE_ROTATE_90      (1<<1)
+#define DRM_MODE_ROTATE_180     (1<<2)
+#define DRM_MODE_ROTATE_270     (1<<3)
+#define DRM_MODE_ROTATE_MASK (\
+		DRM_MODE_ROTATE_0  | \
+		DRM_MODE_ROTATE_90  | \
+		DRM_MODE_ROTATE_180 | \
+		DRM_MODE_ROTATE_270)
+
+#define   PLANE_CTL_KEY_ENABLE_MASK		REG_GENMASK(22, 21)
+#define DRM_MODE_REFLECT_MASK (\
+		DRM_MODE_REFLECT_X | \
+		DRM_MODE_REFLECT_Y)
+#define   PLANE_CTL_KEY_ENABLE_SOURCE		REG_FIELD_PREP(PLANE_CTL_KEY_ENABLE_MASK, 1)
+#define   PLANE_CTL_KEY_ENABLE_DESTINATION	REG_FIELD_PREP(PLANE_CTL_KEY_ENABLE_MASK, 2)
+
+#define   PLANE_CTL_FORMAT_XRGB_8888		REG_FIELD_PREP(PLANE_CTL_FORMAT_MASK_SKL, 4)
+#define DRM_FORMAT_ARGB8888	fourcc_code('A', 'R', '2', '4')
+#define DRM_FORMAT_ABGR8888	fourcc_code('A', 'B', '2', '4') 
+#define DRM_FORMAT_XBGR8888	fourcc_code('X', 'B', '2', '4')
+#define   PLANE_CTL_TILED_LINEAR		REG_FIELD_PREP(PLANE_CTL_TILED_MASK, 0)
+#define DRM_FORMAT_MOD_LINEAR	fourcc_mod_code(NONE, 0)
+#define I915_FORMAT_MOD_X_TILED	fourcc_mod_code(INTEL, 1)
+#define   PLANE_CTL_TILED_X			REG_FIELD_PREP(PLANE_CTL_TILED_MASK, 1)
+#define DRM_FORMAT_MOD_VENDOR_NONE    0
+#define I915_FORMAT_MOD_4_TILED_MTL_RC_CCS fourcc_mod_code(INTEL, 13)
+#define I915_FORMAT_MOD_Y_TILED_CCS	fourcc_mod_code(INTEL, 4)
+#define I915_FORMAT_MOD_Yf_TILED_CCS	fourcc_mod_code(INTEL, 5)
+#define I915_FORMAT_MOD_4_TILED_MTL_MC_CCS fourcc_mod_code(INTEL, 14)
+#define   PLANE_CTL_ROTATE_MASK			REG_GENMASK(1, 0)
+#define   PLANE_CTL_ROTATE_0			REG_FIELD_PREP(PLANE_CTL_ROTATE_MASK, 0)
+#define   PLANE_CTL_ROTATE_90			REG_FIELD_PREP(PLANE_CTL_ROTATE_MASK, 1)
+#define   PLANE_CTL_ROTATE_180			REG_FIELD_PREP(PLANE_CTL_ROTATE_MASK, 2)
+#define   PLANE_CTL_ROTATE_270			REG_FIELD_PREP(PLANE_CTL_ROTATE_MASK, 3)
 
 
 

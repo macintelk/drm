@@ -258,6 +258,8 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			//{"__ZN14AppleIntelPort18resetSoftwareStateEv",fresetSoftwareState, this->ofresetSoftwareState},
 			
 			
+			
+			
 			{"__ZN15AppleIntelPlane11enablePlaneEb",enablePlane, this->oenablePlane},
 			//{"__ZN21AppleIntelFramebuffer22PerformFlipTransactionEP30IOAccelDisplayPipeTransaction2yP21FlipTransactionParams",PerformFlipTransaction, this->oPerformFlipTransaction},
 			//{"__ZN21AppleIntelFramebuffer21PreProcessTransactionEj",PreProcessTransaction, this->oPreProcessTransaction},
@@ -539,6 +541,8 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			// {"__ZN22IGHardwareGuCWorkQueue11withOptionsEP22IOGraphicsAccelerator2jP37UK_GEN11_SCHED_PROCESS_DESCRIPTOR_REC",IGHardwareGuCWorkQueuewithOptions, this->oIGHardwareGuCWorkQueuewithOptions},
 			 //{"__ZN13IGHardwareGuC14allocContextIdEyb",allocContextId, this->oallocContextId},
 			 
+			//{"__ZN18IGAccelDisplayPipe19validateTransactionEP30IOAccelDisplayPipeTransaction2",validateTransaction, this->ovalidateTransaction},
+			
 			 /*
 			 {"__ZN13IGHardwareGuC16releaseUkContextEj",dovoid},
 			 {"__ZN13IGHardwareGuC33deregisterCommandTransportBuffersEv",dovoid},
@@ -1134,13 +1138,13 @@ uint32_t Gen11::fsetAttribute(void *that, uint param_1, unsigned long param_2)
 	
 	auto ret= FunctionCast(fsetAttribute, callback->ofsetAttribute)(that, param_1, param_2);
 	
-	if (param_1=='wsrv'){
+	/*if (param_1=='wsrv'){
 		if (param_2==0x11){
 			//FunctionCast(fsetAttribute, callback->ofsetAttribute)(that, param_1, 4);
 			getMember<uint32_t>(frame0, kexticl ? 0xe45 : 0x4210)=1;///fWSAAState2
 			getMember<uint32_t>(frame0, kexticl ? 0xe45 : 0x420c)=4;///fWSAAState
 		}
-	}
+	}*/
 	
 	return ret;
 }
@@ -1272,6 +1276,8 @@ void Gen11::setupPlane(void *that,void *param_1,int param_2)
 	//getMember<uint32_t>(that, 0x118)=0xd;
 }
 
+
+
 void Gen11::setupPlane2(void *that,void *param_1)
 { //tgl
 	FunctionCast(setupPlane2, callback->osetupPlane2)(that ,param_1);
@@ -1283,34 +1289,218 @@ void Gen11::setupPlane2(void *that,void *param_1)
 	//getMember<uint32_t>(that, 0x118)=0xd;
 }
 
+#define DRM_MODE_REFLECT_X      (1<<4)
+#define DRM_MODE_REFLECT_Y      (1<<5)
+#define   PLANE_CTL_FLIP_HORIZONTAL		REG_BIT(8)
+
+static u32 icl_plane_ctl_flip(unsigned int reflect)
+{
+	switch (reflect) {
+	case 0:
+		break;
+	case DRM_MODE_REFLECT_X:
+		return PLANE_CTL_FLIP_HORIZONTAL;
+	case DRM_MODE_REFLECT_Y:
+	default:
+	}
+
+	return 0;
+}
+
+int skl_format_to_fourcc(int format, bool rgb_order, bool alpha)
+{
+	switch (format) {
+		default:
+		case PLANE_CTL_FORMAT_XRGB_8888:
+			if (rgb_order) {
+				if (alpha)
+					return DRM_FORMAT_ABGR8888;
+				else
+					return DRM_FORMAT_XBGR8888;
+			} else {
+				if (alpha)
+					return DRM_FORMAT_ARGB8888;
+				else
+					return DRM_FORMAT_XRGB8888;
+			}
+	}
+}
+
+static u32 skl_plane_ctl_format(u32 pixel_format)
+{
+	switch (pixel_format) {
+	case DRM_FORMAT_XBGR8888:
+	case DRM_FORMAT_ABGR8888:
+		return PLANE_CTL_FORMAT_XRGB_8888 | PLANE_CTL_ORDER_RGBX;
+	default:
+	case DRM_FORMAT_XRGB8888:
+	case DRM_FORMAT_ARGB8888:
+		return PLANE_CTL_FORMAT_XRGB_8888;
+	
+	}
+
+	return 0;
+}
+
+static u32 skl_plane_ctl_tiling(u64 fb_modifier)
+{
+	switch (fb_modifier) {
+	case DRM_FORMAT_MOD_LINEAR:
+		break;
+	case I915_FORMAT_MOD_X_TILED:
+		return PLANE_CTL_TILED_X;
+	case I915_FORMAT_MOD_Y_TILED:
+		return PLANE_CTL_TILED_Y;
+	default:
+	}
+
+	return 0;
+}
+
+static u32 skl_plane_ctl_rotate(unsigned int rotate)
+{
+	switch (rotate) {
+	case DRM_MODE_ROTATE_0:
+		break;
+
+	case DRM_MODE_ROTATE_90:
+		return PLANE_CTL_ROTATE_270;
+	case DRM_MODE_ROTATE_180:
+		return PLANE_CTL_ROTATE_180;
+	case DRM_MODE_ROTATE_270:
+		return PLANE_CTL_ROTATE_90;
+	default:
+	}
+
+	return 0;
+}
+
 void  Gen11::configurePlane(void *that,void *param_1)
 {
-	/*
-	u32 Stride=getMember<uint32_t>(param_1, kexticl ? 0xe45 : 0x8);
-	u32 Stride2=getMember<uint32_t>(that, kexticl ? 0xe45 : 0x18);
-	u32 PLANE_SURF=getMember<uint32_t>(that, kexticl ? 0xe45 : 0x120);
-	u32 SurfAddress=getMember<uint32_t>(param_1, kexticl ? 0xe45 : 0);
-	u32 AuxOffset=getMember<uint32_t>(param_1, kexticl ? 0xe45 : 0x40);
-	u8 wservp1=getMember<uint8_t>(ccont2, kexticl ? 0xe45 : 0xe5f);
-	u32 planeID=getMember<uint32_t>(that, kexticl ? 0xe45 : 0x7c);
-	u8 CompressionMode=getMember<uint8_t>(param_1, kexticl ? 0xe45 : 0x32);
-	u32 PLANE_OFFSET=getMember<uint32_t>(that, kexticl ? 0xe45 : 0x110);
-	u32 caps=getMember<uint32_t>(param_1, kexticl ? 0xe45 : 0x2c);
-	u32 planeoptions=getMember<uint32_t>(param_1, kexticl ? 0xe45 : 0x50);
-	*/
 
-	//getMember<uint32_t>(param_1, kexticl ? 0xe45 : 0)=0x418cb000;
+	u32 planeID=getMember<uint32_t>(that, kexticl ? 0xe45 : 0x7c);
+	
+	enum plane_id plane_id = static_cast<enum plane_id>(planeID);
+	enum pipe pipe=PIPE_A;
+	int fourcc, pixel_format;
+	struct intel_display *display = NBlue::callback->i915b->display;
+	u32 val, base, offset, stride_mult, tiling, alpha;
+	uint64_t modifier;
+	
+	val = intel_de_read(display, PLANE_CTL(pipe, plane_id));
+	pixel_format = val & PLANE_CTL_FORMAT_MASK_ICL;
+	
+	u32 color_ctl;
+	color_ctl = intel_de_read(display, PLANE_COLOR_CTL(pipe, plane_id));
+	alpha = REG_FIELD_GET(PLANE_COLOR_ALPHA_MASK, color_ctl);
+	
+	fourcc = skl_format_to_fourcc(pixel_format,val & PLANE_CTL_ORDER_RGBX, alpha);
+
+	tiling = val & PLANE_CTL_TILED_MASK;
+	
+	modifier=I915_FORMAT_MOD_Y_TILED_CCS;
+
+	switch (tiling) {
+		case PLANE_CTL_TILED_LINEAR:
+			modifier = DRM_FORMAT_MOD_LINEAR;
+			break;
+		case PLANE_CTL_TILED_X:
+			modifier = I915_FORMAT_MOD_X_TILED;
+			break;
+		case PLANE_CTL_TILED_Y:
+			if (val & PLANE_CTL_RENDER_DECOMPRESSION_ENABLE)
+				if (DISPLAY_VER(display) >= 14)
+					modifier = I915_FORMAT_MOD_4_TILED_MTL_RC_CCS;
+				else if (DISPLAY_VER(display) >= 12)
+					modifier = I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS;
+				else
+					modifier = I915_FORMAT_MOD_Y_TILED_CCS;
+				else if (val & PLANE_CTL_MEDIA_DECOMPRESSION_ENABLE)
+					if (DISPLAY_VER(display) >= 14)
+						modifier = I915_FORMAT_MOD_4_TILED_MTL_MC_CCS;
+					else
+						modifier = I915_FORMAT_MOD_Y_TILED_GEN12_MC_CCS;
+					else
+						modifier = I915_FORMAT_MOD_Y_TILED;
+			break;
+	}
+	
+	u8 rotation = 0;
+	
+	switch (val & PLANE_CTL_ROTATE_MASK) {
+	case PLANE_CTL_ROTATE_0:
+		rotation = DRM_MODE_ROTATE_0;
+		break;
+	case PLANE_CTL_ROTATE_90:
+		rotation = DRM_MODE_ROTATE_270;
+		break;
+	case PLANE_CTL_ROTATE_180:
+		rotation = DRM_MODE_ROTATE_180;
+		break;
+	case PLANE_CTL_ROTATE_270:
+		rotation = DRM_MODE_ROTATE_90;
+		break;
+	}
+	
+	if (DISPLAY_VER(display) >= 11 && val & PLANE_CTL_FLIP_HORIZONTAL)
+		rotation |= DRM_MODE_REFLECT_X;
+	
+	base = intel_de_read(display, PLANE_SURF(pipe, plane_id)) & PLANE_SURF_ADDR_MASK;
+	offset = intel_de_read(display, PLANE_OFFSET(pipe, plane_id));
+	
+	u32 plane_ctl=PLANE_CTL_ENABLE;
+	plane_ctl |= skl_plane_ctl_format(pixel_format);
+	plane_ctl |= skl_plane_ctl_tiling(modifier);
+	plane_ctl |= skl_plane_ctl_rotate(rotation & DRM_MODE_ROTATE_MASK);
+	
+	if (DISPLAY_VER(display) >= 11)
+		plane_ctl |= icl_plane_ctl_flip(rotation &
+						DRM_MODE_REFLECT_MASK);
+	
+	//if (key->flags & I915_SET_COLORKEY_DESTINATION)
+		//plane_ctl |= PLANE_CTL_KEY_ENABLE_DESTINATION;
+	//else if (key->flags & I915_SET_COLORKEY_SOURCE)
+		//plane_ctl |= PLANE_CTL_KEY_ENABLE_SOURCE;
+	
+	//if (intel_display_wa(display, INTEL_DISPLAY_WA_22012358565))
+	//	plane_ctl |= adlp_plane_ctl_arb_slots(plane_state);
+	
+	plane_ctl |= PLANE_CTL_ASYNC_FLIP;
 	
 	FunctionCast(configurePlane, callback->oconfigurePlane)(that, param_1);
-	enablePlane(that,true);
+	
+	u32 Stride=getMember<uint32_t>(param_1, kexticl ? 0xe45 : 0x8);
+	u32 Stride2=getMember<uint32_t>(that, kexticl ? 0xe45 : 0x18);
+	u32 SurfAddress=getMember<uint32_t>(param_1, 0);
+	u32 AuxOffset=getMember<uint32_t>(param_1, kexticl ? 0xe45 : 0x40);
+	u8 wservp1=getMember<uint8_t>(ccont2, kexticl ? 0xe45 : 0xe5f);
+	u8 CompressionMode=getMember<uint8_t>(param_1, kexticl ? 0xe45 : 0x32);
+	u32 caps=getMember<uint32_t>(param_1, kexticl ? 0xe45 : 0x2c);
+	u32 planeoptions=getMember<uint32_t>(param_1, kexticl ? 0xe45 : 0x50);
+	u32 PLANE_STRIDE=getMember<uint32_t>(that, kexticl ? 0xe45 : 0x118);
+	u32 PLANE_COLOR_CTL=getMember<uint32_t>(that, kexticl ? 0xe45 : 0x104);
+	u32 PLANE_SIZE=getMember<uint32_t>(that, kexticl ? 0xe45 : 0x11c);
+	u32 PLANE_AUX_DIST=getMember<uint32_t>(that, kexticl ? 0xe45 : 0x114);
+	u32 PLANE_POS=getMember<uint32_t>(that, kexticl ? 0xe45 : 0x124);
+	u32 PLANE_CUS=getMember<uint32_t>(that, kexticl ? 0xe45 : 0x128);
+	u32 PLANE_SURF=getMember<uint32_t>(that, kexticl ? 0xe45 : 0x120);
+	u32 PLANE_OFFSET=getMember<uint32_t>(that, kexticl ? 0xe45 : 0x110);
+	
+	
+	//skl_calc_main_surface_offset
+	
+	//getMember<uint32_t>(param_1, 0)=base+offset;//SurfAddress
+	//getMember<uint32_t>(that, kexticl ? 0xe45 : 0x110)=offset;//PLANE_OFFSET
+	//getMember<uint32_t>(that, kexticl ? 0xe45 : 0x120)=base;//PLANE_SURF
+	getMember<uint32_t>(that, 0x100)=plane_ctl;//PLANE_CTL
+	
+	//enablePlane(that,true);
 }
 
 
 int Gen11::PerformFlipTransaction(void *that,void *param_1,unsigned long long param_2, void *param_3)
 {
-	
-	
-	
+	/*
 	u32 fWSAAState=getMember<uint32_t>(that, kexticl ? 0xe45 : 0x420c);//fWSAAState
 	u8 fOnline=getMember<uint8_t>(that, kexticl ? 0xe45 : 0x1e0);//fOnline
 	int fTransactionState=getMember<int>(that, kexticl ? 0xe45 : 0x4004);
@@ -1319,10 +1509,9 @@ int Gen11::PerformFlipTransaction(void *that,void *param_1,unsigned long long pa
 	void *FlipTransactionArgs =getMember<void*>(param_3, 0x8);
 	void* dpath=getMember<void*>(that, kexticl ? 0xe45 : 0x4a08);
 	void *pla=getMember<void*>(dpath, kexticl ? 0xe45 : 0x32c8);
-	
+	*/
 	auto ret= FunctionCast(PerformFlipTransaction, callback->oPerformFlipTransaction)(that, param_1,param_2,param_3);
 	
-	//if (fTransactionState==0 && fWSAAState2==2 && *(u8*)param_3) panic("xx");//enablePlane(pla,true);
 	
 	return ret;
 }
@@ -12079,6 +12268,16 @@ bool Gen11::setupContextPool0(void *that,int param_1)
 	return true;
 	
 }
+
+uint Gen11::validateTransaction(void *that,void *param_1)
+{
+	
+	auto ret=FunctionCast(validateTransaction, callback->ovalidateTransaction)(that,param_1 );
+	
+	return ret;
+	
+}
+
 
 uint64_t Gen11::setupContextPool(void *that,int param_1)
 {

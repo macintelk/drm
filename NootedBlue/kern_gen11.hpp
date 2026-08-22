@@ -957,6 +957,11 @@ public:
 	static void enablePlane(void *that,bool param_1);
 	mach_vm_address_t oenablePlane {};
 	
+	static uint validateTransaction(void *that,void *param_1);
+	mach_vm_address_t ovalidateTransaction {};
+	
+	
+	
 public:
 
 	void init();

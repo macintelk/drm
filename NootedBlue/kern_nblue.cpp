@@ -260,10 +260,10 @@ bool NBlue::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		/*KernelPatcher::RouteRequest requests[] = {
 			{"__ZN14IOAccelSurface11set_id_modeEjj", lset_id_mode, olset_id_mode},
 			{"__ZN20IOAccelLegacySurface11set_id_modeEjj", lset_id_mode, olset_id_mode},
-		};*/
+		};
 			
-			//SYSLOG_COND(!patcher.routeMultipleLong(index, requests, address, size), "IOAcceleratorFamily2", "Failed to apply patch");
-			//patcher.clearError();
+			SYSLOG_COND(!patcher.routeMultipleLong(index, requests, address, size), "IOAcceleratorFamily2", "Failed to apply patch");
+			patcher.clearError();*/
 		return true;
 	}  else if (kextIOGraphics.loadIndex == index) {
 
