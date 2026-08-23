@@ -262,6 +262,10 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			//{"__ZN21AppleIntelFramebuffer21PreProcessTransactionEj",PreProcessTransaction, this->oPreProcessTransaction},
 			{"__ZN15AppleIntelPlane14configurePlaneEP19FlipTransactionArgs",configurePlane, this->oconfigurePlane},
 			
+			{"__ZN21AppleIntelFramebuffer28getInformationForDisplayModeEiP24IODisplayModeInformation",getInformationForDisplayMode, this->ogetInformationForDisplayMode},
+			
+			
+			
 			//{"__ZN24AppleIntelBaseController21getCallbackCapabilityEP24AGDCCallbackCapability_t",getCallbackCapability, this->ogetCallbackCapability},
 			//{"__ZN24AppleIntelBaseController16GetGPUCapabilityEP19AGDCGPUCapability_t",GetGPUCapability, this->oGetGPUCapability},
 			
@@ -1112,16 +1116,20 @@ IOReturn Gen11::fgetAttributeForConnection(void* framebuffer, int32_t connectInd
 										  unsigned long *value)
 {
 	const auto ret = FunctionCast(fgetAttributeForConnection, callback->ofgetAttributeForConnection)(
-																										   framebuffer, connectIndex, attribute, value);
-
-	if (attribute != 'bklt') { return ret; }
+																									 framebuffer, connectIndex, attribute, value);
 	
+	uint32_t fbNum = getMember<uint32_t>(framebuffer, 0x1dc);
+	if (fbNum!=0) return kIOReturnUnsupported;
+		
+	if (attribute == 'bklt')
+	{
 	u32 v=NBlue::callback->i915b->display->panel.backlight.level;
 	if (getMember<uint32_t>(ccont2, kexticl ? 0xe4c: kexttgld ? 0xe64 : 0xe58)<v)  getMember<uint32_t>(ccont2, kexticl ? 0xe4c: kexttgld ? 0xe64 : 0xe58)=v;
 	
 	*value=getMember<uint32_t>(ccont2, kexticl ? 0xe4c: kexttgld ? 0xe64 : 0xe58);
 	value[1] = 0;
 	value[2] = 0xffff;
+	}
 	
 	return kIOReturnSuccess;
 };
@@ -1177,14 +1185,24 @@ unsigned long  Gen11::fcallPlatformFunction(void *that,void *param_1,bool param_
 	return FunctionCast(fcallPlatformFunction, callback->ofcallPlatformFunction)(that, param_1, param_2, param_3, param_4, param_5, param_6);
 }
 
+uint64_t Gen11::getInformationForDisplayMode(void *that,int param_1,void *param_2)
+{
+	uint32_t fbNum = getMember<uint32_t>(that, 0x1dc);
+	if (fbNum!=0) return kIOReturnUnsupported;
+	
+	auto ret = FunctionCast(getInformationForDisplayMode, callback->ogetInformationForDisplayMode)(that,param_1,param_2);
+	return ret;
+}
 IOReturn Gen11::wrapSetAttributeForConnection(void* framebuffer, int32_t connectIndex, uint32_t attribute,
 											  unsigned long value)
 {
 	const auto ret = FunctionCast(wrapSetAttributeForConnection, callback->owrapSetAttributeForConnection)(
 																										   framebuffer, connectIndex, attribute, value);
 	
+	uint32_t fbNum = getMember<uint32_t>(framebuffer, 0x1dc);
+	if (fbNum!=0) return kIOReturnUnsupported;
+
 	if (attribute != 'bklt') { return ret; }
-	
 	
 	if (value<NBlue::callback->i915b->display->panel.backlight.level)  value=NBlue::callback->i915b->display->panel.backlight.level;
 	
@@ -9415,6 +9433,7 @@ int Gen11::isConflictRegister(void *that,uint param_1)
 
 int Gen11::fgetPixelInformation(void *that,int param_1,int param_2,int param_3,void *param_4)
 {
+	
 	auto ret=FunctionCast(fgetPixelInformation, callback->ofgetPixelInformation)(that ,param_1,param_2,param_3,param_4);
 	uint32_t fbNum = getMember<uint32_t>(that, 0x1dc);
 	if (fbNum==0) return 0;
@@ -13328,6 +13347,8 @@ uint64_t Gen11::loadFirmware(void *that)
 	void *m_accelerator = getMember<void *>(that, 0x10);
 	
 	if (guc->fw.file_selected.ver.major < 69) {
+		
+		gen11_rc6_enable(m_accelerator);
 		
 		SafeForceWake(m_accelerator, true, 7);
 		guc_enable_communication(guc);

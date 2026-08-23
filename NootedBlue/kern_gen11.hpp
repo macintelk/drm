@@ -960,6 +960,9 @@ public:
 	static uint validateTransaction(void *that,void *param_1);
 	mach_vm_address_t ovalidateTransaction {};
 	
+	static uint64_t getInformationForDisplayMode(void *that,int param_1,void *param_2);
+	mach_vm_address_t ogetInformationForDisplayMode {};
+	
 	
 	
 public:
