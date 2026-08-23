@@ -109,7 +109,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			{"__ZN31AppleIntelFramebufferController10enablePipeEP21AppleIntelFramebufferP21AppleIntelDisplayPathPK29IODetailedTimingInformationV2",enablePipe, this->oenablePipe},
 			{"__ZN21AppleIntelFramebuffer11initVRRCapsEv",initVRRCaps, this->oinitVRRCaps},
 			{"__ZN14AppleIntelPort19displayPortReadEDIDEjjPhj",displayPortReadEDID, this->odisplayPortReadEDID},
-			
+			{"__ZN15AppleIntelPlane14configurePlaneEP19FlipTransactionArgs",configurePlane, this->oconfigurePlane},
 			
 			//{"__ZN19AppleIntelPowerWell4initEP31AppleIntelFramebufferController",AppleIntelPowerWellinit, this->oAppleIntelPowerWellinit},
 			{"__ZN19AppleIntelPowerWell19enableDisplayEngineEv",enableDisplayEngine, this->oenableDisplayEngine},
@@ -257,10 +257,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			//{"__ZN14AppleIntelPort9setupPortEv",fsetupPort, this->ofsetupPort},
 			//{"__ZN14AppleIntelPort18resetSoftwareStateEv",fresetSoftwareState, this->ofresetSoftwareState},
 			
-			
-			
-			
-			{"__ZN15AppleIntelPlane11enablePlaneEb",enablePlane, this->oenablePlane},
+			//{"__ZN15AppleIntelPlane11enablePlaneEb",enablePlane, this->oenablePlane},
 			//{"__ZN21AppleIntelFramebuffer22PerformFlipTransactionEP30IOAccelDisplayPipeTransaction2yP21FlipTransactionParams",PerformFlipTransaction, this->oPerformFlipTransaction},
 			//{"__ZN21AppleIntelFramebuffer21PreProcessTransactionEj",PreProcessTransaction, this->oPreProcessTransaction},
 			{"__ZN15AppleIntelPlane14configurePlaneEP19FlipTransactionArgs",configurePlane, this->oconfigurePlane},
@@ -333,7 +330,6 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 				
 			};
 			PANIC_COND(!patcher.routeMultipleLong(index, requestsd, address, size), "nblue","Failed to route d symbols");
-			
 		}
 		
 		
@@ -1378,7 +1374,7 @@ static u32 skl_plane_ctl_rotate(unsigned int rotate)
 void  Gen11::configurePlane(void *that,void *param_1)
 {
 
-	u32 planeID=getMember<uint32_t>(that, kexticl ? 0xe45 : 0x7c);
+	u32 planeID=getMember<uint32_t>(that, 0x7c);
 	
 	enum plane_id plane_id = static_cast<enum plane_id>(planeID);
 	enum pipe pipe=PIPE_A;
@@ -1468,7 +1464,7 @@ void  Gen11::configurePlane(void *that,void *param_1)
 	plane_ctl |= PLANE_CTL_ASYNC_FLIP;
 	
 	FunctionCast(configurePlane, callback->oconfigurePlane)(that, param_1);
-	
+	/*
 	u32 Stride=getMember<uint32_t>(param_1, kexticl ? 0xe45 : 0x8);
 	u32 Stride2=getMember<uint32_t>(that, kexticl ? 0xe45 : 0x18);
 	u32 SurfAddress=getMember<uint32_t>(param_1, 0);
@@ -1485,7 +1481,7 @@ void  Gen11::configurePlane(void *that,void *param_1)
 	u32 PLANE_CUS=getMember<uint32_t>(that, kexticl ? 0xe45 : 0x128);
 	u32 PLANE_SURF=getMember<uint32_t>(that, kexticl ? 0xe45 : 0x120);
 	u32 PLANE_OFFSET=getMember<uint32_t>(that, kexticl ? 0xe45 : 0x110);
-	
+	*/
 	
 	//skl_calc_main_surface_offset
 	
