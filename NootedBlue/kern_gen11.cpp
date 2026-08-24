@@ -95,8 +95,8 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			//{"__ZN15AppleIntelPlane10setupPlaneEP21AppleIntelDisplayPathi",setupPlane, this->osetupPlane},
 			{"__ZN14AppleIntelPort8writeAUXEjPvj",writeAUX, this->owriteAUX},
 			{"__ZN14AppleIntelPort7readAUXEjPvj",readAUX, this->oreadAUX},
-			//{"__ZN31AppleIntelFramebufferController15enableVDDForAuxEP14AppleIntelPort",enableVDDForAux2, this->oenableVDDForAux2},
-			//{"__ZN31AppleIntelFramebufferController16disableVDDForAuxEP14AppleIntelPort",disableVDDForAux2, this->odisableVDDForAux2},
+			{"__ZN31AppleIntelFramebufferController15enableVDDForAuxEP14AppleIntelPort",enableVDDForAux2, this->oenableVDDForAux2},
+			{"__ZN31AppleIntelFramebufferController16disableVDDForAuxEP14AppleIntelPort",disableVDDForAux2, this->odisableVDDForAux2},
 			{"__ZN31AppleIntelFramebufferController15hwSetPanelPowerEj",hwSetPanelPower, this->ohwSetPanelPower},
 			{"__ZN14AppleIntelPort12linkTrainingEP18AGDCDPPortConfig_t",linkTraining, this->olinkTraining},
 			//{"__ZN21AppleIntelFramebuffer19getPixelInformationEiiiP18IOPixelInformation",fgetPixelInformation, this->ofgetPixelInformation},
@@ -295,8 +295,8 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 				{"__ZN31AppleIntelFramebufferController18setAsyncSliceCountE13IGSliceConfig",setAsyncSliceCount, this->osetAsyncSliceCount},
 				{"__ZN31AppleIntelFramebufferController9hwGetCRTCEP21AppleIntelFramebufferP21AppleIntelDisplayPath",hwGetCRTC, this->ohwGetCRTC},
 				{"__ZN31AppleIntelFramebufferController21hwSetPanelPowerConfigEj", hwSetPanelPowerConfig,this->ohwSetPanelPowerConfig},
-				//{"__ZN31AppleIntelFramebufferController15enableVDDForAuxEP14AppleIntelPort",enableVDDForAux, this->oenableVDDForAux},
-				//{"__ZN31AppleIntelFramebufferController16disableVDDForAuxEv",disableVDDForAux, this->odisableVDDForAux},
+				{"__ZN31AppleIntelFramebufferController15enableVDDForAuxEP14AppleIntelPort",enableVDDForAux, this->oenableVDDForAux},
+				{"__ZN31AppleIntelFramebufferController16disableVDDForAuxEv",disableVDDForAux, this->odisableVDDForAux},
 				{"__ZN21AppleIntelFramebuffer4initEP31AppleIntelFramebufferControllerj",AppleIntelFramebufferinit, this->oAppleIntelFramebufferinit},
 				{"__ZN31AppleIntelFramebufferController13FBMemMgr_InitEv", FBMemMgr_Init,this->oFBMemMgr_Init},
 				{"__ZN31AppleIntelFramebufferController23initPlatformWorkaroundsEv",initPlatformWorkarounds, this->oinitPlatformWorkarounds},
@@ -323,8 +323,8 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 				{"__ZN24AppleIntelBaseController18setAsyncSliceCountE13IGSliceConfig",setAsyncSliceCount, this->osetAsyncSliceCount},
 				{"__ZN24AppleIntelBaseController9hwGetCRTCEP21AppleIntelFramebufferP21AppleIntelDisplayPath",hwGetCRTC, this->ohwGetCRTC},
 				{"__ZN24AppleIntelBaseController21hwSetPanelPowerConfigEj", hwSetPanelPowerConfig,this->ohwSetPanelPowerConfig},
-				//{"__ZN24AppleIntelBaseController15enableVDDForAuxEP14AppleIntelPort",enableVDDForAux, this->oenableVDDForAux},
-				//{"__ZN24AppleIntelBaseController16disableVDDForAuxEv",disableVDDForAux, this->odisableVDDForAux},
+				{"__ZN24AppleIntelBaseController15enableVDDForAuxEP14AppleIntelPort",enableVDDForAux, this->oenableVDDForAux},
+				{"__ZN24AppleIntelBaseController16disableVDDForAuxEv",disableVDDForAux, this->odisableVDDForAux},
 				{"__ZN21AppleIntelFramebuffer4initEP24AppleIntelBaseControllerj",AppleIntelFramebufferinit, this->oAppleIntelFramebufferinit},
 				{"__ZN24AppleIntelBaseController13FBMemMgr_InitEv", FBMemMgr_Init,this->oFBMemMgr_Init},
 				{"__ZN24AppleIntelBaseController23initPlatformWorkaroundsEv",initPlatformWorkarounds, this->oinitPlatformWorkarounds},
@@ -433,7 +433,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		}
 		else {
 			LookupPatchPlus const patches[] = {// tgl debug kext
-				{&kextG11FBT, f5, r5, arrsize(f5),	1},
+				//{&kextG11FBT, f5, r5, arrsize(f5),	1},
 				{&kextG11FBT, f7, r7, arrsize(f7),	1},
 				{&kextG11FBT, f9, r9, arrsize(f9),	1},
 				{&kextG11FBT, f13, r13, arrsize(f13),	1},
@@ -1056,59 +1056,248 @@ void Gen11::raWriteRegister32(void *that,unsigned long param_1, UInt32 param_2)
 	
 };
 
-uint32_t Gen11::enableVDDForAux(void *that,void *param_1)
+static bool edp_have_panel_vdd(struct intel_dp *intel_dp)
 {
-	auto ret= FunctionCast(enableVDDForAux, callback->oenableVDDForAux)( that,param_1);
+	struct intel_display *display = NBlue::callback->i915b->display;
+	struct intel_panel *panel=&display->panel;
+	
+	//lockdep_assert_held(&display->pps.mutex);
 
-	if (ret==0xe00002eb) {
-		if (getMember<bool>(that, 0xe62 ) == true) {
-			IOFramebuffer *r= (IOFramebuffer *)getMember<void *>(that, 0xd60);
-			r->setProperty("AAPL,LCD-PowerState-ON", true);
+	//if ((display->platform.valleyview || display->platform.cherryview) &&
+	//	intel_dp->pps.vlv_pps_pipe == INVALID_PIPE)
+	//	return false;
+
+	return intel_de_read(display, panel->regs.pp_ctrl) & EDP_FORCE_VDD;
+}
+
+static  u32 ilk_get_pp_control(struct intel_dp *intel_dp)
+{
+	struct intel_display *display = NBlue::callback->i915b->display;
+	struct intel_panel *panel=&display->panel;
+	u32 control;
+
+	//lockdep_assert_held(&display->pps.mutex);
+
+	control = intel_de_read(display, panel->regs.pp_ctrl);
+	if (( !HAS_DDI(display) &&
+			(control & PANEL_UNLOCK_MASK) != PANEL_UNLOCK_REGS)) {
+		control &= ~PANEL_UNLOCK_MASK;
+		control |= PANEL_UNLOCK_REGS;
+	}
+	return control;
+}
+
+static bool edp_have_panel_power(struct intel_dp *intel_dp)
+{
+	struct intel_display *display = NBlue::callback->i915b->display;
+	struct intel_panel *panel=&display->panel;
+
+	//lockdep_assert_held(&display->pps.mutex);
+
+	//if ((display->platform.valleyview || display->platform.cherryview) &&
+	//	intel_dp->pps.vlv_pps_pipe == INVALID_PIPE)
+	//	return false;
+
+	return (intel_de_read(display, panel->regs.pp_stat) & PP_ON) != 0;
+}
+
+static void wait_panel_power_cycle(struct intel_dp *intel_dp)
+{
+	struct intel_display *display = NBlue::callback->i915b->display;
+	struct intel_panel *panel=&display->panel;
+	
+	uint32_t mask=IDLE_CYCLE_MASK;
+	uint32_t value=IDLE_CYCLE_VALUE;
+	uint32_t sleep_us=10 * 1000;
+	uint64_t timeout_us=5000 * 1000;
+	bool sleep_before_op=true;
+
+	AbsoluteTime deadline;
+	uint64_t nanos;
+	
+	if (timeout_us) {
+		nanos = timeout_us * 1000;
+		clock_interval_to_absolutetime_interval(
+			nanos, kNanosecondScale, &deadline);
+		deadline += mach_absolute_time();
+	}
+	
+	if (sleep_before_op && sleep_us) {
+		uint32_t min_us = (sleep_us >> 2) + 1;
+		if (sleep_us >= 1000) {
+			IOSleep(sleep_us / 1000);
+		} else {
+			IODelay(sleep_us);
 		}
 	}
-	return ret;
+	
+	for (;;) {
+		uint32_t val;
+		bool expired = false;
+		
+		if (timeout_us) {
+			AbsoluteTime now = mach_absolute_time();
+			if (CMP_ABSOLUTETIME(&now, &deadline) > 0) {
+				expired = true;
+			}
+		}
+		
+		val = intel_de_read(display, panel->regs.pp_stat);
+		
+		if ((val & mask) == value) {
+			return ;//kIOReturnSuccess;
+		}
+		
+		if (expired) {
+			return ;//kIOReturnTimeout;
+		}
+		
+		if (sleep_us) {
+			if (sleep_us >= 1000) {
+				IOSleep(sleep_us / 1000);
+			} else {
+				IODelay(sleep_us);
+			}
+		}
+	}
+	
+	
+	
+	
+}
+
+static void intel_pps_vdd_off()
+{
+	struct intel_display *display = NBlue::callback->i915b->display;
+	struct intel_dp *intel_dp=&display->intel_dp0;
+	struct intel_panel *panel=&display->panel;
+	u32 pp;
+	u32 pp_stat_reg, pp_ctrl_reg;
+
+	//lockdep_assert_held(&display->pps.mutex);
+
+	//drm_WARN_ON(display->drm, intel_dp->pps.want_panel_vdd);
+
+	//if (!edp_have_panel_vdd(intel_dp))
+	//	return;
+
+	pp = ilk_get_pp_control(intel_dp);
+	pp &= ~EDP_FORCE_VDD;
+
+	pp_stat_reg = panel->regs.pp_stat;
+	pp_ctrl_reg = panel->regs.pp_ctrl;
+
+	intel_de_write(display, pp_ctrl_reg, pp);
+	intel_de_posting_read(display, pp_ctrl_reg);
+
+	/*if ((pp & PANEL_POWER_ON) == 0) {
+		intel_dp->pps.panel_power_off_time = ktime_get_boottime();
+		intel_dp_invalidate_source_oui(intel_dp);
+	}
+
+	intel_display_power_put(display,
+				intel_aux_power_domain(dig_port),
+				fetch_and_zero(&intel_dp->pps.vdd_wakeref));*/
+}
+
+bool intel_pps_vdd_on()
+{
+	struct intel_display *display = NBlue::callback->i915b->display;
+	struct intel_dp *intel_dp=&display->intel_dp0;
+	struct intel_panel *panel=&display->panel;
+	u32 pp;
+	u32 pp_stat_reg, pp_ctrl_reg;
+	bool need_to_disable = !intel_dp->pps.want_panel_vdd;
+
+	//if (!intel_dp_is_edp(intel_dp))
+	//	return false;
+
+	//lockdep_assert_held(&display->pps.mutex);
+
+	//cancel_delayed_work(&intel_dp->pps.panel_vdd_work);
+	intel_dp->pps.want_panel_vdd = true;
+
+	if (edp_have_panel_vdd(intel_dp))
+		return need_to_disable;
+
+	//drm_WARN_ON(display->drm, intel_dp->pps.vdd_wakeref);
+	//intel_dp->pps.vdd_wakeref = intel_display_power_get(display,
+	//							intel_aux_power_domain(dig_port));
+
+	pp_stat_reg = panel->regs.pp_stat;
+	pp_ctrl_reg = panel->regs.pp_ctrl;
+
+	if (!edp_have_panel_power(intel_dp))
+		wait_panel_power_cycle(intel_dp);
+
+	pp = ilk_get_pp_control(intel_dp);
+	pp |= EDP_FORCE_VDD;
+
+	intel_de_write(display, pp_ctrl_reg, pp);
+	intel_de_posting_read(display, pp_ctrl_reg);
+
+
+	if (!edp_have_panel_power(intel_dp)) {
+		//msleep(intel_dp->pps.panel_power_up_delay);
+		IOSleep(intel_dp->pps.panel_power_up_delay);
+	}
+
+	return need_to_disable;
+}
+
+uint32_t Gen11::enableVDDForAux(void *that,void *param_1)
+{
+	//auto ret= FunctionCast(enableVDDForAux, callback->oenableVDDForAux)( that,param_1);
+	intel_pps_vdd_on();
+	//if (ret==0xe00002eb) {
+		if (getMember<bool>(that, 0xe62 ) == true) {
+			//IOFramebuffer *r= (IOFramebuffer *)getMember<void *>(that, 0xd60);
+			//frame0->setProperty("AAPL,LCD-PowerState-ON", true);
+		}
+	//}
+	return 0;
 
 };
 
 uint64_t Gen11::enableVDDForAux2(void *that,void *param_1)
 {//icl
-	auto ret= FunctionCast(enableVDDForAux2, callback->oenableVDDForAux2)( that,param_1);
-
-	if (ret==0xe00002eb) {
+	//auto ret= FunctionCast(enableVDDForAux2, callback->oenableVDDForAux2)( that,param_1);
+	intel_pps_vdd_on();
+	//if (ret==0xe00002eb) {
 		if (getMember<bool>(that, 0xe48) == true) {
-			IOFramebuffer *r= (IOFramebuffer *)getMember<void *>(that, 0xd18);
-			r->setProperty("AAPL,LCD-PowerState-ON", true);
+			//IOFramebuffer *r= (IOFramebuffer *)getMember<void *>(that, 0xd18);
+			//frame0->setProperty("AAPL,LCD-PowerState-ON", true);
 		}
-	}
-	return ret;
+	//}
+	return 0;
 
 };
 
 uint64_t Gen11::disableVDDForAux2(void *that,void *param_1)
 {//icl
-	auto ret= FunctionCast(disableVDDForAux2, callback->odisableVDDForAux2)( that,param_1);
-
-	if (ret==0xe00002eb) {
+	//auto ret= FunctionCast(disableVDDForAux2, callback->odisableVDDForAux2)( that,param_1);
+	intel_pps_vdd_off();
+	//if (ret==0xe00002eb) {
 		if (getMember<bool>(that, 0xe48) == true) {
-			IOFramebuffer *r= (IOFramebuffer *)getMember<void *>(that, 0xd18);
-			r->setProperty("AAPL,LCD-PowerState-ON", false);
+			//IOFramebuffer *r= (IOFramebuffer *)getMember<void *>(that, 0xd18);
+			//frame0->setProperty("AAPL,LCD-PowerState-ON", false);
 		}
-	}
-	return ret;
+	//}
+	return 0;
 
 };
 
 uint64_t Gen11::disableVDDForAux(void *that)
 {
-	auto ret= FunctionCast(disableVDDForAux, callback->odisableVDDForAux)( that);
-
-	if (ret==0xe00002eb) {
+	//auto ret= FunctionCast(disableVDDForAux, callback->odisableVDDForAux)( that);
+	intel_pps_vdd_off();
+	//if (ret==0xe00002eb) {
 		if (getMember<bool>(that,  0xe62 ) == true) {
-			IOFramebuffer *r= (IOFramebuffer *)getMember<void *>(that, 0xd60);
-			r->setProperty("AAPL,LCD-PowerState-ON", false);
+			//IOFramebuffer *r= (IOFramebuffer *)getMember<void *>(that, 0xd60);
+			//frame0->setProperty("AAPL,LCD-PowerState-ON", false);
 		}
-	}
-	return ret;
+	//}
+	return 0;
 
 };
 
@@ -8469,9 +8658,13 @@ bool tgl_ddi_pre_enable_dp(struct intel_display *display, struct intel_crtc_stat
 	//if (!kexticl) Gen11::callback->enableVDDForAux(ccont2,linkp);
 	//else Gen11::callback->enableVDDForAux2(ccont2,linkp);
 	
+	intel_pps_vdd_on();
+	
 	if (intel_dp_is_edp())
 	Gen11::callback->hwSetPanelPower(ccont2,2);
 
+	intel_pps_vdd_off();
+	
 	//if (!kexticl) Gen11::callback->disableVDDForAux(ccont2);
 	//else Gen11::callback->disableVDDForAux2(ccont2,linkp);
 	
