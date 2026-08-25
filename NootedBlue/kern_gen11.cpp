@@ -260,7 +260,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			//{"__ZN15AppleIntelPlane11enablePlaneEb",enablePlane, this->oenablePlane},
 			//{"__ZN21AppleIntelFramebuffer22PerformFlipTransactionEP30IOAccelDisplayPipeTransaction2yP21FlipTransactionParams",PerformFlipTransaction, this->oPerformFlipTransaction},
 			//{"__ZN21AppleIntelFramebuffer21PreProcessTransactionEj",PreProcessTransaction, this->oPreProcessTransaction},
-			{"__ZN15AppleIntelPlane14configurePlaneEP19FlipTransactionArgs",configurePlane, this->oconfigurePlane},
+			//{"__ZN15AppleIntelPlane14configurePlaneEP19FlipTransactionArgs",configurePlane, this->oconfigurePlane},
 			
 			{"__ZN21AppleIntelFramebuffer28getInformationForDisplayModeEiP24IODisplayModeInformation",getInformationForDisplayMode, this->ogetInformationForDisplayMode},
 			
@@ -1468,29 +1468,7 @@ void Gen11::updatePlane(void *that,bool param_1)
 	FunctionCast(updatePlane, callback->oupdatePlane)(that, param_1);
 }
 
-void Gen11::setupPlane(void *that,void *param_1,int param_2)
-{//icl
-	FunctionCast(setupPlane, callback->osetupPlane)(that ,param_1,param_2);
-	//skl_get_initial_plane_config
-	//PLANE_CTL_1_A (0x00070180): 0x84000400
-	//PLANE_STRIDE_1_A (0x00070188): 0x0000000d
-	
-	//getMember<uint32_t>(that, 0x100)=0x84000400;
-	//getMember<uint32_t>(that, 0x118)=0xd;
-}
 
-
-
-void Gen11::setupPlane2(void *that,void *param_1)
-{ //tgl
-	FunctionCast(setupPlane2, callback->osetupPlane2)(that ,param_1);
-	
-	//PLANE_CTL_1_A (0x00070180): 0x84000400
-	//PLANE_STRIDE_1_A (0x00070188): 0x0000000d
-	
-	//getMember<uint32_t>(that, 0x100)=0x84000400;
-	//getMember<uint32_t>(that, 0x118)=0xd;
-}
 
 #define DRM_MODE_REFLECT_X      (1<<4)
 #define DRM_MODE_REFLECT_Y      (1<<5)
@@ -1548,12 +1526,21 @@ static u32 skl_plane_ctl_format(u32 pixel_format)
 static u32 skl_plane_ctl_tiling(u64 fb_modifier)
 {
 	switch (fb_modifier) {
-	case DRM_FORMAT_MOD_LINEAR:
-		break;
-	case I915_FORMAT_MOD_X_TILED:
-		return PLANE_CTL_TILED_X;
-	case I915_FORMAT_MOD_Y_TILED:
-		return PLANE_CTL_TILED_Y;
+		case DRM_FORMAT_MOD_LINEAR:
+			break;
+		case I915_FORMAT_MOD_X_TILED:
+			return PLANE_CTL_TILED_X;
+		case I915_FORMAT_MOD_Y_TILED:
+			return PLANE_CTL_TILED_Y;
+		case I915_FORMAT_MOD_Y_TILED_CCS:
+		case I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS_CC:
+			return PLANE_CTL_TILED_Y | PLANE_CTL_RENDER_DECOMPRESSION_ENABLE;
+		case I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS:
+			return PLANE_CTL_TILED_Y |
+				   PLANE_CTL_RENDER_DECOMPRESSION_ENABLE |
+				   PLANE_CTL_CLEAR_COLOR_DISABLE;
+		case I915_FORMAT_MOD_Y_TILED_GEN12_MC_CCS:
+			return PLANE_CTL_TILED_Y | PLANE_CTL_MEDIA_DECOMPRESSION_ENABLE;
 	default:
 	}
 
@@ -1578,9 +1565,8 @@ static u32 skl_plane_ctl_rotate(unsigned int rotate)
 	return 0;
 }
 
-void  Gen11::configurePlane(void *that,void *param_1)
+static u32 plaenp(void *that)
 {
-
 	u32 planeID=getMember<uint32_t>(that, 0x7c);
 	
 	enum plane_id plane_id = static_cast<enum plane_id>(planeID);
@@ -1598,10 +1584,10 @@ void  Gen11::configurePlane(void *that,void *param_1)
 	alpha = REG_FIELD_GET(PLANE_COLOR_ALPHA_MASK, color_ctl);
 	
 	fourcc = skl_format_to_fourcc(pixel_format,val & PLANE_CTL_ORDER_RGBX, alpha);
-
+	
 	tiling = val & PLANE_CTL_TILED_MASK;
 	
-	modifier=I915_FORMAT_MOD_Y_TILED_CCS;
+	modifier=0;
 
 	switch (tiling) {
 		case PLANE_CTL_TILED_LINEAR:
@@ -1618,13 +1604,13 @@ void  Gen11::configurePlane(void *that,void *param_1)
 					modifier = I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS;
 				else
 					modifier = I915_FORMAT_MOD_Y_TILED_CCS;
-				else if (val & PLANE_CTL_MEDIA_DECOMPRESSION_ENABLE)
-					if (DISPLAY_VER(display) >= 14)
-						modifier = I915_FORMAT_MOD_4_TILED_MTL_MC_CCS;
-					else
-						modifier = I915_FORMAT_MOD_Y_TILED_GEN12_MC_CCS;
-					else
-						modifier = I915_FORMAT_MOD_Y_TILED;
+			else if (val & PLANE_CTL_MEDIA_DECOMPRESSION_ENABLE)
+				if (DISPLAY_VER(display) >= 14)
+					modifier = I915_FORMAT_MOD_4_TILED_MTL_MC_CCS;
+				else
+					modifier = I915_FORMAT_MOD_Y_TILED_GEN12_MC_CCS;
+			else
+				modifier = I915_FORMAT_MOD_Y_TILED;
 			break;
 	}
 	
@@ -1653,7 +1639,7 @@ void  Gen11::configurePlane(void *that,void *param_1)
 	
 	u32 plane_ctl=PLANE_CTL_ENABLE;
 	plane_ctl |= skl_plane_ctl_format(pixel_format);
-	plane_ctl |= skl_plane_ctl_tiling(modifier);
+	plane_ctl |= 0x400;//skl_plane_ctl_tiling(modifier);
 	plane_ctl |= skl_plane_ctl_rotate(rotation & DRM_MODE_ROTATE_MASK);
 	
 	if (DISPLAY_VER(display) >= 11)
@@ -1670,34 +1656,76 @@ void  Gen11::configurePlane(void *that,void *param_1)
 	
 	plane_ctl |= PLANE_CTL_ASYNC_FLIP;
 	
-	FunctionCast(configurePlane, callback->oconfigurePlane)(that, param_1);
-	/*
-	u32 Stride=getMember<uint32_t>(param_1, kexticl ? 0xe45 : 0x8);
-	u32 Stride2=getMember<uint32_t>(that, kexticl ? 0xe45 : 0x18);
-	u32 SurfAddress=getMember<uint32_t>(param_1, 0);
-	u32 AuxOffset=getMember<uint32_t>(param_1, kexticl ? 0xe45 : 0x40);
-	u8 wservp1=getMember<uint8_t>(ccont2, kexticl ? 0xe45 : 0xe5f);
-	u8 CompressionMode=getMember<uint8_t>(param_1, kexticl ? 0xe45 : 0x32);
-	u32 caps=getMember<uint32_t>(param_1, kexticl ? 0xe45 : 0x2c);
-	u32 planeoptions=getMember<uint32_t>(param_1, kexticl ? 0xe45 : 0x50);
-	u32 PLANE_STRIDE=getMember<uint32_t>(that, kexticl ? 0xe45 : 0x118);
-	u32 PLANE_COLOR_CTL=getMember<uint32_t>(that, kexticl ? 0xe45 : 0x104);
-	u32 PLANE_SIZE=getMember<uint32_t>(that, kexticl ? 0xe45 : 0x11c);
-	u32 PLANE_AUX_DIST=getMember<uint32_t>(that, kexticl ? 0xe45 : 0x114);
-	u32 PLANE_POS=getMember<uint32_t>(that, kexticl ? 0xe45 : 0x124);
-	u32 PLANE_CUS=getMember<uint32_t>(that, kexticl ? 0xe45 : 0x128);
-	u32 PLANE_SURF=getMember<uint32_t>(that, kexticl ? 0xe45 : 0x120);
-	u32 PLANE_OFFSET=getMember<uint32_t>(that, kexticl ? 0xe45 : 0x110);
-	*/
+	u32 tmp = intel_de_read(display, SKL_BOTTOM_COLOR(pipe));
+
+	if (tmp & SKL_BOTTOM_COLOR_GAMMA_ENABLE)
+		plane_ctl |= PLANE_CTL_PIPE_GAMMA_ENABLE;
 	
-	//skl_calc_main_surface_offset
+	if (tmp & SKL_BOTTOM_COLOR_CSC_ENABLE)
+		plane_ctl |= PLANE_CTL_PIPE_CSC_ENABLE;
 	
-	//getMember<uint32_t>(param_1, 0)=base+offset;//SurfAddress
-	//getMember<uint32_t>(that, kexticl ? 0xe45 : 0x110)=offset;//PLANE_OFFSET
-	//getMember<uint32_t>(that, kexticl ? 0xe45 : 0x120)=base;//PLANE_SURF
+	
+	u32 plane_color_ctl = PLANE_COLOR_PLANE_GAMMA_DISABLE;
+	
+	if (tmp & SKL_BOTTOM_COLOR_GAMMA_ENABLE)
+		plane_color_ctl |= PLANE_COLOR_PIPE_GAMMA_ENABLE;
+
+	if (tmp & SKL_BOTTOM_COLOR_CSC_ENABLE)
+		plane_color_ctl |= PLANE_COLOR_PIPE_CSC_ENABLE;
+	
+	//if (plane_state->force_black)
+		//plane_color_ctl |= PLANE_COLOR_PLANE_CSC_ENABLE;
+
+	//if (plane_state->hw.degamma_lut)
+	//	plane_color_ctl |= PLANE_COLOR_PRE_CSC_GAMMA_ENABLE;
+
+	//if (plane_state->hw.ctm)
+	//	plane_color_ctl |= PLANE_COLOR_PLANE_CSC_ENABLE;
+
+	/*if (plane_state->hw.gamma_lut) {
+		plane_color_ctl &= ~PLANE_COLOR_PLANE_GAMMA_DISABLE;
+		if (drm_color_lut32_size(plane_state->hw.gamma_lut) != 32)
+			plane_color_ctl |= PLANE_COLOR_POST_CSC_GAMMA_MULTSEG_ENABLE;
+	}*/
+	
+	
 	getMember<uint32_t>(that, 0x100)=plane_ctl;//PLANE_CTL
+	getMember<uint32_t>(that, 0x104)=plane_color_ctl;//PLANE_COLOR_CTL
 	
-	//enablePlane(that,true);
+	return plane_ctl;
+}
+
+
+void  Gen11::configurePlane(void *that,void *param_1)
+{
+	plaenp(that);
+	
+	FunctionCast(configurePlane, callback->oconfigurePlane)(that, param_1);
+
+	plaenp(that);
+	
+}
+
+
+void Gen11::setupPlane(void *that,void *param_1,int param_2)
+{//icl
+	FunctionCast(setupPlane, callback->osetupPlane)(that ,param_1,param_2);
+	//skl_get_initial_plane_config
+	//PLANE_CTL_1_A (0x00070180): 0x84000400
+	//PLANE_STRIDE_1_A (0x00070188): 0x0000000d
+	
+	plaenp(that);
+	//getMember<uint32_t>(that, 0x118)=0xd;
+}
+
+void Gen11::setupPlane2(void *that,void *param_1)
+{ //tgl
+	FunctionCast(setupPlane2, callback->osetupPlane2)(that ,param_1);
+	
+	//PLANE_CTL_1_A (0x00070180): 0x84000400
+	//PLANE_STRIDE_1_A (0x00070188): 0x0000000d
+	
+	plaenp(that);
 }
 
 
@@ -13556,4 +13584,5 @@ uint64_t Gen11::loadFirmware(void *that)
 	
 	return ret;
 }
+
 
