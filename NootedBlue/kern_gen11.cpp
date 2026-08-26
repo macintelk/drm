@@ -91,7 +91,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			{"__ZN31AppleIntelFramebufferController20hwConfigureCustomAUXEb",hwConfigureCustomAUX, this->ohwConfigureCustomAUX},
 			{"__ZN17AppleIntelPortHAL4initEP10PortConfig",AppleIntelPortHALinit, this->oAppleIntelPortHALinit},
 			{"__ZN31AppleIntelFramebufferController11SetupParamsEP21AppleIntelFramebufferP21AppleIntelDisplayPathP10CRTCParamsPK29IODetailedTimingInformationV2",SetupParams,	this->oSetupParams},
-			{"__ZN31AppleIntelFramebufferController19setupPipeWatermarksEP21AppleIntelFramebufferP21AppleIntelDisplayPathP10CRTCParams",setupPipeWatermarks, this->osetupPipeWatermarks},
+			//{"__ZN31AppleIntelFramebufferController19setupPipeWatermarksEP21AppleIntelFramebufferP21AppleIntelDisplayPathP10CRTCParams",setupPipeWatermarks, this->osetupPipeWatermarks},
 			//{"__ZN15AppleIntelPlane10setupPlaneEP21AppleIntelDisplayPathi",setupPlane, this->osetupPlane},
 			{"__ZN14AppleIntelPort8writeAUXEjPvj",writeAUX, this->owriteAUX},
 			{"__ZN14AppleIntelPort7readAUXEjPvj",readAUX, this->oreadAUX},
@@ -109,8 +109,13 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			{"__ZN31AppleIntelFramebufferController10enablePipeEP21AppleIntelFramebufferP21AppleIntelDisplayPathPK29IODetailedTimingInformationV2",enablePipe, this->oenablePipe},
 			{"__ZN21AppleIntelFramebuffer11initVRRCapsEv",initVRRCaps, this->oinitVRRCaps},
 			{"__ZN14AppleIntelPort19displayPortReadEDIDEjjPhj",displayPortReadEDID, this->odisplayPortReadEDID},
-			{"__ZN15AppleIntelPlane14configurePlaneEP19FlipTransactionArgs",configurePlane, this->oconfigurePlane},
-			
+			//{"__ZN15AppleIntelPlane14configurePlaneEP19FlipTransactionArgs",configurePlane, this->oconfigurePlane},
+			{"__ZN19AppleIntelPowerWell17enablePowerWellPGEj.cold.1", dovoid},
+			{"__ZN31AppleIntelFramebufferController12disableHWDC6Ev",disableHWDC6, this->odisableHWDC6},
+			{"__ZN14AppleIntelPort12getPortByDDIEj",getPortByDDI, this->ogetPortByDDI},
+			{"__ZN14AppleIntelPort11setPortModeENS_8PortModeE",setPortMode, this->osetPortMode},
+			{"__ZN31AppleIntelFramebufferController11initCDClockEv",initCDClock, this->oinitCDClock},
+			{"__ZN31AppleIntelFramebufferController13probeBootPipeEPbPN17AppleIntelPortHAL3DDIE",probeBootPipe, this->oprobeBootPipe},
 			//{"__ZN19AppleIntelPowerWell4initEP31AppleIntelFramebufferController",AppleIntelPowerWellinit, this->oAppleIntelPowerWellinit},
 			{"__ZN19AppleIntelPowerWell19enableDisplayEngineEv",enableDisplayEngine, this->oenableDisplayEngine},
 			{"__ZN19AppleIntelPowerWell23overridePowerWellsStateEb",overridePowerWellsState, this->ooverridePowerWellsState},
@@ -263,8 +268,8 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			//{"__ZN15AppleIntelPlane14configurePlaneEP19FlipTransactionArgs",configurePlane, this->oconfigurePlane},
 			
 			{"__ZN21AppleIntelFramebuffer28getInformationForDisplayModeEiP24IODisplayModeInformation",getInformationForDisplayMode, this->ogetInformationForDisplayMode},
-			
-			
+			{"__ZN14AppleIntelPort12getPortByDDIEj",getPortByDDI, this->ogetPortByDDI},
+			{"__ZN14AppleIntelPort11setPortModeENS_8PortModeE",setPortMode, this->osetPortMode},
 			
 			//{"__ZN24AppleIntelBaseController21getCallbackCapabilityEP24AGDCCallbackCapability_t",getCallbackCapability, this->ogetCallbackCapability},
 			//{"__ZN24AppleIntelBaseController16GetGPUCapabilityEP19AGDCGPUCapability_t",GetGPUCapability, this->oGetGPUCapability},
@@ -282,6 +287,8 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		
 		if (isprod) {
 			KernelPatcher::RouteRequest requestsp[] = {
+				
+				{"__ZN31AppleIntelFramebufferController12disableHWDC6Ev",disableHWDC6, this->odisableHWDC6},
 				{"__ZN31AppleIntelFramebufferController10enablePipeEP21AppleIntelFramebufferP21AppleIntelDisplayPathPK29IODetailedTimingInformationV2",enablePipe, this->oenablePipe},
 				{"__ZN31AppleIntelFramebufferController13probeBootPipeEPbPN17AppleIntelPortHAL3DDIE",probeBootPipe, this->oprobeBootPipe},
 				{"__ZN31AppleIntelFramebufferController11initCDClockEv",initCDClock, this->oinitCDClock},
@@ -310,6 +317,8 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		} else //debug version
 		{
 			KernelPatcher::RouteRequest requestsd[] = {
+				
+				{"__ZN24AppleIntelBaseController12disableHWDC6Ev",disableHWDC6, this->odisableHWDC6},
 				{"__ZN24AppleIntelBaseController10enablePipeEP21AppleIntelFramebufferP21AppleIntelDisplayPathPK29IODetailedTimingInformationV2",enablePipe, this->oenablePipe},
 				{"__ZN24AppleIntelBaseController13probeBootPipeEPbPN17AppleIntelPortHAL3DDIE",probeBootPipe, this->oprobeBootPipe},
 				{"__ZN24AppleIntelBaseController11initCDClockEv",initCDClock, this->oinitCDClock},
@@ -500,15 +509,27 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		static const uint8_t f4[] = {0x74, 0x42, 0x00, 0x00};
 		static const uint8_t r4[] = {0xe8, 0xce, 0x00, 0x00};
 		
+		//startGraphicsEngine
+		static const uint8_t f5[] = {0xba, 0x02, 0x00, 0x00, 0x00, 0xe8, 0xce, 0x5d, 0x05, 0x00, 0x48, 0x85, 0xc0, 0x0f, 0x84, 0xf7, 0x01, 0x00, 0x00};
+		static const uint8_t r5[] = {0xba, 0x02, 0x00, 0x00, 0x00, 0xe8, 0xce, 0x5d, 0x05, 0x00, 0x48, 0x85, 0xc0, 0x48, 0xe9, 0xaf, 0x00, 0x00, 0x00};
+		
+		static const uint8_t f5a[] = {0xf6, 0x83, 0x40, 0x13, 0x00, 0x00, 0x02};
+		static const uint8_t r5a[] = {0xf6, 0x83, 0x40, 0x13, 0x00, 0x00, 0x08};
+		
+		static const uint8_t f5b[] = {0x89, 0x88, 0xa8, 0x23, 0x00, 0x00, 0x89, 0x88, 0xa8, 0x23, 0x02, 0x00, 0x89, 0x88, 0xa8, 0x03, 0x1c, 0x00, 0x89, 0x88, 0xa8, 0x03, 0x1d, 0x00, 0x89, 0x88, 0xa8, 0x83, 0x1c, 0x00};
+		static const uint8_t r5b[] = {0x89, 0x88, 0xa8, 0x23, 0x00, 0x00, 0x89, 0x88, 0xa8, 0xa3, 0x01, 0x00, 0x89, 0x88, 0xa8, 0x23, 0x02, 0x00, 0x89, 0x88, 0xa8, 0x03, 0x1c, 0x00, 0x89, 0x88, 0xa8, 0x03, 0x1d, 0x00};
 		
 		LookupPatchPlus const patches[] = {
 			{&kextG11HW, f2, r2, arrsize(f2),	1},
 			{&kextG11HW, f2a, r2a, arrsize(f2a),	1},
 			{&kextG11HW, f2b, r2b, arrsize(f2b),	1},
-			{&kextG11HW, f3, r3, arrsize(f3),	1},
+			/*{&kextG11HW, f3, r3, arrsize(f3),	1},
 			{&kextG11HW, f3a, r3a, arrsize(f3a),	1},
-			{&kextG11HW, f3b, r3b, arrsize(f3b),	1},
+			{&kextG11HW, f3b, r3b, arrsize(f3b),	1},*/
 			{&kextG11HW, f4, r4, arrsize(f4),	22},
+			{&kextG11HW, f5, r5, arrsize(f5),	1},
+			{&kextG11HW, f5a, r5a, arrsize(f5a),	1},
+			{&kextG11HW, f5b, r5b, arrsize(f5b),	1},
 			
 		};
 		PANIC_COND(!LookupPatchPlus::applyAll(patcher, patches , address, size), "nblue", "kextG11HW Failed to apply patches!");
@@ -731,7 +752,7 @@ uint64_t  Gen11::getOSInformation2(void *that)
 		pinfo[p].connectors[i].flags=NBlue::callback->i915b->display->bconnectors[i].flags;
 	}
 	
-	//pinfo[p].connectors[1].type=ConnectorDummy;
+	pinfo[p].connectors[1].type=ConnectorDummy;
 	pinfo[p].connectors[0].pipe=1;
 	pinfo[p].connectors[0].flags-=CNConnectorAlwaysConnected;
 	
@@ -794,7 +815,7 @@ uint64_t  Gen11::getOSInformation(void *that)
 		pinfo[p].connectors[i].flags=NBlue::callback->i915b->display->bconnectors[i].flags;
 	}
 	
-	//pinfo[p].connectors[1].type=ConnectorDummy;
+	pinfo[p].connectors[1].type=ConnectorDummy;
 	//pinfo[p].connectors[0].pipe=1;
 	
 		
@@ -1307,9 +1328,6 @@ IOReturn Gen11::fgetAttributeForConnection(void* framebuffer, int32_t connectInd
 	const auto ret = FunctionCast(fgetAttributeForConnection, callback->ofgetAttributeForConnection)(
 																									 framebuffer, connectIndex, attribute, value);
 	
-	uint32_t fbNum = getMember<uint32_t>(framebuffer, 0x1dc);
-	if (fbNum!=0) return kIOReturnUnsupported;
-		
 	if (attribute == 'bklt')
 	{
 	u32 v=NBlue::callback->i915b->display->panel.backlight.level;
@@ -1376,8 +1394,6 @@ unsigned long  Gen11::fcallPlatformFunction(void *that,void *param_1,bool param_
 
 uint64_t Gen11::getInformationForDisplayMode(void *that,int param_1,void *param_2)
 {
-	uint32_t fbNum = getMember<uint32_t>(that, 0x1dc);
-	if (fbNum!=0) return kIOReturnUnsupported;
 	
 	auto ret = FunctionCast(getInformationForDisplayMode, callback->ogetInformationForDisplayMode)(that,param_1,param_2);
 	return ret;
@@ -1388,8 +1404,6 @@ IOReturn Gen11::wrapSetAttributeForConnection(void* framebuffer, int32_t connect
 	const auto ret = FunctionCast(wrapSetAttributeForConnection, callback->owrapSetAttributeForConnection)(
 																										   framebuffer, connectIndex, attribute, value);
 	
-	uint32_t fbNum = getMember<uint32_t>(framebuffer, 0x1dc);
-	if (fbNum!=0) return kIOReturnUnsupported;
 
 	if (attribute != 'bklt') { return ret; }
 	
@@ -1450,6 +1464,21 @@ uint64_t Gen11::GetGPUCapability(void *that,void *param_1)
 void  Gen11::overridePowerWellsState(void *that,bool param_1)
 {
 	return FunctionCast(overridePowerWellsState, callback->ooverridePowerWellsState)(that, param_1);
+}
+
+void  Gen11::disableHWDC6(void *that)
+{
+	return FunctionCast(disableHWDC6, callback->odisableHWDC6)(that);
+}
+
+uint64_t Gen11::setPortMode(void *that,int param_2)
+{
+	return FunctionCast(setPortMode, callback->osetPortMode)( that,param_2);
+}
+
+void * Gen11::getPortByDDI(uint param_1)
+{
+	return FunctionCast(getPortByDDI, callback->ogetPortByDDI)( param_1);
 }
 
 int Gen11::probeBootPipe(void *that,bool *param_1,void *param_2)
@@ -6782,7 +6811,7 @@ void Gen11::hwInitializeCState(void *that)
 
 void Gen11::setupPipeWatermarks (void *that,void *param_1,void *param_2,CRTCParams *param_3)
 {
-	if (setpc) {
+	if (setpc && !kexticl) {
 		SetupParams2(param_2, param_3);
 	}
 	FunctionCast(setupPipeWatermarks, callback->osetupPipeWatermarks)(that ,param_1,param_2,param_3);
@@ -9440,7 +9469,7 @@ static int intel_ddi_compute_config_late(struct intel_crtc_state *crtc_state)
 uint64_t  Gen11::linkTraining(void *that,void *param_1)
 {
 	PortConfig *pc=(PortConfig *)getMember<void*>(that, kexticl ? 0x440 : 0x548);
-	if (pc->pipe != 0) return FunctionCast(linkTraining, callback->olinkTraining)(that,param_1);
+	//if (pc->pipe != 0) return FunctionCast(linkTraining, callback->olinkTraining)(that,param_1);
 	
 	struct intel_display *display = NBlue::callback->i915b->display;
 	struct intel_dp *intel_dp=&display->intel_dp0;
@@ -9449,7 +9478,7 @@ uint64_t  Gen11::linkTraining(void *that,void *param_1)
 
 	intel_dp->para=(struct AGDCDPPortConfig_t *)param_1;
 	if (intel_dp->para != nullptr) {
-		intel_dp->para->portindex=display->bconnectors[0].index+1;
+		intel_dp->para->portindex=display->bconnectors[pc->index].index+1;
 		intel_dp->para->status = 0;
 		intel_dp->para->field1 = 0x200;
 		intel_dp->para->field2 = 0;
@@ -9589,7 +9618,10 @@ void Gen11::SetupParams (void *that,void *param_1,void *param_2,CRTCParams *para
 		
 	}
 	FunctionCast(SetupParams, callback->oSetupParams)(that ,param_1,param_2,param_3,param_4);
-
+	if (kexticl) {
+		setpc=1;
+		SetupParams2(param_2, param_3);
+	}
 }
 
 void Gen11::SetupParams2 (void *param_2, CRTCParams *param_3)
@@ -9994,6 +10026,7 @@ void  Gen11::enableDisplayEngine(void *that0)
 		}
 		
 		gen9_wait_for_power_well_fuses(display, SKL_PG1);
+		that->PG1=1;
 	}
 
 
@@ -10003,8 +10036,9 @@ void  Gen11::enableDisplayEngine(void *that0)
 	}
 	
 	gen9_wait_for_power_well_fuses(display, SKL_PG2);
+	that->PG2=1;
 	
-	callback->orgSetCDClockFrequency(that->contr, getMember<u64>(that->contr, kexttglp ? 0xea0 : 0xea8)/*that->contr->fPendingCDClockFrequency*/);
+	callback->orgSetCDClockFrequency(that->contr, getMember<u64>(that->contr, kexttglp ? 0xe90 : kexttglp ? 0xea0 : 0xea8)/*that->contr->fPendingCDClockFrequency*/);
 	
 	if (DISPLAY_VER(display) == 12 || display->platform.dg2)
 		gen12_dbuf_slices_config(display);
@@ -10097,17 +10131,18 @@ void  Gen11::AppleIntelPowerWellinit(void *that0, void *param_1)
 	AppleIntelPowerWell0 *that=(AppleIntelPowerWell0*)that0;
 	
 	that->contr = param_1;
-	//that->mmio = param_1->mmio;
-	that->mmio = getMember<void *>(param_1, 0xc40);
+
+	if (!kexticl) that->mmio = getMember<void *>(param_1, 0xc40);
 	that->powerwellalwaysON = 0;
 	
-	memset(&that->fRefCountPG, 0, 0x14);
-	memset(&that->DDIA, 0, 0x24);
-	memset(&that->AUXA, 0, 0x24);
-
+	if (!kexticl){
+		memset(&that->fRefCountPG, 0, 0x14);
+		memset(&that->DDIA, 0, 0x24);
+		memset(&that->AUXA, 0, 0x24);
+	}
 	
 	//if ((that->contr->flags_ig & FB_FLAG_BOOST_PIXEL_FREQUENCY_LIMIT) != 0) {
-	if ((getMember<u32>(param_1, 0xc58) & FB_FLAG_BOOST_PIXEL_FREQUENCY_LIMIT) != 0) {
+	if ((getMember<u32>(that->contr, kexticl ? 0xc10 : 0xc58) & FB_FLAG_BOOST_PIXEL_FREQUENCY_LIMIT) != 0) {
 		that->powerwellalwaysON = 1;
 	}
 
@@ -10127,8 +10162,9 @@ void  Gen11::AppleIntelPowerWellinit(void *that0, void *param_1)
 
 	bool pg5_enabled = (pg_state & (HSW_PWR_WELL_CTL_REQ(4) | HSW_PWR_WELL_CTL_STATE(4))) == (HSW_PWR_WELL_CTL_REQ(4) | HSW_PWR_WELL_CTL_STATE(4));
 
-	if (that->PG2 && getMember<int>(param_1, 0xb48) == 1) {
-		getMember<u32>(param_1, 0xc24) = 0xffffffff;
+	if (that->PG2 && getMember<int>(param_1, kexticl ? 0xb38 : 0xb48 ) == 1) {
+		disableHWDC6(that->contr);
+		getMember<u32>(param_1, kexticl ? 0xc18 : 0xc24) = 0xffffffff;
 	}
 	/*if (that->PG2 && that->contr->dc6config == 1) {
 		that->contr->fDC6EnabledRefCount = 0xffffffff;
@@ -10147,28 +10183,31 @@ void  Gen11::AppleIntelPowerWellinit(void *that0, void *param_1)
 	that->AUXA   = (aux_state & (HSW_PWR_WELL_CTL_REQ(0) | HSW_PWR_WELL_CTL_STATE(0))) == (HSW_PWR_WELL_CTL_REQ(0) | HSW_PWR_WELL_CTL_STATE(0));
 	that->AUXB   = (aux_state & (HSW_PWR_WELL_CTL_REQ(1) | HSW_PWR_WELL_CTL_STATE(1))) == (HSW_PWR_WELL_CTL_REQ(1) | HSW_PWR_WELL_CTL_STATE(1));
 	that->AUXC   = (aux_state & (HSW_PWR_WELL_CTL_REQ(2) | HSW_PWR_WELL_CTL_STATE(2))) == (HSW_PWR_WELL_CTL_REQ(2) | HSW_PWR_WELL_CTL_STATE(2));
-	that->auxTC1 = (aux_state & (HSW_PWR_WELL_CTL_REQ(3) | HSW_PWR_WELL_CTL_STATE(3))) == (HSW_PWR_WELL_CTL_REQ(3) | HSW_PWR_WELL_CTL_STATE(3));
-	that->auxTC2 = (aux_state & (HSW_PWR_WELL_CTL_REQ(4) | HSW_PWR_WELL_CTL_STATE(4))) == (HSW_PWR_WELL_CTL_REQ(4) | HSW_PWR_WELL_CTL_STATE(4));
-	that->AUXTC3 = (aux_state & (HSW_PWR_WELL_CTL_REQ(5) | HSW_PWR_WELL_CTL_STATE(5))) == (HSW_PWR_WELL_CTL_REQ(5) | HSW_PWR_WELL_CTL_STATE(5));
-	that->AUXTC4 = (aux_state & (HSW_PWR_WELL_CTL_REQ(6) | HSW_PWR_WELL_CTL_STATE(6))) == (HSW_PWR_WELL_CTL_REQ(6) | HSW_PWR_WELL_CTL_STATE(6));
-	that->AUXTC5 = (aux_state & (HSW_PWR_WELL_CTL_REQ(7) | HSW_PWR_WELL_CTL_STATE(7))) == (HSW_PWR_WELL_CTL_REQ(7) | HSW_PWR_WELL_CTL_STATE(7));
-	that->AUXTC6 = (aux_state & (HSW_PWR_WELL_CTL_REQ(8) | HSW_PWR_WELL_CTL_STATE(8))) == (HSW_PWR_WELL_CTL_REQ(8) | HSW_PWR_WELL_CTL_STATE(8));
-
-	if ((tbt_state & (HSW_PWR_WELL_CTL_REQ(0) | HSW_PWR_WELL_CTL_STATE(0))) == (HSW_PWR_WELL_CTL_REQ(0) | HSW_PWR_WELL_CTL_STATE(0))) {
-		that->auxTC1 = 1;
+	
+	
+	if (!kexticl){
+		that->auxTC1 = (aux_state & (HSW_PWR_WELL_CTL_REQ(3) | HSW_PWR_WELL_CTL_STATE(3))) == (HSW_PWR_WELL_CTL_REQ(3) | HSW_PWR_WELL_CTL_STATE(3));
+		that->auxTC2 = (aux_state & (HSW_PWR_WELL_CTL_REQ(4) | HSW_PWR_WELL_CTL_STATE(4))) == (HSW_PWR_WELL_CTL_REQ(4) | HSW_PWR_WELL_CTL_STATE(4));
+		that->AUXTC3 = (aux_state & (HSW_PWR_WELL_CTL_REQ(5) | HSW_PWR_WELL_CTL_STATE(5))) == (HSW_PWR_WELL_CTL_REQ(5) | HSW_PWR_WELL_CTL_STATE(5));
+		that->AUXTC4 = (aux_state & (HSW_PWR_WELL_CTL_REQ(6) | HSW_PWR_WELL_CTL_STATE(6))) == (HSW_PWR_WELL_CTL_REQ(6) | HSW_PWR_WELL_CTL_STATE(6));
+		that->AUXTC5 = (aux_state & (HSW_PWR_WELL_CTL_REQ(7) | HSW_PWR_WELL_CTL_STATE(7))) == (HSW_PWR_WELL_CTL_REQ(7) | HSW_PWR_WELL_CTL_STATE(7));
+		that->AUXTC6 = (aux_state & (HSW_PWR_WELL_CTL_REQ(8) | HSW_PWR_WELL_CTL_STATE(8))) == (HSW_PWR_WELL_CTL_REQ(8) | HSW_PWR_WELL_CTL_STATE(8));
+		
+		if ((tbt_state & (HSW_PWR_WELL_CTL_REQ(0) | HSW_PWR_WELL_CTL_STATE(0))) == (HSW_PWR_WELL_CTL_REQ(0) | HSW_PWR_WELL_CTL_STATE(0))) {
+			that->auxTC1 = 1;
+		}
+		if ((tbt_state & (HSW_PWR_WELL_CTL_REQ(1) | HSW_PWR_WELL_CTL_STATE(1))) == (HSW_PWR_WELL_CTL_REQ(1) | HSW_PWR_WELL_CTL_STATE(1))) {
+			that->auxTC2 = 1;
+		}
+		if ((tbt_state & (HSW_PWR_WELL_CTL_REQ(2) | HSW_PWR_WELL_CTL_STATE(2))) == (HSW_PWR_WELL_CTL_REQ(2) | HSW_PWR_WELL_CTL_STATE(2))) {
+			that->AUXTC3 = 1;
+		}
+		if ((tbt_state & (HSW_PWR_WELL_CTL_REQ(3) | HSW_PWR_WELL_CTL_STATE(3))) == (HSW_PWR_WELL_CTL_REQ(3) | HSW_PWR_WELL_CTL_STATE(3))) {
+			that->AUXTC4 = 1;
+		}
+		if ((tbt_state & (HSW_PWR_WELL_CTL_REQ(4) | HSW_PWR_WELL_CTL_STATE(4))) == (HSW_PWR_WELL_CTL_REQ(4) | HSW_PWR_WELL_CTL_STATE(4))) that->AUXTC5 = 1;
+		if ((tbt_state & (HSW_PWR_WELL_CTL_REQ(5) | HSW_PWR_WELL_CTL_STATE(5))) == (HSW_PWR_WELL_CTL_REQ(5) | HSW_PWR_WELL_CTL_STATE(5))) that->AUXTC6 = 1;
 	}
-	if ((tbt_state & (HSW_PWR_WELL_CTL_REQ(1) | HSW_PWR_WELL_CTL_STATE(1))) == (HSW_PWR_WELL_CTL_REQ(1) | HSW_PWR_WELL_CTL_STATE(1))) {
-		that->auxTC2 = 1;
-	}
-	if ((tbt_state & (HSW_PWR_WELL_CTL_REQ(2) | HSW_PWR_WELL_CTL_STATE(2))) == (HSW_PWR_WELL_CTL_REQ(2) | HSW_PWR_WELL_CTL_STATE(2))) {
-		that->AUXTC3 = 1;
-	}
-	if ((tbt_state & (HSW_PWR_WELL_CTL_REQ(3) | HSW_PWR_WELL_CTL_STATE(3))) == (HSW_PWR_WELL_CTL_REQ(3) | HSW_PWR_WELL_CTL_STATE(3))) {
-		that->AUXTC4 = 1;
-	}
-	if ((tbt_state & (HSW_PWR_WELL_CTL_REQ(4) | HSW_PWR_WELL_CTL_STATE(4))) == (HSW_PWR_WELL_CTL_REQ(4) | HSW_PWR_WELL_CTL_STATE(4))) that->AUXTC5 = 1;
-	if ((tbt_state & (HSW_PWR_WELL_CTL_REQ(5) | HSW_PWR_WELL_CTL_STATE(5))) == (HSW_PWR_WELL_CTL_REQ(5) | HSW_PWR_WELL_CTL_STATE(5))) that->AUXTC6 = 1;
-
 
 	bootPipe = probeBootPipe(that->contr, (bool *)0x0, &active_ddi);
 	
@@ -10177,13 +10216,18 @@ void  Gen11::AppleIntelPowerWellinit(void *that0, void *param_1)
 		enableDisplayEngine(that0);
 	//}
 
-	
-	for (i = 0; i < 9; i++) {
+	int max=kexticl ? 6:9;
+	for (i = 0; i < max; i++) {
 		if (i == active_ddi) {
 			if ((&that->AUXA)[i] != 0) {
 				// Combo PHYs (DDI A, B, C) use AUX A, B, C which are safe to leave enabled.
+				int port_type = probePortMode(display, i);
+				void *port=getPortByDDI(i);
+				
+				if (kexticl) getMember<int>(port, 0x565)=1;
+				setPortMode(port,port_type);
+				
 				if (i >= 3) {
-					int port_type = probePortMode(display, i);
 					if (port_type != 2) {
 						//drm_err(display->drm, "EFI should not enable AUX%d power well - overriding\n", i);
 						disablePowerWellAux(that0, i);
@@ -10224,14 +10268,21 @@ void  Gen11::AppleIntelPowerWellinit(void *that0, void *param_1)
 		if (that->PG1) { disablePowerWellPG(that0, 1); that->PG1 = 0; }
 	}
 
-
-	if (that->TC1 || that->TC2 || that->TC3 || that->TC4 || that->TC5 || that->TC6 ||
-		that->auxTC1 || that->auxTC2 || that->AUXTC3 || that->AUXTC4 || that->AUXTC5 || that->AUXTC6) {
-		tgl_tc_cold_request(display, true);
-	} else {
-		tgl_tc_cold_request(display, false);
+	if (kexticl){
+		if (that->TC1 || that->TC2 || that->TC3 || that->TC4 || that->TC5 || that->TC6) {
+			tgl_tc_cold_request(display, true);
+		} else {
+			tgl_tc_cold_request(display, false);
+		}
 	}
-
+	if (!kexticl){
+		if (that->TC1 || that->TC2 || that->TC3 || that->TC4 || that->TC5 || that->TC6 ||
+			that->auxTC1 || that->auxTC2 || that->AUXTC3 || that->AUXTC4 || that->AUXTC5 || that->AUXTC6) {
+			tgl_tc_cold_request(display, true);
+		} else {
+			tgl_tc_cold_request(display, false);
+		}
+	}
 	if (that->powerwellalwaysON != '\0') {
 		overridePowerWellsState(that0, true);
 	}
@@ -12892,8 +12943,8 @@ unsigned long  Gen11::startGraphicsEngine(void *that)
 	}
 	
 	auto ret= FunctionCast(startGraphicsEngine, callback->ostartGraphicsEngine)( that);
-	//if (ret) panic ("xxx");
-	return 1;
+	if (!ret) panic ("startGraphicsEngine");
+	return ret;
 }
 
 uint64_t Gen11::allocContextId(void *that, uint64_t res, bool clearContext)

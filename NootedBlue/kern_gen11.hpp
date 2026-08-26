@@ -963,6 +963,16 @@ public:
 	static uint64_t getInformationForDisplayMode(void *that,int param_1,void *param_2);
 	mach_vm_address_t ogetInformationForDisplayMode {};
 	
+	static void * getPortByDDI(uint param_1);
+	mach_vm_address_t ogetPortByDDI {};
+	
+	static uint64_t setPortMode(void *that,int param_2);
+	mach_vm_address_t osetPortMode {};
+	
+	static void  disableHWDC6(void *that);
+	mach_vm_address_t odisableHWDC6 {};
+	
+	
 	
 	
 public:
