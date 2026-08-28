@@ -235,19 +235,18 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			{"__ZN21AppleIntelFramebuffer25getAttributeForConnectionEijPm",fgetAttributeForConnection, this->ofgetAttributeForConnection},
 			//{"__ZN26AppleIntelDSBAccessManager13isDSBRegisterEj", ldozero},
 			//{"__ZN31AppleIntelRegisterAccessManager18isConflictRegisterEj", isConflictRegister},
-			//{"__ZN15AppleIntelPlane10setupPlaneEP21AppleIntelDisplayPath",setupPlane2, this->osetupPlane2},
 			{"__ZN14AppleIntelPort12linkTrainingEP18AGDCDPPortConfig_t",linkTraining, this->olinkTraining},
 			{"__ZN14AppleIntelPort8writeAUXEjPvj",writeAUX, this->owriteAUX},
 			{"__ZN14AppleIntelPort7readAUXEjPvj",readAUX, this->oreadAUX},
 			//{"__ZN21AppleIntelFramebuffer12getAttributeEjPm",fgetAttribute, this->ofgetAttribute},
 			//{"__ZN21AppleIntelFramebuffer12setAttributeEjm",fsetAttribute, this->ofsetAttribute},
-			//{"__ZN21AppleIntelFramebuffer19getPixelInformationEiiiP18IOPixelInformation",fgetPixelInformation, this->ofgetPixelInformation},
+			{"__ZN21AppleIntelFramebuffer19getPixelInformationEiiiP18IOPixelInformation",fgetPixelInformation, this->ofgetPixelInformation},
 			//{"__ZN15AppleIntelPlane18configurePlaneiCSCEP19FlipTransactionArgs10IGColorCtl",dovoid},
 			//{"__ZN15AppleIntelPlane17configurePlaneCUSEP19FlipTransactionArgs10IGColorCtl",dovoid},
 			//{"__ZN21AppleIntelDisplayPath8initHDCPEv", dovoid},
 			{"__ZN17AppleIntelPortHAL4initEP10PortConfig",AppleIntelPortHALinit, this->oAppleIntelPortHALinit},
 			{"__ZN21AppleIntelDisplayPath13getLinkConfigEP16IOFBDPLinkConfig",getLinkConfig, this->ogetLinkConfig},
-			//{"__ZN15AppleIntelPlane11updatePlaneEb",updatePlane, this->oupdatePlane},
+			
 			//{"__ZN21AppleIntelFramebuffer19RestoreTransactionsEb",RestoreTransactions, this->oRestoreTransactions},
 			{"__ZN19AppleIntelPowerWell19enableDisplayEngineEv",enableDisplayEngine, this->oenableDisplayEngine},
 			{"__ZN19AppleIntelPowerWell23overridePowerWellsStateEb",overridePowerWellsState, this->ooverridePowerWellsState},
@@ -262,14 +261,18 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			//{"__ZN14AppleIntelPort9setupPortEv",fsetupPort, this->ofsetupPort},
 			//{"__ZN14AppleIntelPort18resetSoftwareStateEv",fresetSoftwareState, this->ofresetSoftwareState},
 			
-			//{"__ZN15AppleIntelPlane11enablePlaneEb",enablePlane, this->oenablePlane},
 			//{"__ZN21AppleIntelFramebuffer22PerformFlipTransactionEP30IOAccelDisplayPipeTransaction2yP21FlipTransactionParams",PerformFlipTransaction, this->oPerformFlipTransaction},
 			//{"__ZN21AppleIntelFramebuffer21PreProcessTransactionEj",PreProcessTransaction, this->oPreProcessTransaction},
-			//{"__ZN15AppleIntelPlane14configurePlaneEP19FlipTransactionArgs",configurePlane, this->oconfigurePlane},
-			
-			{"__ZN21AppleIntelFramebuffer28getInformationForDisplayModeEiP24IODisplayModeInformation",getInformationForDisplayMode, this->ogetInformationForDisplayMode},
+			/*{"__ZN15AppleIntelPlane11updatePlaneEb",updatePlane, this->oupdatePlane},
+			{"__ZN15AppleIntelPlane10setupPlaneEP21AppleIntelDisplayPath",setupPlane2, this->osetupPlane2},
+			{"__ZN15AppleIntelPlane14configurePlaneEP19FlipTransactionArgs",configurePlane, this->oconfigurePlane},
+			{"__ZN15AppleIntelPlane11enablePlaneEb",enablePlane, this->oenablePlane},
+			{"__ZN21AppleIntelFramebuffer28getInformationForDisplayModeEiP24IODisplayModeInformation",getInformationForDisplayMode, this->ogetInformationForDisplayMode},*/
 			{"__ZN14AppleIntelPort12getPortByDDIEj",getPortByDDI, this->ogetPortByDDI},
 			{"__ZN14AppleIntelPort11setPortModeENS_8PortModeE",setPortMode, this->osetPortMode},
+			
+			
+			
 			
 			//{"__ZN24AppleIntelBaseController21getCallbackCapabilityEP24AGDCCallbackCapability_t",getCallbackCapability, this->ogetCallbackCapability},
 			//{"__ZN24AppleIntelBaseController16GetGPUCapabilityEP19AGDCGPUCapability_t",GetGPUCapability, this->oGetGPUCapability},
@@ -420,8 +423,12 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		static const uint8_t f25[]= {0x77, 0x77, 0x00, 0x00};
 		static const uint8_t r25[]= {0x77, 0x00, 0x00, 0x00};
 
-
-
+		//plane
+		static const uint8_t f26[]= {0xe8, 0xb1, 0x6c, 0x0e, 0x00, 0x48, 0x8b, 0x7b, 0x70, 0xbe, 0x00, 0x05, 0x00, 0x00, 0x03, 0xb3, 0xb8, 0x00, 0x00, 0x00, 0x8b, 0x93, 0x4c, 0x01, 0x00, 0x00};
+		static const uint8_t r26[]= {0xe8, 0xb1, 0x6c, 0x0e, 0x00, 0x48, 0x8b, 0x7b, 0x70, 0xbe, 0x00, 0x00, 0x00, 0x00, 0x03, 0xb3, 0xb8, 0x00, 0x00, 0x00, 0x8b, 0x93, 0x20, 0x01, 0x00, 0x00};
+		
+		static const uint8_t f26p[]= {0xe8, 0x31, 0x12, 0x09, 0x00, 0x48, 0x8b, 0x7b, 0x70, 0xbe, 0x00, 0x05, 0x00, 0x00, 0x03, 0xb3, 0xb8, 0x00, 0x00, 0x00, 0x8b, 0x93, 0x4c, 0x01, 0x00, 0x00};
+		static const uint8_t r26p[]= {0xe8, 0x31, 0x12, 0x09, 0x00, 0x48, 0x8b, 0x7b, 0x70, 0xbe, 0x00, 0x00, 0x00, 0x00, 0x03, 0xb3, 0xb8, 0x00, 0x00, 0x00, 0x8b, 0x93, 0x20, 0x01, 0x00, 0x00};
 		
 		if (isprod){
 			LookupPatchPlus const patchesp[] = {// tgl production kext
@@ -436,7 +443,8 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 				{&kextG11FBT, f24cp, r24cp, arrsize(f24cp),	1},
 				{&kextG11FBT, f24dp, r24dp, arrsize(f24dp),	4},
 				{&kextG11FBT, f25, r25, arrsize(f25),	6},
-
+				{&kextG11FBT, f26p, r26p, arrsize(f26p),	1},
+				
 			};
 			PANIC_COND(!LookupPatchPlus::applyAll(patcher, patchesp , address, size), "nblue", "kextG11FBT Failed to apply production patches!");
 		}
@@ -454,7 +462,8 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 				{&kextG11FBT, f24c, r24c, arrsize(f24c),	1},
 				{&kextG11FBT, f24d, r24d, arrsize(f24d),	6},
 				{&kextG11FBT, f25, r25, arrsize(f25),	6},
-
+				{&kextG11FBT, f26, r26, arrsize(f26),	1},
+				
 			};
 			PANIC_COND(!LookupPatchPlus::applyAll(patcher, patches , address, size), "nblue", "kextG11FBT Failed to apply dbg patches!");
 		}
@@ -1492,10 +1501,7 @@ uint64_t Gen11::PreProcessTransaction(void *that,uint param_1)
 	return ret;
 }
 
-void Gen11::updatePlane(void *that,bool param_1)
-{
-	FunctionCast(updatePlane, callback->oupdatePlane)(that, param_1);
-}
+
 
 
 
@@ -1517,6 +1523,8 @@ static u32 icl_plane_ctl_flip(unsigned int reflect)
 	return 0;
 }
 
+
+
 int skl_format_to_fourcc(int format, bool rgb_order, bool alpha)
 {
 	switch (format) {
@@ -1533,6 +1541,18 @@ int skl_format_to_fourcc(int format, bool rgb_order, bool alpha)
 				else
 					return DRM_FORMAT_XRGB8888;
 			}
+		case PLANE_CTL_FORMAT_XRGB_2101010:
+			if (rgb_order) {
+				if (alpha)
+					return DRM_FORMAT_ABGR2101010;
+				else
+					return DRM_FORMAT_XBGR2101010;
+			} else {
+				if (alpha)
+					return DRM_FORMAT_ARGB2101010;
+				else
+					return DRM_FORMAT_XRGB2101010;
+			}
 	}
 }
 
@@ -1542,34 +1562,66 @@ static u32 skl_plane_ctl_format(u32 pixel_format)
 	case DRM_FORMAT_XBGR8888:
 	case DRM_FORMAT_ABGR8888:
 		return PLANE_CTL_FORMAT_XRGB_8888 | PLANE_CTL_ORDER_RGBX;
-	default:
 	case DRM_FORMAT_XRGB8888:
 	case DRM_FORMAT_ARGB8888:
 		return PLANE_CTL_FORMAT_XRGB_8888;
-	
+	case DRM_FORMAT_XBGR2101010:
+	case DRM_FORMAT_ABGR2101010:
+		return PLANE_CTL_FORMAT_XRGB_2101010 | PLANE_CTL_ORDER_RGBX;
+	case DRM_FORMAT_XRGB2101010:
+	case DRM_FORMAT_ARGB2101010:
+		return PLANE_CTL_FORMAT_XRGB_2101010;
 	}
 
 	return 0;
 }
 
+
 static u32 skl_plane_ctl_tiling(u64 fb_modifier)
 {
 	switch (fb_modifier) {
-		case DRM_FORMAT_MOD_LINEAR:
-			break;
-		case I915_FORMAT_MOD_X_TILED:
-			return PLANE_CTL_TILED_X;
-		case I915_FORMAT_MOD_Y_TILED:
-			return PLANE_CTL_TILED_Y;
-		case I915_FORMAT_MOD_Y_TILED_CCS:
-		case I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS_CC:
-			return PLANE_CTL_TILED_Y | PLANE_CTL_RENDER_DECOMPRESSION_ENABLE;
-		case I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS:
-			return PLANE_CTL_TILED_Y |
-				   PLANE_CTL_RENDER_DECOMPRESSION_ENABLE |
-				   PLANE_CTL_CLEAR_COLOR_DISABLE;
-		case I915_FORMAT_MOD_Y_TILED_GEN12_MC_CCS:
-			return PLANE_CTL_TILED_Y | PLANE_CTL_MEDIA_DECOMPRESSION_ENABLE;
+	case DRM_FORMAT_MOD_LINEAR:
+		break;
+	case I915_FORMAT_MOD_X_TILED:
+		return PLANE_CTL_TILED_X;
+	case I915_FORMAT_MOD_Y_TILED:
+		return PLANE_CTL_TILED_Y;
+	case I915_FORMAT_MOD_4_TILED:
+		return PLANE_CTL_TILED_4;
+	case I915_FORMAT_MOD_4_TILED_DG2_RC_CCS:
+		return PLANE_CTL_TILED_4 |
+			PLANE_CTL_RENDER_DECOMPRESSION_ENABLE |
+			PLANE_CTL_CLEAR_COLOR_DISABLE;
+	case I915_FORMAT_MOD_4_TILED_DG2_MC_CCS:
+		return PLANE_CTL_TILED_4 |
+			PLANE_CTL_MEDIA_DECOMPRESSION_ENABLE |
+			PLANE_CTL_CLEAR_COLOR_DISABLE;
+	case I915_FORMAT_MOD_4_TILED_DG2_RC_CCS_CC:
+		return PLANE_CTL_TILED_4 | PLANE_CTL_RENDER_DECOMPRESSION_ENABLE;
+	case I915_FORMAT_MOD_4_TILED_MTL_RC_CCS:
+		return PLANE_CTL_TILED_4 |
+			PLANE_CTL_RENDER_DECOMPRESSION_ENABLE |
+			PLANE_CTL_CLEAR_COLOR_DISABLE;
+	case I915_FORMAT_MOD_4_TILED_MTL_RC_CCS_CC:
+		return PLANE_CTL_TILED_4 | PLANE_CTL_RENDER_DECOMPRESSION_ENABLE;
+	case I915_FORMAT_MOD_4_TILED_MTL_MC_CCS:
+		return PLANE_CTL_TILED_4 | PLANE_CTL_MEDIA_DECOMPRESSION_ENABLE;
+	case I915_FORMAT_MOD_4_TILED_BMG_CCS:
+	case I915_FORMAT_MOD_4_TILED_LNL_CCS:
+		return PLANE_CTL_TILED_4 | PLANE_CTL_RENDER_DECOMPRESSION_ENABLE;
+	case I915_FORMAT_MOD_Y_TILED_CCS:
+	case I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS_CC:
+		return PLANE_CTL_TILED_Y | PLANE_CTL_RENDER_DECOMPRESSION_ENABLE;
+	case I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS:
+		return PLANE_CTL_TILED_Y |
+			   PLANE_CTL_RENDER_DECOMPRESSION_ENABLE |
+			   PLANE_CTL_CLEAR_COLOR_DISABLE;
+	case I915_FORMAT_MOD_Y_TILED_GEN12_MC_CCS:
+		return PLANE_CTL_TILED_Y | PLANE_CTL_MEDIA_DECOMPRESSION_ENABLE;
+	case I915_FORMAT_MOD_Yf_TILED:
+		return PLANE_CTL_TILED_YF;
+	case I915_FORMAT_MOD_Yf_TILED_CCS:
+		return PLANE_CTL_TILED_YF | PLANE_CTL_RENDER_DECOMPRESSION_ENABLE;
 	default:
 	}
 
@@ -1594,7 +1646,96 @@ static u32 skl_plane_ctl_rotate(unsigned int rotate)
 	return 0;
 }
 
-static u32 plaenp(void *that)
+unsigned int intel_tile_size(struct intel_display *display)
+{
+	return DISPLAY_VER(display) == 2 ? 2048 : 4096;
+}
+
+#define HAS_128B_Y_TILING(__display)	(!(__display)->platform.i915g && !(__display)->platform.i915gm)
+
+unsigned int
+intel_tile_width_bytes(struct intel_display *display, uint64_t modifier)
+{
+	unsigned int cpp = 0;//fb->format->cpp[color_plane];
+	
+	switch (modifier) {
+	case DRM_FORMAT_MOD_LINEAR:
+		return intel_tile_size(display);
+	case I915_FORMAT_MOD_X_TILED:
+		if (DISPLAY_VER(display) == 2)
+			return 128;
+		else
+			return 512;
+	case I915_FORMAT_MOD_4_TILED_BMG_CCS:
+	case I915_FORMAT_MOD_4_TILED_LNL_CCS:
+	case I915_FORMAT_MOD_4_TILED_DG2_RC_CCS:
+	case I915_FORMAT_MOD_4_TILED_DG2_RC_CCS_CC:
+	case I915_FORMAT_MOD_4_TILED_DG2_MC_CCS:
+	case I915_FORMAT_MOD_4_TILED:
+		return 128;
+	case I915_FORMAT_MOD_Y_TILED_CCS:
+	//	if (intel_fb_is_ccs_aux_plane(fb, color_plane))
+			//return 128;
+	case I915_FORMAT_MOD_4_TILED_MTL_RC_CCS:
+	case I915_FORMAT_MOD_4_TILED_MTL_RC_CCS_CC:
+	case I915_FORMAT_MOD_4_TILED_MTL_MC_CCS:
+	case I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS:
+	case I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS_CC:
+	case I915_FORMAT_MOD_Y_TILED_GEN12_MC_CCS:
+	//	if (intel_fb_is_ccs_aux_plane(fb, color_plane) ||
+		//	is_gen12_ccs_cc_plane(fb, color_plane))
+			return 64;
+	case I915_FORMAT_MOD_Y_TILED:
+		if (HAS_128B_Y_TILING(display))
+			return 128;
+		else
+			return 512;
+	case I915_FORMAT_MOD_Yf_TILED_CCS:
+	//	if (intel_fb_is_ccs_aux_plane(fb, color_plane))
+		//	return 128;
+	/*case I915_FORMAT_MOD_Yf_TILED:
+		switch (cpp) {
+		case 1:
+			return 64;
+		case 2:
+		case 4:
+			return 128;
+		case 8:
+		case 16:
+			return 256;
+		default:
+			return cpp;
+		}
+		break;*/
+	default:
+		return cpp;
+	}
+}
+
+static inline bool drm_rotation_90_or_270(unsigned int rotation)
+{
+	return rotation & (DRM_MODE_ROTATE_90 | DRM_MODE_ROTATE_270);
+}
+
+unsigned int intel_tile_height(struct intel_display *display,uint64_t modifier)
+{
+
+	return intel_tile_size(display) /
+		intel_tile_width_bytes(display, modifier);
+}
+
+static unsigned int skl_plane_stride_mult(uint64_t modifier, unsigned int rotation)
+{
+	struct intel_display *display = NBlue::callback->i915b->display;
+	if (modifier == DRM_FORMAT_MOD_LINEAR)
+		return 64;
+	else if (drm_rotation_90_or_270(rotation))
+		return intel_tile_height(display, modifier);
+	else
+		return intel_tile_width_bytes(display, modifier);
+}
+
+void plaenp(void *that)
 {
 	u32 planeID=getMember<uint32_t>(that, 0x7c);
 	
@@ -1666,9 +1807,28 @@ static u32 plaenp(void *that)
 	base = intel_de_read(display, PLANE_SURF(pipe, plane_id)) & PLANE_SURF_ADDR_MASK;
 	offset = intel_de_read(display, PLANE_OFFSET(pipe, plane_id));
 	
+
+	
+	val = intel_de_read(display, PLANE_SIZE(pipe, plane_id));
+	int height = REG_FIELD_GET(PLANE_HEIGHT_MASK, val) + 1;
+	int width = REG_FIELD_GET(PLANE_WIDTH_MASK, val) + 1;
+	
+	val = intel_de_read(display, PLANE_STRIDE(pipe, plane_id));
+	stride_mult = skl_plane_stride_mult(modifier, rotation);
+
+	unsigned int pitches[4];
+	pitches[0] = REG_FIELD_GET(PLANE_STRIDE__MASK, val) * stride_mult;
+
+	int aligned_height = intel_tile_size(display) /	intel_tile_width_bytes(display, modifier);
+
+	aligned_height= ALIGN2(height, aligned_height);
+
+	int size = pitches[0] * aligned_height;
+	
 	u32 plane_ctl=PLANE_CTL_ENABLE;
 	plane_ctl |= skl_plane_ctl_format(pixel_format);
-	plane_ctl |= 0x400;//skl_plane_ctl_tiling(modifier);
+	plane_ctl |= skl_plane_ctl_tiling(modifier);
+	//plane_ctl |= 0x400 ; //yTileDisable
 	plane_ctl |= skl_plane_ctl_rotate(rotation & DRM_MODE_ROTATE_MASK);
 	
 	if (DISPLAY_VER(display) >= 11)
@@ -1693,6 +1853,12 @@ static u32 plaenp(void *that)
 	if (tmp & SKL_BOTTOM_COLOR_CSC_ENABLE)
 		plane_ctl |= PLANE_CTL_PIPE_CSC_ENABLE;
 	
+
+
+	u32 gamma_mode = intel_de_read(display, GAMMA_MODE(pipe));
+	u32 csc_mode = intel_de_read(display, PIPE_CSC_MODE(pipe));
+	
+	//getMember<uint32_t>(frame0, 0x45a8)=gamma_mode;
 	
 	u32 plane_color_ctl = PLANE_COLOR_PLANE_GAMMA_DISABLE;
 	
@@ -1706,22 +1872,26 @@ static u32 plaenp(void *that)
 		//plane_color_ctl |= PLANE_COLOR_PLANE_CSC_ENABLE;
 
 	//if (plane_state->hw.degamma_lut)
-	//	plane_color_ctl |= PLANE_COLOR_PRE_CSC_GAMMA_ENABLE;
+		//plane_color_ctl |= PLANE_COLOR_PRE_CSC_GAMMA_ENABLE;
 
 	//if (plane_state->hw.ctm)
-	//	plane_color_ctl |= PLANE_COLOR_PLANE_CSC_ENABLE;
+		//plane_color_ctl |= PLANE_COLOR_PLANE_CSC_ENABLE;
 
-	/*if (plane_state->hw.gamma_lut) {
-		plane_color_ctl &= ~PLANE_COLOR_PLANE_GAMMA_DISABLE;
-		if (drm_color_lut32_size(plane_state->hw.gamma_lut) != 32)
-			plane_color_ctl |= PLANE_COLOR_POST_CSC_GAMMA_MULTSEG_ENABLE;
-	}*/
+	//if (plane_state->hw.gamma_lut) {
+		//plane_color_ctl &= ~PLANE_COLOR_PLANE_GAMMA_DISABLE;
+		//if (drm_color_lut32_size(plane_state->hw.gamma_lut) != 32)
+			//plane_color_ctl |= PLANE_COLOR_POST_CSC_GAMMA_MULTSEG_ENABLE;
+	//}
 	
 	
-	getMember<uint32_t>(that, 0x100)=plane_ctl;//PLANE_CTL
+	//getMember<uint32_t>(that, 0x100)=plane_ctl;//PLANE_CTL
 	getMember<uint32_t>(that, 0x104)=plane_color_ctl;//PLANE_COLOR_CTL
+	//getMember<uint32_t>(that, 0x120)=base;//PLANE_SURF
+	//getMember<uint32_t>(that, 0x110)=offset;//PLANE_OFFSET
+	//getMember<uint32_t>(that, 0x11c)=size;//PLANE_SIZE
+	//getMember<uint32_t>(that, 0x118)=pitches[0]/stride_mult;//PLANE_STRIDE
 	
-	return plane_ctl;
+	
 }
 
 
@@ -1730,7 +1900,7 @@ void  Gen11::configurePlane(void *that,void *param_1)
 	plaenp(that);
 	
 	FunctionCast(configurePlane, callback->oconfigurePlane)(that, param_1);
-
+	
 	plaenp(that);
 	
 }
@@ -1781,6 +1951,10 @@ void Gen11::enablePlane(void *that,bool param_1)
 	FunctionCast(enablePlane, callback->oenablePlane)(that, param_1);
 }
 
+void Gen11::updatePlane(void *that,bool param_1)
+{
+	FunctionCast(updatePlane, callback->oupdatePlane)(that, param_1);
+}
 
 void  Gen11::disablePowerWellAux(void *that,uint param_1)
 {
@@ -9511,6 +9685,7 @@ uint64_t  Gen11::linkTraining(void *that,void *param_1)
 	intel_ddi_enable(display, crtc_state);
 	
 	//getMember<uint32_t>(frame0, kexticl ? 0xe45 : 0x420c)=0x3;//fWSAAState
+	//getMember<uint32_t>(frame0, kexticl ? 0x85e0 : 0x4210)=0x1;//fWSAAState2
 	
 	if (ret) return 0;
 
@@ -10213,8 +10388,9 @@ void  Gen11::AppleIntelPowerWellinit(void *that0, void *param_1)
 	
 	
 	//if (bootPipe != 0xffff && that->PG1 == 0 && getMember<u32>(param_1, 0xd5c) /*that->contr->NumFrameBuffers*/ != 0) {
-		enableDisplayEngine(that0);
-	//}
+	if (bootPipe != 0xffff && that->PG1 == 0){
+	enableDisplayEngine(that0);
+	}
 
 	int max=kexticl ? 6:9;
 	for (i = 0; i < max; i++) {

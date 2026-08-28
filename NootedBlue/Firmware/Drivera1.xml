@@ -154,6 +154,8 @@
 		<integer>0</integer>
 		<key>EUThrottle</key>
 		<integer>0</integer>
+		<key>EnableMultiContext</key>
+		<integer>0</integer>
 		<key>EnablePlaneRotation</key>
 		<integer>0</integer>
 		<key>EnablePreemption</key>

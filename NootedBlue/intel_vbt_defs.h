@@ -12248,6 +12248,53 @@ struct guc_process_desc {
 #define   PLANE_COLOR_POST_CSC_GAMMA_MULTSEG_ENABLE	REG_BIT(15)
 
 
+#define _PLANE_SIZE_1_A				0x70190
+#define _PLANE_SIZE_2_A				0x70290
+#define _PLANE_SIZE_1_B				0x71190
+#define _PLANE_SIZE_2_B				0x71290
+#define PLANE_SIZE(pipe, plane)		_MMIO_SKL_PLANE((pipe), (plane), \
+							_PLANE_SIZE_1_A, _PLANE_SIZE_1_B, \
+							_PLANE_SIZE_2_A, _PLANE_SIZE_2_B)
+#define   PLANE_HEIGHT_MASK			REG_GENMASK(31, 16)
+#define   PLANE_HEIGHT(h)			REG_FIELD_PREP(PLANE_HEIGHT_MASK, (h))
+#define   PLANE_WIDTH_MASK			REG_GENMASK(15, 0)
+#define   PLANE_WIDTH(w)			REG_FIELD_PREP(PLANE_WIDTH_MASK, (w))
+#define _PLANE_STRIDE_1_A			0x70188
+#define _PLANE_STRIDE_2_A			0x70288
+#define _PLANE_STRIDE_1_B			0x71188
+#define _PLANE_STRIDE_2_B			0x71288
+#define PLANE_STRIDE(pipe, plane)	_MMIO_SKL_PLANE((pipe), (plane), \
+							_PLANE_STRIDE_1_A, _PLANE_STRIDE_1_B, \
+							_PLANE_STRIDE_2_A, _PLANE_STRIDE_2_B)
+#define   PLANE_STRIDE__MASK			REG_GENMASK(11, 0)
+#define   PLANE_STRIDE_(stride)			REG_FIELD_PREP(PLANE_STRIDE__MASK, (stride))
+#define   PLANE_CTL_FORMAT_XRGB_2101010		REG_FIELD_PREP(PLANE_CTL_FORMAT_MASK_SKL, 2)
+#define DRM_FORMAT_ARGB2101010	fourcc_code('A', 'R', '3', '0') /* [31:0] A:R:G:B 2:10:10:10 little endian */
+#define DRM_FORMAT_ABGR2101010	fourcc_code('A', 'B', '3', '0') /* [31:0] A:B:G:R 2:10:10:10 little endian */
+#define DRM_FORMAT_RGBA1010102	fourcc_code('R', 'A', '3', '0') /* [31:0] R:G:B:A 10:10:10:2 little endian */
+#define DRM_FORMAT_BGRA1010102	fourcc_code('B', 'A', '3', '0') /* [31:0] B:G:R:A 10:10:10:2 little endian */
+#define DRM_FORMAT_XRGB2101010	fourcc_code('X', 'R', '3', '0') /* [31:0] x:R:G:B 2:10:10:10 little endian */
+#define DRM_FORMAT_XBGR2101010	fourcc_code('X', 'B', '3', '0') /* [31:0] x:B:G:R 2:10:10:10 little endian */
+#define DRM_FORMAT_RGBX1010102	fourcc_code('R', 'X', '3', '0') /* [31:0] R:G:B:x 10:10:10:2 little endian */
+#define DRM_FORMAT_BGRX1010102	fourcc_code('B', 'X', '3', '0') /* [31:0] B:G:R:x 10:10:10:2 little endian */
+#define I915_FORMAT_MOD_4_TILED         fourcc_mod_code(INTEL, 9)
+#define   PLANE_CTL_TILED_4                     REG_FIELD_PREP(PLANE_CTL_TILED_MASK, 5)
+#define I915_FORMAT_MOD_4_TILED_DG2_RC_CCS_CC fourcc_mod_code(INTEL, 12)
+#define I915_FORMAT_MOD_4_TILED_DG2_RC_CCS fourcc_mod_code(INTEL, 10)
+#define I915_FORMAT_MOD_4_TILED_DG2_MC_CCS fourcc_mod_code(INTEL, 11)
+#define I915_FORMAT_MOD_4_TILED_MTL_RC_CCS_CC fourcc_mod_code(INTEL, 15)
+#define I915_FORMAT_MOD_4_TILED_BMG_CCS fourcc_mod_code(INTEL, 17)
+#define I915_FORMAT_MOD_4_TILED_LNL_CCS fourcc_mod_code(INTEL, 16)
+#define I915_FORMAT_MOD_Yf_TILED fourcc_mod_code(INTEL, 3)
+#define   PLANE_CTL_TILED_YF			REG_FIELD_PREP(PLANE_CTL_TILED_MASK, 5)
+#define _GAMMA_MODE_A		0x4a480
+#define _GAMMA_MODE_B		0x4ac80
+#define GAMMA_MODE(pipe) _MMIO_PIPE(pipe, _GAMMA_MODE_A, _GAMMA_MODE_B)
+#define _PIPE_A_CSC_MODE	0x49028
+#define _PIPE_B_CSC_MODE	0x49128
+#define PIPE_CSC_MODE(pipe)		_MMIO_PIPE(pipe, _PIPE_A_CSC_MODE, _PIPE_B_CSC_MODE)
+
+
 
 
 
