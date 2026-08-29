@@ -240,7 +240,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			{"__ZN14AppleIntelPort7readAUXEjPvj",readAUX, this->oreadAUX},
 			//{"__ZN21AppleIntelFramebuffer12getAttributeEjPm",fgetAttribute, this->ofgetAttribute},
 			//{"__ZN21AppleIntelFramebuffer12setAttributeEjm",fsetAttribute, this->ofsetAttribute},
-			{"__ZN21AppleIntelFramebuffer19getPixelInformationEiiiP18IOPixelInformation",fgetPixelInformation, this->ofgetPixelInformation},
+			//{"__ZN21AppleIntelFramebuffer19getPixelInformationEiiiP18IOPixelInformation",fgetPixelInformation, this->ofgetPixelInformation},
 			//{"__ZN15AppleIntelPlane18configurePlaneiCSCEP19FlipTransactionArgs10IGColorCtl",dovoid},
 			//{"__ZN15AppleIntelPlane17configurePlaneCUSEP19FlipTransactionArgs10IGColorCtl",dovoid},
 			//{"__ZN21AppleIntelDisplayPath8initHDCPEv", dovoid},
@@ -266,8 +266,8 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			/*{"__ZN15AppleIntelPlane11updatePlaneEb",updatePlane, this->oupdatePlane},
 			{"__ZN15AppleIntelPlane10setupPlaneEP21AppleIntelDisplayPath",setupPlane2, this->osetupPlane2},
 			{"__ZN15AppleIntelPlane14configurePlaneEP19FlipTransactionArgs",configurePlane, this->oconfigurePlane},
-			{"__ZN15AppleIntelPlane11enablePlaneEb",enablePlane, this->oenablePlane},
-			{"__ZN21AppleIntelFramebuffer28getInformationForDisplayModeEiP24IODisplayModeInformation",getInformationForDisplayMode, this->ogetInformationForDisplayMode},*/
+			{"__ZN15AppleIntelPlane11enablePlaneEb",enablePlane, this->oenablePlane},*/
+			//{"__ZN21AppleIntelFramebuffer28getInformationForDisplayModeEiP24IODisplayModeInformation",getInformationForDisplayMode, this->ogetInformationForDisplayMode},
 			{"__ZN14AppleIntelPort12getPortByDDIEj",getPortByDDI, this->ogetPortByDDI},
 			{"__ZN14AppleIntelPort11setPortModeENS_8PortModeE",setPortMode, this->osetPortMode},
 			
@@ -290,7 +290,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		
 		if (isprod) {
 			KernelPatcher::RouteRequest requestsp[] = {
-				
+				//{"__ZN31AppleIntelFramebufferController18hasExternalDisplayEv",dozero},
 				{"__ZN31AppleIntelFramebufferController12disableHWDC6Ev",disableHWDC6, this->odisableHWDC6},
 				{"__ZN31AppleIntelFramebufferController10enablePipeEP21AppleIntelFramebufferP21AppleIntelDisplayPathPK29IODetailedTimingInformationV2",enablePipe, this->oenablePipe},
 				{"__ZN31AppleIntelFramebufferController13probeBootPipeEPbPN17AppleIntelPortHAL3DDIE",probeBootPipe, this->oprobeBootPipe},
@@ -320,7 +320,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		} else //debug version
 		{
 			KernelPatcher::RouteRequest requestsd[] = {
-				
+				{"__ZN24AppleIntelBaseController18hasExternalDisplayEv",dozero},
 				{"__ZN24AppleIntelBaseController12disableHWDC6Ev",disableHWDC6, this->odisableHWDC6},
 				{"__ZN24AppleIntelBaseController10enablePipeEP21AppleIntelFramebufferP21AppleIntelDisplayPathPK29IODetailedTimingInformationV2",enablePipe, this->oenablePipe},
 				{"__ZN24AppleIntelBaseController13probeBootPipeEPbPN17AppleIntelPortHAL3DDIE",probeBootPipe, this->oprobeBootPipe},
@@ -488,7 +488,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			 {"__ZN13IGHardwareGuC16setupContextPoolEi",setupContextPool0, this->osetupContextPool0},
 			 {"__ZN12IGScheduler412loadFirmwareEv",loadFirmware, this->oloadFirmware},
 			 // {"__ZN13IGHardwareGuC26setupAdditionalDataStructsEv",setupAdditionalDataStructs0, this->osetupAdditionalDataStructs0},
-			// {"__ZN20IGHardwareRingBuffer12waitForSpaceEj",waitForSpace, this->owaitForSpace},
+			 //{"__ZN20IGHardwareRingBuffer12waitForSpaceEj",waitForSpace, this->owaitForSpace},
 			 //{"__ZN16IntelAccelerator31initHardwareStatusPageRegistersEv",initHardwareStatusPageRegisters, this->oinitHardwareStatusPageRegisters},
 			 
 		 };
@@ -1337,6 +1337,11 @@ IOReturn Gen11::fgetAttributeForConnection(void* framebuffer, int32_t connectInd
 	const auto ret = FunctionCast(fgetAttributeForConnection, callback->ofgetAttributeForConnection)(
 																									 framebuffer, connectIndex, attribute, value);
 	
+	//uint32_t fbNum = getMember<uint32_t>(framebuffer, 0x1dc);
+	//if (!fbNum) return 0xe00002c7;
+	
+	if (attribute != 'bklt') { return ret; }
+	
 	if (attribute == 'bklt')
 	{
 	u32 v=NBlue::callback->i915b->display->panel.backlight.level;
@@ -1404,6 +1409,9 @@ unsigned long  Gen11::fcallPlatformFunction(void *that,void *param_1,bool param_
 uint64_t Gen11::getInformationForDisplayMode(void *that,int param_1,void *param_2)
 {
 	
+	uint32_t fbNum = getMember<uint32_t>(that, 0x1dc);
+	if (fbNum!=0) return 0xe00002c7;
+	
 	auto ret = FunctionCast(getInformationForDisplayMode, callback->ogetInformationForDisplayMode)(that,param_1,param_2);
 	return ret;
 }
@@ -1425,6 +1433,10 @@ IOReturn Gen11::wrapSetAttributeForConnection(void* framebuffer, int32_t connect
 
 void Gen11::initVRRCaps(void *that)
 {
+	
+	uint32_t fbNum = getMember<uint32_t>(that, 0x1dc);
+	if (!fbNum) return FunctionCast(initVRRCaps, callback->oinitVRRCaps)(that);
+	
 	if (kexticl){
 		getMember<uint8_t>(that, 0x8f75)=0;//IsVRRSupported
 		getMember<uint8_t>(that, 0x8f76)=0;//IsASFUSupported
@@ -1500,7 +1512,6 @@ uint64_t Gen11::PreProcessTransaction(void *that,uint param_1)
 	auto ret= FunctionCast(PreProcessTransaction, callback->oPreProcessTransaction)(that, param_1);
 	return ret;
 }
-
 
 
 
@@ -1997,9 +2008,8 @@ int Gen11::displayPortReadEDID(void *that,uint param_1,uint param_2,unsigned cha
 {
 	auto ret= FunctionCast(displayPortReadEDID, callback->odisplayPortReadEDID)(that, param_1, param_2, param_3, param_4);
 
-	/*u8 edid[] = {
-		0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x06, 0x10, 0x36, 0x92, 0x00, 0x22, 0x0D, 0x02, 0x03, 0x13, 0x01, 0x04, 0xA5, 0x34, 0x20, 0x78, 0x26, 0x6E, 0xA1, 0xA7, 0x55, 0x4C, 0x9D, 0x25, 0x0E, 0x50, 0x54, 0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x78, 0x37, 0x80, 0xB4, 0x70, 0x38, 0x2E, 0x40, 0x6C, 0x30, 0xAA, 0x00, 0x58, 0xC1, 0x10, 0x00, 0x00, 0x18, 0x00, 0x00, 0x00, 0xFC, 0x00, 0x4C, 0x45, 0x44, 0x20, 0x43, 0x69, 0x6E, 0x65, 0x6D, 0x61, 0x0A, 0x20, 0x20, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x32, 0x41, 0x39, 0x30, 0x33, 0x34, 0x31, 0x5A, 0x30, 0x4B, 0x30, 0x0A, 0x20, 0x00, 0x00, 0x00, 0xFE, 0x00, 0x42, 0x31, 0x35, 0x36, 0x48, 0x41, 0x4E, 0x30, 0x32, 0x2E, 0x31, 0x20, 0x0A, 0x00, 0x22
-	};*/
+	PortConfig *pc=(PortConfig *)getMember<void*>(that, kexticl ? 0x440 : 0x548);
+	if (pc->index != 0) return ret;
 
 	struct EDIDStruct *EDIDStructure=(struct EDIDStruct *)param_3;
 	
@@ -9643,7 +9653,7 @@ static int intel_ddi_compute_config_late(struct intel_crtc_state *crtc_state)
 uint64_t  Gen11::linkTraining(void *that,void *param_1)
 {
 	PortConfig *pc=(PortConfig *)getMember<void*>(that, kexticl ? 0x440 : 0x548);
-	//if (pc->pipe != 0) return FunctionCast(linkTraining, callback->olinkTraining)(that,param_1);
+	if (pc->index != 0) return FunctionCast(linkTraining, callback->olinkTraining)(that,param_1);
 	
 	struct intel_display *display = NBlue::callback->i915b->display;
 	struct intel_dp *intel_dp=&display->intel_dp0;
@@ -9713,6 +9723,11 @@ uint64_t Gen11::getLinkConfig(void *that,IOFBDPLinkConfig *param_1)
 	struct intel_dp *intel_dp=&display->intel_dp0;
 	
 	auto ret=FunctionCast(getLinkConfig, callback->ogetLinkConfig)(that,param_1 );
+	
+	void *port=getMember<void *>(that, kexticl ? 0x4d20 : 0x3648);
+	PortConfig *pc=(PortConfig *)getMember<void*>(port, kexticl ? 0x440 : 0x548);
+	if (pc->index != 0) return ret;
+	
 
 	param_1->  downspread=0;
 	param_1->  scrambler=0;
@@ -9742,7 +9757,7 @@ void Gen11::SetupParams (void *that,void *param_1,void *param_2,CRTCParams *para
 	void *port=getMember<void *>(param_2, kexticl ? 0x4d20 : 0x3648);
 	
 	PortConfig *pc=(PortConfig *)getMember<void*>(port, kexticl ? 0x440 : 0x548);
-	if (!kexticl && pc->pipe == 0) setpc=1;
+	if (pc->index == 0) setpc=1;
 	
 	
 	if (!dpcdconf)

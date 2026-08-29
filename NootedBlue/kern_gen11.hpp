@@ -972,6 +972,7 @@ public:
 	static void  disableHWDC6(void *that);
 	mach_vm_address_t odisableHWDC6 {};
 	
+
 	
 	
 	
