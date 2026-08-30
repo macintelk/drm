@@ -123,7 +123,6 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			{"__ZN19AppleIntelPowerWell19disablePowerWellDDIEj",disablePowerWellDDI, this->odisablePowerWellDDI},
 			{"__ZN19AppleIntelPowerWell18disablePowerWellPGEj",disablePowerWellPG, this->odisablePowerWellPG},
 			//{"__ZN20IntelFBClientControl11doAttributeEjPmmS0_S0_P25IOExternalMethodArguments",wrapFBClientDoAttribute,	this->orgFBClientDoAttribute},
-			
 			//{"__ZN31AppleIntelFramebufferController16hwRegsNeedUpdateEP21AppleIntelFramebufferP21AppleIntelDisplayPathP10CRTCParamsPK29IODetailedTimingInformationV2PN16AppleIntelScaler12SCALERPARAMSE",hwRegsNeedUpdate, this->ohwRegsNeedUpdate},
 			/*{"__ZN21AppleIntelFramebuffer31frameBufferNotificationcallbackEP8OSObjectPvP13IOFramebufferiS2_",aframeBufferNotificationcallback, this->oaframeBufferNotificationcallback},
 			{"__ZN31AppleIntelFramebufferController9hwSetModeEP21AppleIntelFramebufferP21AppleIntelDisplayPathiPK29IODetailedTimingInformationV2",hwSetMode, this->ohwSetMode},*/
@@ -290,7 +289,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		
 		if (isprod) {
 			KernelPatcher::RouteRequest requestsp[] = {
-				//{"__ZN31AppleIntelFramebufferController18hasExternalDisplayEv",dozero},
+
 				{"__ZN31AppleIntelFramebufferController12disableHWDC6Ev",disableHWDC6, this->odisableHWDC6},
 				{"__ZN31AppleIntelFramebufferController10enablePipeEP21AppleIntelFramebufferP21AppleIntelDisplayPathPK29IODetailedTimingInformationV2",enablePipe, this->oenablePipe},
 				{"__ZN31AppleIntelFramebufferController13probeBootPipeEPbPN17AppleIntelPortHAL3DDIE",probeBootPipe, this->oprobeBootPipe},
@@ -320,7 +319,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		} else //debug version
 		{
 			KernelPatcher::RouteRequest requestsd[] = {
-				{"__ZN24AppleIntelBaseController18hasExternalDisplayEv",dozero},
+
 				{"__ZN24AppleIntelBaseController12disableHWDC6Ev",disableHWDC6, this->odisableHWDC6},
 				{"__ZN24AppleIntelBaseController10enablePipeEP21AppleIntelFramebufferP21AppleIntelDisplayPathPK29IODetailedTimingInformationV2",enablePipe, this->oenablePipe},
 				{"__ZN24AppleIntelBaseController13probeBootPipeEPbPN17AppleIntelPortHAL3DDIE",probeBootPipe, this->oprobeBootPipe},
@@ -348,11 +347,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			PANIC_COND(!patcher.routeMultipleLong(index, requestsd, address, size), "nblue","Failed to route d symbols");
 		}
 		
-		
-		//dbuff
-		static const uint8_t f5[]= {0x74, 0x5a, 0xc7, 0x83, 0x48, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-		static const uint8_t r5[]= {0x90, 0x90, 0xc7, 0x83, 0x48, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-		
+
 		
 		//ReadRegister64
 		static const uint8_t f7[]= {0x83, 0xc0, 0xfc, 0x48, 0x39, 0xf0, 0x76, 0x11, 0x48, 0x8b, 0x47, 0x50, 0x48, 0xff, 0x05, 0xca, 0xf5, 0x0c, 0x00};
@@ -432,7 +427,6 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		
 		if (isprod){
 			LookupPatchPlus const patchesp[] = {// tgl production kext
-				//{&kextG11FBT, f5, r5, arrsize(f5),	1},
 				{&kextG11FBT, f7p, r7p, arrsize(f7p),	1},
 				{&kextG11FBT, f9p, r9p, arrsize(f9p),	1},
 				{&kextG11FBT, f13p, r13p, arrsize(f13p),	1},
@@ -450,7 +444,6 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		}
 		else {
 			LookupPatchPlus const patches[] = {// tgl debug kext
-				//{&kextG11FBT, f5, r5, arrsize(f5),	1},
 				{&kextG11FBT, f7, r7, arrsize(f7),	1},
 				{&kextG11FBT, f9, r9, arrsize(f9),	1},
 				{&kextG11FBT, f13, r13, arrsize(f13),	1},
@@ -9808,8 +9801,7 @@ void Gen11::SetupParams (void *that,void *param_1,void *param_2,CRTCParams *para
 		
 	}
 	FunctionCast(SetupParams, callback->oSetupParams)(that ,param_1,param_2,param_3,param_4);
-	if (kexticl) {
-		setpc=1;
+	if (kexticl && setpc) {
 		SetupParams2(param_2, param_3);
 	}
 }
@@ -9826,13 +9818,13 @@ void Gen11::SetupParams2 (void *param_2, CRTCParams *param_3)
 		param_3->PIPE_MISC=bdw_set_pipe_misc();
 		param_3->TRANSCONF= 0xc0000024;
 		
-		int fScanoutHeight=getMember<int>(param_2, kexticl ? 0x2fc : 0xfc);
+		/*int fScanoutHeight=getMember<int>(param_2, kexticl ? 0x2fc : 0xfc);
 		int fLinkScanoutWidth=getMember<int>(param_2, kexticl ? 0x2f8 : 0xf8);
 		param_3->PIPESRC =
 		((fScanoutHeight - 1) & 0x1fff) |
 		(param_3->PIPESRC & 0xe000e000) |
 		((fLinkScanoutWidth * 0x10000 + 0x1fff0000) & 0x1fff0000);
-		
+		*/
 	}
 	
 }
