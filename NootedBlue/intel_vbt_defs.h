@@ -4403,6 +4403,13 @@ static const struct intel_device_info jsl_info = {
 	.has_pxp = 1, \
 	.max_pat_index = 3
 
+static const struct intel_device_info rkl_info = {
+	GEN12_FEATURES,
+	PLATFORM2(INTEL_ROCKETLAKE),
+	.platform_engine_mask =
+		BIT(RCS0) | BIT(BCS0) | BIT(VECS0) | BIT(VCS0),
+};
+
 static const struct intel_device_info tgl_info = {
 	GEN12_FEATURES,
 	PLATFORM2(INTEL_TIGERLAKE),
@@ -4532,6 +4539,7 @@ u32 devid;
 const struct intel_device_info *desc;
 } intel_platform_ids[] = {
 	INTEL_TGL_IDS(INTEL_DISPLAY_DEVICE, &tgl_info),
+	INTEL_RKL_IDS(INTEL_DISPLAY_DEVICE, &rkl_info),
 	INTEL_ADLS_IDS(INTEL_DISPLAY_DEVICE, &adl_s_info),
 	INTEL_ADLP_IDS(INTEL_DISPLAY_DEVICE, &adl_p_info),
 	INTEL_ADLN_IDS(INTEL_DISPLAY_DEVICE, &adl_p_info),
