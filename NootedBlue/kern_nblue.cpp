@@ -2785,6 +2785,7 @@ int NBlue::intel_opregion_setup()
 	
 	guc->gt=gt;
 	i915b->initok=false;
+	i915b->inidmc=false;
 	
 	int i;
 	const struct intel_device_info *desc;

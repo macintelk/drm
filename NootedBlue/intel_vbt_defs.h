@@ -8964,6 +8964,7 @@ struct intel_mmio_range {
 
 struct drm_i915_private {
 	bool initok;
+	bool inidmc;
 	struct intel_display *display;
 	const struct intel_device_info *__info; /* Use INTEL_INFO() to access. */
 	struct intel_runtime_info __runtime; /* Use RUNTIME_INFO() to access. */

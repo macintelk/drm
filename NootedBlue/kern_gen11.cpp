@@ -5257,11 +5257,12 @@ static void dmc_load_mmio(struct intel_display *display, enum intel_dmc_id dmc_i
 {
 	struct intel_dmc *dmc = display_to_dmc(display);
 	u32 i;
-
+	
 	for (i = 0; i < dmc->dmc_info[dmc_id].mmio_count; i++) {
 		intel_de_write(display, dmc->dmc_info[dmc_id].mmioaddr[i],
-				   dmc_mmiodata(display, dmc, dmc_id, i));
+					   dmc_mmiodata(display, dmc, dmc_id, i));
 	}
+	
 }
 static void dmc_load_program(struct intel_display *display, enum intel_dmc_id dmc_id)
 {
@@ -5288,6 +5289,7 @@ static void dmc_load_program(struct intel_display *display, enum intel_dmc_id dm
 	IOSimpleLockFree(myLock);
 	
 	dmc_load_mmio(display, dmc_id);
+	
 }
 
 
@@ -6077,6 +6079,8 @@ void intel_dmc_load_program(struct intel_display *display)
 	gen9_set_dc_state_debugmask(display);
 
 	pipedmc_clock_gating_wa(display, false);
+	
+	
 }
 
 
@@ -6992,11 +6996,12 @@ void Gen11::enablePipe(void *that,void *param_1, void *param_2,void *param_3)
 void Gen11::hwInitializeCState(void *that)
 {
 	struct drm_i915_private *i915=NBlue::callback->i915b;
-	if (i915->initok) return;
+	if (i915->inidmc) return;
 	struct intel_display *display=i915->display;
+	i915->inidmc=true;
 	
 	
-	if (getMember<int>(that, kexticl ? 0xb38 : 0xb48) != 1) return;
+	//if (getMember<int>(that, kexticl ? 0xb38 : 0xb48) != 1) return;//dc6config
 	
 	if (parse_dmc_fw(display)!=0) return;
 	
@@ -7007,7 +7012,6 @@ void Gen11::hwInitializeCState(void *that)
 	
 	intel_dmc_load_program(display);
 	
-
 	/* Wa_14011508470:tgl,dg1,rkl,adl-s,adl-p,dg2 */
 	if (intel_display_wa(display, INTEL_DISPLAY_WA_14011508470))
 		intel_de_rmw(display, GEN11_CHICKEN_DCPR_2, 0,
