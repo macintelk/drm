@@ -3574,6 +3574,7 @@ static const u16 subplatform_rplu_ids[] = {
 	INTEL_RPLU_IDS(ID),
 };
 
+#define IS_BROADWELL(i915)	IS_PLATFORM(i915, INTEL_BROADWELL)
 
 
 typedef u32 intel_engine_mask_t;

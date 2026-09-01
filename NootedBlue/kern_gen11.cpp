@@ -262,8 +262,8 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			
 			//{"__ZN21AppleIntelFramebuffer22PerformFlipTransactionEP30IOAccelDisplayPipeTransaction2yP21FlipTransactionParams",PerformFlipTransaction, this->oPerformFlipTransaction},
 			//{"__ZN21AppleIntelFramebuffer21PreProcessTransactionEj",PreProcessTransaction, this->oPreProcessTransaction},
-			/*{"__ZN15AppleIntelPlane11updatePlaneEb",updatePlane, this->oupdatePlane},
-			{"__ZN15AppleIntelPlane10setupPlaneEP21AppleIntelDisplayPath",setupPlane2, this->osetupPlane2},
+			{"__ZN15AppleIntelPlane11updatePlaneEb",updatePlane, this->oupdatePlane},
+			/*{"__ZN15AppleIntelPlane10setupPlaneEP21AppleIntelDisplayPath",setupPlane2, this->osetupPlane2},
 			{"__ZN15AppleIntelPlane14configurePlaneEP19FlipTransactionArgs",configurePlane, this->oconfigurePlane},
 			{"__ZN15AppleIntelPlane11enablePlaneEb",enablePlane, this->oenablePlane},*/
 			//{"__ZN21AppleIntelFramebuffer28getInformationForDisplayModeEiP24IODisplayModeInformation",getInformationForDisplayMode, this->ogetInformationForDisplayMode},
@@ -1955,10 +1955,7 @@ void Gen11::enablePlane(void *that,bool param_1)
 	FunctionCast(enablePlane, callback->oenablePlane)(that, param_1);
 }
 
-void Gen11::updatePlane(void *that,bool param_1)
-{
-	FunctionCast(updatePlane, callback->oupdatePlane)(that, param_1);
-}
+
 
 void  Gen11::disablePowerWellAux(void *that,uint param_1)
 {
@@ -6907,12 +6904,65 @@ static void intel_psr_enable_locked(struct intel_dp *intel_dp,
 
 	intel_dp->psr.link_ok = true;
 
+	/* psr1, psr2 and panel-replay are mutually exclusive.*/
+	/*if (intel_dp->psr.panel_replay_enabled)
+		dg2_activate_panel_replay(intel_dp);
+	else if (intel_dp->psr.sel_update_enabled)
+		hsw_activate_psr2(intel_dp);
+	else*/
 	hsw_activate_psr1(i915);
 	
-	intel_de_write(display, CURSURFLIVE(display, intel_dp->psr.pipe), 0);
+	
 }
 
+static void wm_optimization_wa(struct intel_dp *intel_dp,
+				   const struct intel_crtc_state *crtc_state,enum pipe pipe)
+{
+	struct drm_i915_private *i915=NBlue::callback->i915b;
+	struct intel_display *display=i915->display;
+	bool activate = false;
 
+	/* Wa_14015648006 */
+	if (IS_DISPLAY_VER(display, 11, 14) && crtc_state->wm_level_disabled)
+		activate = true;
+
+	/* Wa_16013835468 */
+	if (DISPLAY_VER(display) == 12 &&
+		crtc_state->hw.adjusted_mode.crtc_vblank_start !=
+		crtc_state->hw.adjusted_mode.crtc_vdisplay)
+		activate = true;
+
+	if (activate)
+		intel_de_rmw(display, GEN8_CHICKEN_DCPR_1,
+				 0, LATENCY_REPORTING_REMOVED(pipe));
+	else
+		intel_de_rmw(display, GEN8_CHICKEN_DCPR_1,
+				 LATENCY_REPORTING_REMOVED(pipe), 0);
+}
+
+void Gen11::updatePlane(void *that,bool param_1)
+{
+	FunctionCast(updatePlane, callback->oupdatePlane)(that, param_1);
+	
+	/*struct drm_i915_private *i915=NBlue::callback->i915b;
+	struct intel_display *display=i915->display;
+	struct intel_dp *intel_dp=&display->intel_dp0;
+	
+	void * frame = getMember<void *>(that, 0x68);
+	uint32_t fbNum = getMember<uint32_t>(frame, 0x1dc);
+	
+	if (fbNum!=0) return;
+		
+	if (!intel_dp->psr.enabled )
+		intel_psr_enable_locked(intel_dp, &display->crtc_state0);
+	else if (intel_dp->psr.enabled && !display->crtc_state0.wm_level_disabled)
+		wm_optimization_wa(intel_dp, &display->crtc_state0,intel_dp->psr.pipe);
+
+	if (display->crtc_state0.crc_enabled && intel_dp->psr.enabled)
+		intel_de_write(display, CURSURFLIVE(display, intel_dp->psr.pipe), 0);
+	*/
+	
+}
 
 void Gen11::enablePipe(void *that,void *param_1, void *param_2,void *param_3)
 {
@@ -6933,8 +6983,6 @@ void Gen11::enablePipe(void *that,void *param_1, void *param_2,void *param_3)
 	icl_set_pipe_chicken(pipe);
 
 	intel_crt_set_dpms(pipe, &display->crtc_state0, DRM_MODE_DPMS_ON);
-	
-	//intel_psr_enable_locked(intel_dp,&display->crtc_state0);
 	
 	//dmc_configure_event(display, dmc_id, PIPEDMC_EVENT_VBLANK, true);
 	//dmc_configure_event(display, dmc_id, PIPEDMC_EVENT_SCANLINE_INRANGE_FQ_TRIGGER, true);
@@ -10176,7 +10224,7 @@ void  Gen11::enableDisplayEngine(void *that0)
 		}
 	}
 
-	
+
 	if (DISPLAY_VER(display) == 12)
 		intel_de_rmw(display, CLKREQ_POLICY, CLKREQ_POLICY_MEM_UP_OVRD, 0);
 	
@@ -10185,8 +10233,6 @@ void  Gen11::enableDisplayEngine(void *that0)
 	if (intel_display_wa(display, INTEL_DISPLAY_WA_14011294188))
 		intel_de_rmw(display, SOUTH_DSPCLK_GATE_D, 0, PCH_DPMGUNIT_CLOCK_GATE_DISABLE);
 	
-	
-	//cnp_rawclk(display);
 
 	intel_pch_reset_handshake(display, !HAS_PCH_NOP(display));
 	
@@ -10251,8 +10297,8 @@ void  Gen11::enableDisplayEngine(void *that0)
 	}
 	
 	
-
-	struct intel_dbuf_state dbuf_state;
+//skl_mbus_sanitize
+/*	struct intel_dbuf_state dbuf_state;
 	
 	dbuf_state.joined_mbus = false;
 	
@@ -10267,7 +10313,7 @@ void  Gen11::enableDisplayEngine(void *that0)
 	
 	if (HAS_MBUS_JOINING(display))
 	intel_dbuf_mdclk_cdclk_ratio_update(display, 1,dbuf_state.joined_mbus);
-
+*/
 }
 
 
@@ -10395,9 +10441,9 @@ void  Gen11::AppleIntelPowerWellinit(void *that0, void *param_1)
 	
 	
 	//if (bootPipe != 0xffff && that->PG1 == 0 && getMember<u32>(param_1, 0xd5c) /*that->contr->NumFrameBuffers*/ != 0) {
-	if (bootPipe != 0xffff && that->PG1 == 0){
+	//if (bootPipe != 0xffff && that->PG1 == 0){
 	enableDisplayEngine(that0);
-	}
+	//}
 
 	int max=kexticl ? 6:9;
 	for (i = 0; i < max; i++) {
