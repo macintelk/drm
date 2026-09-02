@@ -12303,6 +12303,81 @@ struct guc_process_desc {
 #define _PIPE_A_CSC_MODE	0x49028
 #define _PIPE_B_CSC_MODE	0x49128
 #define PIPE_CSC_MODE(pipe)		_MMIO_PIPE(pipe, _PIPE_A_CSC_MODE, _PIPE_B_CSC_MODE)
+#define ADPA_HOTPLUG_BITS (ADPA_CRT_HOTPLUG_ENABLE |			\
+			   ADPA_CRT_HOTPLUG_PERIOD_128 |		\
+			   ADPA_CRT_HOTPLUG_WARMUP_10MS |		\
+			   ADPA_CRT_HOTPLUG_SAMPLE_4S |			\
+			   ADPA_CRT_HOTPLUG_VOLTAGE_50 |		\
+			   ADPA_CRT_HOTPLUG_VOLREF_325MV)
+#define HAS_PCH_LPT(display)			(INTEL_PCH_TYPE(display) == PCH_LPT_H || \
+						 INTEL_PCH_TYPE(display) == PCH_LPT_LP)
+#define HAS_PCH_CPT(display)			(INTEL_PCH_TYPE(display) == PCH_CPT)
+#define HAS_PCH_SPLIT(display)			(INTEL_PCH_TYPE(display) != PCH_NONE)
+#define ADPA			_MMIO(0x61100)
+#define PCH_ADPA		_MMIO(0xe1100)
+#define VLV_DISPLAY_BASE		0x180000
+#define VLV_ADPA		_MMIO(VLV_DISPLAY_BASE + 0x61100)
+
+#define ADPA_HOTPLUG_MASK (ADPA_CRT_HOTPLUG_MONITOR_MASK |		\
+			   ADPA_CRT_HOTPLUG_ENABLE |			\
+			   ADPA_CRT_HOTPLUG_PERIOD_MASK |		\
+			   ADPA_CRT_HOTPLUG_WARMUP_MASK |		\
+			   ADPA_CRT_HOTPLUG_SAMPLE_MASK |		\
+			   ADPA_CRT_HOTPLUG_VOLTAGE_MASK |		\
+			   ADPA_CRT_HOTPLUG_VOLREF_MASK |		\
+			   ADPA_CRT_HOTPLUG_FORCE_TRIGGER)
+
+#define HAS_HECI_PXP(i915) \
+	(INTEL_INFO(i915)->has_heci_pxp)
+
+#define HAS_HECI_GSCFI(i915) \
+	(INTEL_INFO(i915)->has_heci_gscfi)
+
+#define HAS_HECI_GSC(i915) (HAS_HECI_PXP(i915) || HAS_HECI_GSCFI(i915))
+#define PICAINTERRUPT_ISR			_MMIO(0x16FE50)
+#define PICAINTERRUPT_IMR			_MMIO(0x16FE54)
+#define PICAINTERRUPT_IIR			_MMIO(0x16FE58)
+#define PICAINTERRUPT_IER			_MMIO(0x16FE5C)
+#define  XELPDP_DP_ALT_HOTPLUG(hpd_pin)		REG_BIT(16 + _HPD_PIN_TC(hpd_pin))
+#define  XELPDP_DP_ALT_HOTPLUG_MASK		REG_GENMASK(19, 16)
+#define  XELPDP_AUX_TC(hpd_pin)			REG_BIT(8 + _HPD_PIN_TC(hpd_pin))
+#define  XELPDP_AUX_TC_MASK			REG_GENMASK(11, 8)
+#define  XE2LPD_AUX_DDI(hpd_pin)		REG_BIT(6 + _HPD_PIN_DDI(hpd_pin))
+#define  XE2LPD_AUX_DDI_MASK			REG_GENMASK(7, 6)
+#define  XELPDP_TBT_HOTPLUG(hpd_pin)		REG_BIT(_HPD_PIN_TC(hpd_pin))
+#define  XELPDP_TBT_HOTPLUG_MASK		REG_GENMASK(3, 0)
+
+#define PICAINTERRUPT_IRQ_REGS			I915_IRQ_REGS(PICAINTERRUPT_IMR, \
+								  PICAINTERRUPT_IER, \
+								  PICAINTERRUPT_IIR)
+
+#define GEN8_PCU_ISR _MMIO(0x444e0)
+#define GEN8_PCU_IMR _MMIO(0x444e4)
+#define GEN8_PCU_IIR _MMIO(0x444e8)
+#define GEN8_PCU_IER _MMIO(0x444ec)
+
+#define GEN8_PCU_IRQ_REGS		I915_IRQ_REGS(GEN8_PCU_IMR, \
+							  GEN8_PCU_IER, \
+							  GEN8_PCU_IIR)
+#define DP_PAYLOAD_TABLE_UPDATE_STATUS      0x2c0   /* 1.2 MST */
+# define DP_PAYLOAD_TABLE_UPDATED           (1 << 0)
+# define DP_PAYLOAD_ACT_HANDLED             (1 << 1)
+#define DP_PAYLOAD_ALLOCATE_SET		    0x1c0
+#define DP_FEC_CONFIGURATION		    0x120    /* 1.4 */
+# define DP_FEC_READY			    (1 << 0)
+# define DP_FEC_ERR_COUNT_SEL_MASK	    (7 << 1)
+# define DP_FEC_ERR_COUNT_DIS		    (0 << 1)
+# define DP_FEC_UNCORR_BLK_ERROR_COUNT	    (1 << 1)
+# define DP_FEC_CORR_BLK_ERROR_COUNT	    (2 << 1)
+# define DP_FEC_BIT_ERROR_COUNT		    (3 << 1)
+# define DP_FEC_LANE_SELECT_MASK	    (3 << 4)
+# define DP_FEC_LANE_0_SELECT		    (0 << 4)
+# define DP_FEC_LANE_1_SELECT		    (1 << 4)
+# define DP_FEC_LANE_2_SELECT		    (2 << 4)
+# define DP_FEC_LANE_3_SELECT		    (3 << 4)
+#define DP_FEC_STATUS			    0x280    /* 1.4 */
+# define DP_FEC_DECODE_EN_DETECTED	    (1 << 0)
+# define DP_FEC_DECODE_DIS_DETECTED	    (1 << 1)
 
 
 

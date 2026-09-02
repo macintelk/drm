@@ -1814,18 +1814,6 @@ static int intel_num_pps(struct intel_display *display)
 
 	return 1;
 }
-void intel_pps_unlock_regs_wa(struct intel_display *display)
-{
-	int pps_num;
-	int pps_idx;
-
-	
-	pps_num = intel_num_pps(display);
-
-	for (pps_idx = 0; pps_idx < pps_num; pps_idx++)
-		NBlue::callback->intel_de_rmw(display, PP_CONTROL(display, pps_idx),
-				 PANEL_UNLOCK_MASK, PANEL_UNLOCK_REGS);
-}
 
 
 
