@@ -425,6 +425,8 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		static const uint8_t f26p[]= {0xe8, 0x31, 0x12, 0x09, 0x00, 0x48, 0x8b, 0x7b, 0x70, 0xbe, 0x00, 0x05, 0x00, 0x00, 0x03, 0xb3, 0xb8, 0x00, 0x00, 0x00, 0x8b, 0x93, 0x4c, 0x01, 0x00, 0x00};
 		static const uint8_t r26p[]= {0xe8, 0x31, 0x12, 0x09, 0x00, 0x48, 0x8b, 0x7b, 0x70, 0xbe, 0x00, 0x00, 0x00, 0x00, 0x03, 0xb3, 0xb8, 0x00, 0x00, 0x00, 0x8b, 0x93, 0x20, 0x01, 0x00, 0x00};
 		
+
+		
 		if (isprod){
 			LookupPatchPlus const patchesp[] = {// tgl production kext
 				{&kextG11FBT, f7p, r7p, arrsize(f7p),	1},
@@ -7248,7 +7250,7 @@ void Gen11::hwInitializeCState(void *that)
 				 PCH_GMBUSUNIT_CLOCK_GATE_DISABLE, 0);
 	}
 	
-	hwConfigureCustomAUX(that, true);
+	//hwConfigureCustomAUX(that, true);
 	
 	
 	
@@ -10003,8 +10005,25 @@ static bool pipe_scanline_is_moving(struct intel_display *display, enum pipe pip
 	return line1 != line2;
 }
 
+#define _FDI_RXA_CTL             0xf000c
+#define _FDI_RXB_CTL             0xf100c
+#define FDI_RX_CTL(pipe)	_MMIO_PIPE(pipe, _FDI_RXA_CTL, _FDI_RXB_CTL)
+#define  FDI_RX_ENABLE          (1 << 31)
+#define  FDI_RX_PLL_ENABLE              (1 << 13)
 
+static void assert_fdi_rx_pll(struct intel_display *display,
+				  enum pipe pipe, bool state)
+{
+	bool cur_state;
 
+	cur_state = intel_de_read(display, FDI_RX_CTL(pipe)) & FDI_RX_PLL_ENABLE;
+	if (cur_state != state) panic("FDI RX PLL assertion failure \n");
+}
+
+void assert_fdi_rx_pll_enabled(struct intel_display *display, enum pipe pipe)
+{
+	assert_fdi_rx_pll(display, pipe, true);
+}
 
 void intel_enable_transcoder(struct intel_display *display, struct intel_crtc_state *new_crtc_state)
 {
@@ -10021,15 +10040,15 @@ void intel_enable_transcoder(struct intel_display *display, struct intel_crtc_st
 			assert_dsi_pll_enabled(display);
 		else
 			assert_pll_enabled(display, pipe);
-	} else {
-		if (new_crtc_state->has_pch_encoder) {
+	} else {*/
+		//if (new_crtc_state->has_pch_encoder) {
 
 			assert_fdi_rx_pll_enabled(display,
-						  intel_crtc_pch_transcoder(crtc));
-			assert_fdi_tx_pll_enabled(display,
-						  (enum pipe) cpu_transcoder);
-		}
-	}*/
+						  (enum pipe)0);
+			//assert_fdi_tx_pll_enabled(display,
+			//			  (enum pipe) cpu_transcoder);
+		//}
+	//}
 
 	/* Wa_22012358565:adl-p */
 	if (intel_display_wa(display, INTEL_DISPLAY_WA_22012358565))
@@ -10414,9 +10433,9 @@ void Gen11::SetupParams (void *that,void *param_1,void *param_2,CRTCParams *para
 			if ((tmp & TRANS_DDI_EDP_INPUT_MASK) == TRANS_DDI_EDP_INPUT_A_ONOFF)
 				crtc_state->pch_pfit.force_thru = true;
 		}
-
 		
 	}
+	
 	FunctionCast(SetupParams, callback->oSetupParams)(that ,param_1,param_2,param_3,param_4);
 	if (kexticl && setpc) {
 		SetupParams2(param_2, param_3);
