@@ -756,7 +756,7 @@ uint64_t  Gen11::getOSInformation2(void *that)
 		pinfo[p].connectors[i].flags=NBlue::callback->i915b->display->bconnectors[i].flags;
 	}
 	
-	pinfo[p].connectors[1].type=ConnectorDummy;
+	//pinfo[p].connectors[1].type=ConnectorDummy;
 	pinfo[p].connectors[0].pipe=1;
 	pinfo[p].connectors[0].flags-=CNConnectorAlwaysConnected;
 	
@@ -819,7 +819,7 @@ uint64_t  Gen11::getOSInformation(void *that)
 		pinfo[p].connectors[i].flags=NBlue::callback->i915b->display->bconnectors[i].flags;
 	}
 	
-	pinfo[p].connectors[1].type=ConnectorDummy;
+	//pinfo[p].connectors[1].type=ConnectorDummy;
 	//pinfo[p].connectors[0].pipe=1;
 	
 		
@@ -945,6 +945,9 @@ unsigned long Gen11::AppleIntelScalerinit(void *that,uint param_1)
 void Gen11::hwGetCRTC(void *that,void *param_1,void *param_2)
 {
 	FunctionCast(hwGetCRTC, callback->ohwGetCRTC)(that,param_1,param_2 );
+	
+	//uint32_t fbNum = getMember<uint32_t>(param_1, 0x1dc);
+	//if (fbNum!=0) return;
 	
 	if (bk==2){
 		NBlue::callback->parse_backlight();
@@ -4648,67 +4651,6 @@ void Gen11::engines(void *that)
 
 
 
-static void gen11_rc6_enable(void *that)
-{
-	struct drm_i915_private *i915 = NBlue::callback->i915b;
-	struct intel_gt *gt=to_gt(i915);
-	struct intel_display *display=i915->display;
-	struct intel_guc *guc = gt_to_guc(gt);
-	struct intel_engine_cs *engine;
-	
-	enum intel_engine_id id2;
-	u32 pg_enable;
-	int i;
-
-	//intel_uncore_forcewake_get(uncore, FORCEWAKE_ALL);
-	Gen11::callback->SafeForceWake(that, true, 7);
-	
-	if (!guc->submission_supported) {
-
-		intel_de_write(display, GEN6_RC6_WAKE_RATE_LIMIT, 54 << 16 | 85);
-		intel_de_write(display, GEN10_MEDIA_WAKE_RATE_LIMIT, 150);
-
-		intel_de_write(display, GEN6_RC_EVALUATION_INTERVAL, 125000);
-		intel_de_write(display, GEN6_RC_IDLE_HYSTERSIS, 25);
-		for_each_engine(engine, gt, id2)
-		intel_de_write(display, RING_MAX_IDLE(engine->mmio_base), 10);
-
-		intel_de_write(display, GUC_MAX_IDLE_COUNT, 0xA);
-
-		intel_de_write(display, GEN6_RC_SLEEP, 0);
-
-		intel_de_write(display, GEN6_RC6_THRESHOLD, 50000);
-	}
-
-
-	intel_de_write(display, GEN9_MEDIA_PG_IDLE_HYSTERESIS, 60);
-	intel_de_write(display, GEN9_RENDER_PG_IDLE_HYSTERESIS, 60);
-
-	u32 ctl_enable;
-	/*if (!intel_guc_rc_enable(gt))
-		rc6->ctl_enable = GEN6_RC_CTL_RC6_ENABLE;
-	else*/
-		ctl_enable =
-			GEN6_RC_CTL_HW_ENABLE |
-			GEN6_RC_CTL_RC6_ENABLE |
-			GEN6_RC_CTL_EI_MODE(1);
-
-	pg_enable =
-		GEN9_RENDER_PG_ENABLE |
-		GEN9_MEDIA_PG_ENABLE |
-		GEN11_MEDIA_SAMPLER_PG_ENABLE;
-
-	if (GRAPHICS_VER(gt->i915) >= 12 && !IS_DG1(gt->i915)) {
-		for (i = 0; i < I915_MAX_VCS; i++)
-			if (HAS_ENGINE(gt, _VCS(i)))
-				pg_enable |= (VDN_HCP_POWERGATE_ENABLE(i) |
-						  VDN_MFX_POWERGATE_ENABLE(i));
-	}
-
-	intel_de_write(display, GEN9_PG_ENABLE, pg_enable);
-	
-	Gen11::callback->SafeForceWake(that, false, 7);
-}
 
 
 
@@ -10388,7 +10330,7 @@ void Gen11::SetupParams (void *that,void *param_1,void *param_2,CRTCParams *para
 	if (pc->index == 0) setpc=1;
 	
 	
-	if (!dpcdconf)
+	if (!dpcdconf && pc->index == 0)
 	{
 		dpcdconf=true;
 		struct intel_dp *intel_dp=&display->intel_dp0;
@@ -12531,38 +12473,7 @@ static void gen11_disable_guc_interrupts(struct intel_gt *gt)
 
 
 
-static int intel_guc_resume0(void *that)
-{
-#define GUC_POWER_D0		1
-	
-	u32 action[] = {
-		INTEL_GUC_ACTION_EXIT_S_STATE,
-		GUC_POWER_D0,
-	};
 
-	//if (!intel_guc_submission_is_used(guc) || !intel_guc_is_ready(guc))
-	//	return 0;
-
-	Gen11::callback->hostToGuCAction(that,action,2,0xf,(uint *)0x0);
-	//return intel_guc_send(guc, action, ARRAY_SIZE(action));
-	return 1;
-}
-
-static int intel_guc_sample_forcewake(void *that)
-{
-	
-	u32 action[2];
-	
-#define GUC_FORCEWAKE_RENDER	(1 << 0)
-#define GUC_FORCEWAKE_MEDIA	(1 << 1)
-
-	action[0] = INTEL_GUC_ACTION_SAMPLE_FORCEWAKE;
-	action[1] = GUC_FORCEWAKE_RENDER | GUC_FORCEWAKE_MEDIA;
-
-	Gen11::callback->hostToGuCAction(that,action,2,0xf,(uint *)0x0);
-	//return intel_guc_send(guc, action, ARRAY_SIZE(action));
-	return 1;
-}
 
 
 
@@ -13638,6 +13549,120 @@ static int ct_control_enable(struct intel_guc *guc, bool enable)
 	return err;
 }
 
+static int guc_action_control_gucrc(struct intel_guc *guc, bool enable)
+{
+	u32 rc_mode = enable ? INTEL_GUCRC_FIRMWARE_CONTROL :
+				INTEL_GUCRC_HOST_CONTROL;
+	u32 action[] = {
+		INTEL_GUC_ACTION_SETUP_PC_GUCRC,
+		rc_mode
+	};
+	int ret;
+
+	//ret = intel_guc_send(guc, action, ARRAY_SIZE(action));
+	ret =intel_guc_send_mmio(guc, action, ARRAY_SIZE(action), NULL, 0);
+	ret = 1;//ret > 0 ? -EPROTO : ret;
+
+	return ret;
+}
+
+static void gen11_rc6_enable(void *that)
+{
+	struct drm_i915_private *i915 = NBlue::callback->i915b;
+	struct intel_gt *gt=to_gt(i915);
+	struct intel_display *display=i915->display;
+	struct intel_guc *guc = gt_to_guc(gt);
+	struct intel_engine_cs *engine;
+	
+	enum intel_engine_id id2;
+	u32 pg_enable;
+	int i;
+
+	//intel_uncore_forcewake_get(uncore, FORCEWAKE_ALL);
+	Gen11::callback->SafeForceWake(that, true, 7);
+	
+	if (!guc->submission_supported) {
+
+		intel_de_write(display, GEN6_RC6_WAKE_RATE_LIMIT, 54 << 16 | 85);
+		intel_de_write(display, GEN10_MEDIA_WAKE_RATE_LIMIT, 150);
+
+		intel_de_write(display, GEN6_RC_EVALUATION_INTERVAL, 125000);
+		intel_de_write(display, GEN6_RC_IDLE_HYSTERSIS, 25);
+		for_each_engine(engine, gt, id2)
+		intel_de_write(display, RING_MAX_IDLE(engine->mmio_base), 10);
+
+		intel_de_write(display, GUC_MAX_IDLE_COUNT, 0xA);
+
+		intel_de_write(display, GEN6_RC_SLEEP, 0);
+
+		intel_de_write(display, GEN6_RC6_THRESHOLD, 50000);
+	}
+
+
+	intel_de_write(display, GEN9_MEDIA_PG_IDLE_HYSTERESIS, 60);
+	intel_de_write(display, GEN9_RENDER_PG_IDLE_HYSTERESIS, 60);
+
+	u32 ctl_enable;
+	if (!guc_action_control_gucrc(guc,true))
+		ctl_enable = GEN6_RC_CTL_RC6_ENABLE;
+	else
+		ctl_enable =
+			GEN6_RC_CTL_HW_ENABLE |
+			GEN6_RC_CTL_RC6_ENABLE |
+			GEN6_RC_CTL_EI_MODE(1);
+
+	pg_enable =
+		GEN9_RENDER_PG_ENABLE |
+		GEN9_MEDIA_PG_ENABLE |
+		GEN11_MEDIA_SAMPLER_PG_ENABLE;
+
+	if (GRAPHICS_VER(gt->i915) >= 12 && !IS_DG1(gt->i915)) {
+		for (i = 0; i < I915_MAX_VCS; i++)
+			if (HAS_ENGINE(gt, _VCS(i)))
+				pg_enable |= (VDN_HCP_POWERGATE_ENABLE(i) |
+						  VDN_MFX_POWERGATE_ENABLE(i));
+	}
+
+	intel_de_write(display, GEN9_PG_ENABLE, pg_enable);
+	
+	Gen11::callback->SafeForceWake(that, false, 7);
+}
+
+static int intel_guc_resume0(struct intel_guc *guc)
+{
+#define GUC_POWER_D0		1
+	
+	u32 action[] = {
+		INTEL_GUC_ACTION_EXIT_S_STATE,
+		GUC_POWER_D0,
+	};
+
+	//if (!intel_guc_submission_is_used(guc) || !intel_guc_is_ready(guc))
+	//	return 0;
+
+	//Gen11::callback->hostToGuCAction(that,action,2,0xf,(uint *)0x0);
+	return intel_guc_send_mmio(guc, action, ARRAY_SIZE(action), NULL, 0);
+	//return intel_guc_send(guc, action, ARRAY_SIZE(action));
+	return 1;
+}
+
+static int intel_guc_sample_forcewake(struct intel_guc *guc)
+{
+	
+	u32 action[2];
+	
+#define GUC_FORCEWAKE_RENDER	(1 << 0)
+#define GUC_FORCEWAKE_MEDIA	(1 << 1)
+
+	action[0] = INTEL_GUC_ACTION_SAMPLE_FORCEWAKE;
+	action[1] = GUC_FORCEWAKE_RENDER | GUC_FORCEWAKE_MEDIA;
+
+	//Gen11::callback->hostToGuCAction(that,action,2,0xf,(uint *)0x0);
+	return intel_guc_send_mmio(guc, action, ARRAY_SIZE(action), NULL, 0);
+	//return intel_guc_send(guc, action, ARRAY_SIZE(action));
+	return 1;
+}
+
 int intel_guc_ct_enable(struct intel_guc *guc)
 {
 	struct intel_guc_ct *ct = &guc->ct;
@@ -14408,19 +14433,138 @@ static void guc_stage_desc_init(struct intel_guc *guc)
 	desc->wq_addr = intel_guc_ggtt_offset(guc, guc->workqueue);
 	desc->wq_size = GUC_WQ_SIZE;
 }
-static void intel_guc_submission_enable(struct intel_guc *guc)
+
+static void guc_route_semaphores(struct intel_guc *guc, bool to_guc)
 {
+	struct drm_i915_private *i915 = NBlue::callback->i915b;
+	struct intel_display *display = i915->display;
+	u32 val;
 
-	guc_proc_desc_init(guc);
-	guc_stage_desc_init(guc);
+	if (GRAPHICS_VER(i915) < 12)
+		return;
 
-	/* Take over from manual control of ELSP (execlists) */
-	//guc_interrupts_capture(gt);
+	if (to_guc)
+		val = GUC_SEM_INTR_ROUTE_TO_GUC | GUC_SEM_INTR_ENABLE_ALL;
+	else
+		val = 0;
 
-	/*for_each_engine(engine, gt, id) {
-		engine->set_default_submission = guc_set_default_submission;
-		engine->set_default_submission(engine);
-	}*/
+	intel_de_write(display, GEN12_GUC_SEM_INTR_ENABLES, val);
+}
+
+u32 intel_guc_engine_usage_offset(struct intel_guc *guc)
+{
+	return intel_guc_ggtt_offset(guc, guc->ads_vma) +
+		offsetof(struct __guc_ads_blob, engine_usage);
+}
+
+
+#define __iosys_map_wr_sys(val__, vaddr__, type__)				\
+	WRITE_ONCE(*(type__ *)(vaddr__), val__)
+
+#define iosys_map_wr(map__, offset__, type__, val__) ({					\
+	type__ val_ = (val__);								\
+		__iosys_map_wr_sys(val_, (u8*)((map__)->vaddr) + (offset__), type__);		\
+})
+
+#define iosys_map_wr_field(map__, struct_offset__, struct_type__, field__, val__) ({	\
+	struct_type__ *s_;								\
+	iosys_map_wr(map__, struct_offset__ + offsetof(struct_type__, field__),		\
+			 __typeof(s_->field__), val__);					\
+})
+
+
+struct iosys_map intel_guc_engine_usage_record_map(struct intel_engine_cs *engine)
+{
+	struct intel_guc *guc = gt_to_guc(engine->gt);
+	u8 guc_class = engine_class_to_guc_class(engine->classb);
+	size_t offset = offsetof(struct __guc_ads_blob,
+				 engine_usage.engines[guc_class][ilog2(engine->logical_mask)]);
+
+	return IOSYS_MAP_INIT_OFFSET(&guc->ads_map, offset);
+}
+
+static void __set_engine_usage_record(struct intel_engine_cs *engine,
+					  u32 last_in, u32 id, u32 total)
+{
+	struct iosys_map rec_map = intel_guc_engine_usage_record_map(engine);
+
+#define record_write(map_, field_, val_) \
+	iosys_map_wr_field(map_, 0, struct guc_engine_usage_record, field_, val_)
+
+	record_write(&rec_map, last_switch_in_stamp, last_in);
+	record_write(&rec_map, current_context_index, id);
+	record_write(&rec_map, total_runtime, total);
+
+#undef record_write
+}
+
+static int guc_action_enable_usage_stats(struct intel_guc *guc)
+{
+	struct drm_i915_private *i915 = NBlue::callback->i915b;
+	struct intel_gt *gt = to_gt(i915);
+	struct intel_guc_ct *ct = &guc->ct;
+	struct intel_display *display = i915->display;
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+	u32 offset = intel_guc_engine_usage_offset(guc);
+	u32 action[] = {
+		INTEL_GUC_ACTION_SET_ENG_UTIL_BUFF,
+		offset,
+		0,
+	};
+
+	for_each_engine(engine, gt, id)
+		__set_engine_usage_record(engine, 0, 0xffffffff, 0);
+
+	//return intel_guc_send(guc, action, ARRAY_SIZE(action));
+	return intel_guc_send_mmio(guc, action, ARRAY_SIZE(action), NULL, 0);
+}
+
+static int guc_init_engine_stats(struct intel_guc *guc)
+{
+	struct drm_i915_private *i915 = NBlue::callback->i915b;
+	struct intel_gt *gt = to_gt(i915);
+	struct intel_guc_ct *ct = &guc->ct;
+	struct intel_display *display = i915->display;
+	int ret;
+
+	//with_intel_runtime_pm(&gt->i915->runtime_pm, wakeref)
+		ret = guc_action_enable_usage_stats(guc);
+
+	if (ret)
+		return ret;
+	//else
+	//	guc_enable_busyness_worker(guc);
+
+	return ret;
+}
+
+static int intel_guc_submission_enable(struct intel_guc *guc)
+{
+	int ret;
+
+	/* Semaphore interrupt enable and route to GuC */
+	guc_route_semaphores(guc, true);
+
+	//ret = guc_init_submission(guc);
+	//if (ret)
+	//	goto fail_sem;
+
+	ret = guc_init_engine_stats(guc);
+	if (ret)
+		goto fail_sem;
+
+	//ret = guc_init_global_schedule_policy(guc);
+	//if (ret)
+	//	goto fail_stats;
+
+	return 0;
+
+fail_stats:
+	//guc_fini_engine_stats(guc);
+fail_sem:
+	//guc_route_semaphores(guc, false);
+	return ret;
 }
 
 uint64_t Gen11::loadFirmware(void *that)
@@ -14440,16 +14584,16 @@ uint64_t Gen11::loadFirmware(void *that)
 		
 		gen11_rc6_enable(m_accelerator);
 		
-		SafeForceWake(m_accelerator, true, 7);
-		guc_enable_communication(guc);
-		SafeForceWake(m_accelerator, false, 7);
-		
-		//intel_guc_sample_forcewake(that);
-		//intel_guc_submission_enable(guc);
-		//intel_guc_resume0(that);
-		
 		gen11_irq_reset(i915);
 		gen11_irq_postinstall(i915);
+		
+		//SafeForceWake(m_accelerator, true, 7);
+		//guc_enable_communication(guc);
+		//SafeForceWake(m_accelerator, false, 7);
+		
+		intel_guc_sample_forcewake(guc);
+		intel_guc_submission_enable(guc);
+		intel_guc_resume0(guc);
 		
 	}
 	

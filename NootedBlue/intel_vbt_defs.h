@@ -12379,6 +12379,13 @@ struct guc_process_desc {
 # define DP_FEC_DECODE_EN_DETECTED	    (1 << 0)
 # define DP_FEC_DECODE_DIS_DETECTED	    (1 << 1)
 
+enum intel_guc_rc_options {
+	INTEL_GUCRC_HOST_CONTROL,
+	INTEL_GUCRC_FIRMWARE_CONTROL,
+};
+
+
+
 
 
 
