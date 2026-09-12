@@ -262,10 +262,10 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			
 			//{"__ZN21AppleIntelFramebuffer22PerformFlipTransactionEP30IOAccelDisplayPipeTransaction2yP21FlipTransactionParams",PerformFlipTransaction, this->oPerformFlipTransaction},
 			//{"__ZN21AppleIntelFramebuffer21PreProcessTransactionEj",PreProcessTransaction, this->oPreProcessTransaction},
-			{"__ZN15AppleIntelPlane11updatePlaneEb",updatePlane, this->oupdatePlane},
-			/*{"__ZN15AppleIntelPlane10setupPlaneEP21AppleIntelDisplayPath",setupPlane2, this->osetupPlane2},
+			//{"__ZN15AppleIntelPlane11updatePlaneEb",updatePlane, this->oupdatePlane},
+			{"__ZN15AppleIntelPlane10setupPlaneEP21AppleIntelDisplayPath",setupPlane2, this->osetupPlane2},
 			{"__ZN15AppleIntelPlane14configurePlaneEP19FlipTransactionArgs",configurePlane, this->oconfigurePlane},
-			{"__ZN15AppleIntelPlane11enablePlaneEb",enablePlane, this->oenablePlane},*/
+			//{"__ZN15AppleIntelPlane11enablePlaneEb",enablePlane, this->oenablePlane},
 			//{"__ZN21AppleIntelFramebuffer28getInformationForDisplayModeEiP24IODisplayModeInformation",getInformationForDisplayMode, this->ogetInformationForDisplayMode},
 			{"__ZN14AppleIntelPort12getPortByDDIEj",getPortByDDI, this->ogetPortByDDI},
 			{"__ZN14AppleIntelPort11setPortModeENS_8PortModeE",setPortMode, this->osetPortMode},
@@ -356,6 +356,13 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		static const uint8_t f7p[]= {0x83, 0xc0, 0xfc, 0x48, 0x39, 0xf0, 0x76, 0x11, 0x48, 0x8b, 0x47, 0x50, 0x48, 0xff, 0x05, 0x84, 0x40, 0x08, 0x00};
 		static const uint8_t r7p[]= {0x83, 0xc0, 0xf8, 0x48, 0x39, 0xf0, 0x76, 0x11, 0x48, 0x8b, 0x47, 0x50, 0x48, 0xff, 0x05, 0x84, 0x40, 0x08, 0x00};
 		
+		//dpcd print
+		static const uint8_t f8[]= {0x0f, 0x85, 0x40, 0x01, 0x00, 0x00, 0x48, 0xff, 0x05, 0xbd, 0xf6, 0x11, 0x00, 0x80, 0x7d, 0xb8, 0x10, 0x0f, 0x85, 0x2f, 0x01, 0x00, 0x00, 0x48, 0xff, 0x05, 0xa4, 0xf6, 0x11, 0x00, 0x80, 0x7d, 0xb9, 0xfa, 0x0f, 0x85, 0x1e, 0x01, 0x00, 0x00};
+		static const uint8_t r8[]= {0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x48, 0xff, 0x05, 0xbd, 0xf6, 0x11, 0x00, 0x80, 0x7d, 0xb8, 0x10, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x48, 0xff, 0x05, 0xa4, 0xf6, 0x11, 0x00, 0x80, 0x7d, 0xb9, 0xfa, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90};
+		
+		static const uint8_t f8p[]= {0x0f, 0x85, 0xc7, 0x00, 0x00, 0x00, 0x48, 0xff, 0x05, 0x45, 0x8b, 0x0b, 0x00, 0x80, 0x7d, 0xb8, 0x10, 0x0f, 0x85, 0xb6, 0x00, 0x00, 0x00, 0x48, 0xff, 0x05, 0x2c, 0x8b, 0x0b, 0x00, 0x80, 0x7d, 0xb9, 0xfa, 0x0f, 0x85, 0xa5, 0x00, 0x00, 0x00};
+		static const uint8_t r8p[]= {0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x48, 0xff, 0x05, 0x45, 0x8b, 0x0b, 0x00, 0x80, 0x7d, 0xb8, 0x10, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x48, 0xff, 0x05, 0x2c, 0x8b, 0x0b, 0x00, 0x80, 0x7d, 0xb9, 0xfa, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90};
+		
 		//builtin
 		static const uint8_t f9[]= {0xf6, 0x40, 0x14, 0x08, 0x75, 0x0d};
 		static const uint8_t r9[]= {0xf6, 0x40, 0x14, 0x08, 0xeb, 0x0d};
@@ -430,6 +437,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		if (isprod){
 			LookupPatchPlus const patchesp[] = {// tgl production kext
 				{&kextG11FBT, f7p, r7p, arrsize(f7p),	1},
+				{&kextG11FBT, f8p, r8p, arrsize(f8p),	1},
 				{&kextG11FBT, f9p, r9p, arrsize(f9p),	1},
 				{&kextG11FBT, f13p, r13p, arrsize(f13p),	1},
 				{&kextG11FBT, f13pb, r13pb, arrsize(f13pb),	1},
@@ -447,6 +455,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		else {
 			LookupPatchPlus const patches[] = {// tgl debug kext
 				{&kextG11FBT, f7, r7, arrsize(f7),	1},
+				{&kextG11FBT, f8, r8, arrsize(f8),	1},
 				{&kextG11FBT, f9, r9, arrsize(f9),	1},
 				{&kextG11FBT, f13, r13, arrsize(f13),	1},
 				{&kextG11FBT, f13b, r13b, arrsize(f13b),	1},
@@ -645,6 +654,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 				{&kext, f3a, r3a, arrsize(f3a),	1},
 				//{&kext, f4, r4, arrsize(f4),	1},
 				{&kext, f5, r5, arrsize(f5),	1},
+				
 				
 			};
 			PANIC_COND(!LookupPatchPlus::applyAll(patcher, patches , address, size), "nblue", "kextG11HWT Failed to apply patches!");
@@ -1744,7 +1754,7 @@ static unsigned int skl_plane_stride_mult(uint64_t modifier, unsigned int rotati
 		return intel_tile_width_bytes(display, modifier);
 }
 
-void plaenp(void *that)
+void plaenp(void *that,void *param_1)
 {
 	u32 planeID=getMember<uint32_t>(that, 0x7c);
 	
@@ -1768,9 +1778,12 @@ void plaenp(void *that)
 	
 	modifier=0;
 
+	getMember<int>(param_1, 0x3c)=1;//tiling
+	
 	switch (tiling) {
 		case PLANE_CTL_TILED_LINEAR:
 			modifier = DRM_FORMAT_MOD_LINEAR;
+			getMember<int>(param_1, 0x3c)=0;
 			break;
 		case PLANE_CTL_TILED_X:
 			modifier = I915_FORMAT_MOD_X_TILED;
@@ -1791,6 +1804,27 @@ void plaenp(void *that)
 			else
 				modifier = I915_FORMAT_MOD_Y_TILED;
 			break;
+		case PLANE_CTL_TILED_YF:
+			if (HAS_4TILE(display)) {
+				u32 rc_mask = PLANE_CTL_RENDER_DECOMPRESSION_ENABLE |
+						  PLANE_CTL_CLEAR_COLOR_DISABLE;
+
+				if ((val & rc_mask) == rc_mask)
+					modifier = I915_FORMAT_MOD_4_TILED_DG2_RC_CCS;
+				else if (val & PLANE_CTL_MEDIA_DECOMPRESSION_ENABLE)
+					modifier = I915_FORMAT_MOD_4_TILED_DG2_MC_CCS;
+				else if (val & PLANE_CTL_RENDER_DECOMPRESSION_ENABLE)
+					modifier = I915_FORMAT_MOD_4_TILED_DG2_RC_CCS_CC;
+				else
+					modifier = I915_FORMAT_MOD_4_TILED;
+			} else {
+				if (val & PLANE_CTL_RENDER_DECOMPRESSION_ENABLE)
+					modifier = I915_FORMAT_MOD_Yf_TILED_CCS;
+				else
+					modifier = I915_FORMAT_MOD_Yf_TILED;
+			}
+			break;
+			
 	}
 	
 	u8 rotation = 0;
@@ -1834,11 +1868,14 @@ void plaenp(void *that)
 
 	int size = pitches[0] * aligned_height;
 	
+	//u32 format = drm_get_format_info(display->drm, fourcc, fb->modifier);
+	u32 format=pixel_format;
+	
 	u32 plane_ctl=PLANE_CTL_ENABLE;
-	plane_ctl |= skl_plane_ctl_format(pixel_format);
+	plane_ctl |= skl_plane_ctl_format(format);
 	plane_ctl |= skl_plane_ctl_tiling(modifier);
-	//plane_ctl |= 0x400 ; //yTileDisable
 	plane_ctl |= skl_plane_ctl_rotate(rotation & DRM_MODE_ROTATE_MASK);
+	
 	
 	if (DISPLAY_VER(display) >= 11)
 		plane_ctl |= icl_plane_ctl_flip(rotation &
@@ -1893,8 +1930,15 @@ void plaenp(void *that)
 	//}
 	
 	
+	//linux values
+	//PLANE_CTL_1_A (0x00070180): 0x84000400
+	//PLANE_STRIDE_1_A (0x00070188): 0x0000000d
+	getMember<uint32_t>(that, 0x100)=0x84000400;
+	getMember<uint32_t>(that, 0x118)=0x0000000d;
+	
+	
 	//getMember<uint32_t>(that, 0x100)=plane_ctl;//PLANE_CTL
-	getMember<uint32_t>(that, 0x104)=plane_color_ctl;//PLANE_COLOR_CTL
+	//getMember<uint32_t>(that, 0x104)=plane_color_ctl;//PLANE_COLOR_CTL
 	//getMember<uint32_t>(that, 0x120)=base;//PLANE_SURF
 	//getMember<uint32_t>(that, 0x110)=offset;//PLANE_OFFSET
 	//getMember<uint32_t>(that, 0x11c)=size;//PLANE_SIZE
@@ -1906,11 +1950,11 @@ void plaenp(void *that)
 
 void  Gen11::configurePlane(void *that,void *param_1)
 {
-	plaenp(that);
+	plaenp(that,param_1);
 	
 	FunctionCast(configurePlane, callback->oconfigurePlane)(that, param_1);
 	
-	plaenp(that);
+	plaenp(that,param_1);
 	
 }
 
@@ -1919,21 +1963,13 @@ void Gen11::setupPlane(void *that,void *param_1,int param_2)
 {//icl
 	FunctionCast(setupPlane, callback->osetupPlane)(that ,param_1,param_2);
 	//skl_get_initial_plane_config
-	//PLANE_CTL_1_A (0x00070180): 0x84000400
-	//PLANE_STRIDE_1_A (0x00070188): 0x0000000d
-	
-	plaenp(that);
-	//getMember<uint32_t>(that, 0x118)=0xd;
+	plaenp(that,param_1);
 }
 
 void Gen11::setupPlane2(void *that,void *param_1)
 { //tgl
 	FunctionCast(setupPlane2, callback->osetupPlane2)(that ,param_1);
-	
-	//PLANE_CTL_1_A (0x00070180): 0x84000400
-	//PLANE_STRIDE_1_A (0x00070188): 0x0000000d
-	
-	plaenp(that);
+	plaenp(that,param_1);
 }
 
 
