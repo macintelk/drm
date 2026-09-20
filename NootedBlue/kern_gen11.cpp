@@ -238,7 +238,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			{"__ZN14AppleIntelPort8writeAUXEjPvj",writeAUX, this->owriteAUX},
 			{"__ZN14AppleIntelPort7readAUXEjPvj",readAUX, this->oreadAUX},
 			//{"__ZN21AppleIntelFramebuffer12getAttributeEjPm",fgetAttribute, this->ofgetAttribute},
-			//{"__ZN21AppleIntelFramebuffer12setAttributeEjm",fsetAttribute, this->ofsetAttribute},
+			{"__ZN21AppleIntelFramebuffer12setAttributeEjm",fsetAttribute, this->ofsetAttribute},
 			//{"__ZN21AppleIntelFramebuffer19getPixelInformationEiiiP18IOPixelInformation",fgetPixelInformation, this->ofgetPixelInformation},
 			//{"__ZN15AppleIntelPlane18configurePlaneiCSCEP19FlipTransactionArgs10IGColorCtl",dovoid},
 			//{"__ZN15AppleIntelPlane17configurePlaneCUSEP19FlipTransactionArgs10IGColorCtl",dovoid},
@@ -263,8 +263,12 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			//{"__ZN21AppleIntelFramebuffer22PerformFlipTransactionEP30IOAccelDisplayPipeTransaction2yP21FlipTransactionParams",PerformFlipTransaction, this->oPerformFlipTransaction},
 			//{"__ZN21AppleIntelFramebuffer21PreProcessTransactionEj",PreProcessTransaction, this->oPreProcessTransaction},
 			//{"__ZN15AppleIntelPlane11updatePlaneEb",updatePlane, this->oupdatePlane},
-			{"__ZN15AppleIntelPlane10setupPlaneEP21AppleIntelDisplayPath",setupPlane2, this->osetupPlane2},
-			{"__ZN15AppleIntelPlane14configurePlaneEP19FlipTransactionArgs",configurePlane, this->oconfigurePlane},
+			
+			
+			//{"__ZN15AppleIntelPlane10setupPlaneEP21AppleIntelDisplayPath",setupPlane2, this->osetupPlane2},
+			//{"__ZN15AppleIntelPlane14configurePlaneEP19FlipTransactionArgs",configurePlane, this->oconfigurePlane},
+			
+			
 			//{"__ZN15AppleIntelPlane11enablePlaneEb",enablePlane, this->oenablePlane},
 			//{"__ZN21AppleIntelFramebuffer28getInformationForDisplayModeEiP24IODisplayModeInformation",getInformationForDisplayMode, this->ogetInformationForDisplayMode},
 			{"__ZN14AppleIntelPort12getPortByDDIEj",getPortByDDI, this->ogetPortByDDI},
@@ -294,7 +298,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 				{"__ZN31AppleIntelFramebufferController10enablePipeEP21AppleIntelFramebufferP21AppleIntelDisplayPathPK29IODetailedTimingInformationV2",enablePipe, this->oenablePipe},
 				{"__ZN31AppleIntelFramebufferController13probeBootPipeEPbPN17AppleIntelPortHAL3DDIE",probeBootPipe, this->oprobeBootPipe},
 				{"__ZN31AppleIntelFramebufferController11initCDClockEv",initCDClock, this->oinitCDClock},
-				//{"__ZN31AppleIntelFramebufferController15configureReportEP19IOReportChannelListjPvS2_",configureReport, this->oconfigureReport},
+				{"__ZN31AppleIntelFramebufferController15configureReportEP19IOReportChannelListjPvS2_",configureReport, this->oconfigureReport},
 				{"__ZN19AppleIntelPowerWell4initEP31AppleIntelFramebufferController",AppleIntelPowerWellinit, this->oAppleIntelPowerWellinit},
 				{"__ZN31AppleIntelFramebufferController15hwSetPanelPowerEj",hwSetPanelPower, this->ohwSetPanelPower},
 				{"__ZN31AppleIntelFramebufferController11SetupParamsEP21AppleIntelFramebufferP21AppleIntelDisplayPathP10CRTCParamsPK29IODetailedTimingInformationV2",SetupParams,	this->oSetupParams},
@@ -324,7 +328,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 				{"__ZN24AppleIntelBaseController10enablePipeEP21AppleIntelFramebufferP21AppleIntelDisplayPathPK29IODetailedTimingInformationV2",enablePipe, this->oenablePipe},
 				{"__ZN24AppleIntelBaseController13probeBootPipeEPbPN17AppleIntelPortHAL3DDIE",probeBootPipe, this->oprobeBootPipe},
 				{"__ZN24AppleIntelBaseController11initCDClockEv",initCDClock, this->oinitCDClock},
-				//{"__ZN24AppleIntelBaseController15configureReportEP19IOReportChannelListjPvS2_",configureReport, this->oconfigureReport},
+				{"__ZN24AppleIntelBaseController15configureReportEP19IOReportChannelListjPvS2_",configureReport, this->oconfigureReport},
 				{"__ZN19AppleIntelPowerWell4initEP24AppleIntelBaseController",AppleIntelPowerWellinit, this->oAppleIntelPowerWellinit},
 				{"__ZN24AppleIntelBaseController15hwSetPanelPowerEj",hwSetPanelPower, this->ohwSetPanelPower},
 				{"__ZN24AppleIntelBaseController11SetupParamsEP21AppleIntelFramebufferP21AppleIntelDisplayPathP10CRTCParamsPK29IODetailedTimingInformationV2",SetupParams,	this->oSetupParams},
@@ -738,9 +742,9 @@ uint64_t  Gen11::getOSInformation2(void *that)
 	int p=0x6;
 	
 	pinfo[p].flags=
-	FB_FLAG_DISABLE_PIPE_SCRAMBLE|FB_FLAG_FRAMEBUFFER_COMPRESSION|/*FB_FLAG_ALLOW_CONNECTOR_RECOVER|FB_FLAG_ENABLE_DITHERING|
+	FB_FLAG_DISABLE_PIPE_SCRAMBLE|FB_FLAG_FRAMEBUFFER_COMPRESSION/*|FB_FLAG_ALLOW_CONNECTOR_RECOVER|FB_FLAG_ENABLE_DITHERING|
 	FB_FLAG_LIMIT_4K_SOURCE_SIZE|FB_FLAG_BOOST_PIXEL_FREQUENCY_LIMIT|*/
-	/*FB_FLAG_ENABLE_BACKLIGHT_REG_CONTROL|*/FB_FLAG_AVOID_FAST_LINK_TRAINING;
+	/*FB_FLAG_ENABLE_BACKLIGHT_REG_CONTROL|*/|FB_FLAG_AVOID_FAST_LINK_TRAINING;
 	
 	
 		pinfo[p].camelliaVersion=0;
@@ -1933,7 +1937,7 @@ void plaenp(void *that,void *param_1)
 	//linux values
 	//PLANE_CTL_1_A (0x00070180): 0x84000400
 	//PLANE_STRIDE_1_A (0x00070188): 0x0000000d
-	getMember<uint32_t>(that, 0x100)=0x84000400;
+	getMember<uint32_t>(that, 0x100)=0x84000408;
 	getMember<uint32_t>(that, 0x118)=0x0000000d;
 	
 	
@@ -10414,6 +10418,11 @@ void Gen11::SetupParams (void *that,void *param_1,void *param_2,CRTCParams *para
 		
 	}
 	
+	if (kexticl && setpc) {
+		SetupParams2(param_2, param_3);
+		setpc=1;
+	}
+	
 	FunctionCast(SetupParams, callback->oSetupParams)(that ,param_1,param_2,param_3,param_4);
 	if (kexticl && setpc) {
 		SetupParams2(param_2, param_3);
@@ -10422,16 +10431,17 @@ void Gen11::SetupParams (void *that,void *param_1,void *param_2,CRTCParams *para
 
 void Gen11::SetupParams2 (void *param_2, CRTCParams *param_3)
 {
+	
 	struct intel_display *display = NBlue::callback->i915b->display;
 	if (setpc){
 		setpc=0;
 		
 		param_3->TRANS_CLK_SEL=TGL_TRANS_CLK_SEL_PORT(display->port0);
-		param_3->TRANS_MSA_MISC =intel_ddi_set_dp_msa(display, false);
+		/*param_3->TRANS_MSA_MISC =intel_ddi_set_dp_msa(display, false);
 		param_3->TRANS_DDI_FUNC_CTL= intel_ddi_transcoder_func_reg_val_get();
 		param_3->PIPE_MISC=bdw_set_pipe_misc();
 		param_3->TRANSCONF= 0xc0000024;
-		
+		*/
 		/*int fScanoutHeight=getMember<int>(param_2, kexticl ? 0x2fc : 0xfc);
 		int fLinkScanoutWidth=getMember<int>(param_2, kexticl ? 0x2f8 : 0xf8);
 		param_3->PIPESRC =
