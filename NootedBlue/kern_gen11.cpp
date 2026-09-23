@@ -323,7 +323,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		} else //debug version
 		{
 			KernelPatcher::RouteRequest requestsd[] = {
-
+				
 				{"__ZN24AppleIntelBaseController12disableHWDC6Ev",disableHWDC6, this->odisableHWDC6},
 				{"__ZN24AppleIntelBaseController10enablePipeEP21AppleIntelFramebufferP21AppleIntelDisplayPathPK29IODetailedTimingInformationV2",enablePipe, this->oenablePipe},
 				{"__ZN24AppleIntelBaseController13probeBootPipeEPbPN17AppleIntelPortHAL3DDIE",probeBootPipe, this->oprobeBootPipe},
@@ -471,6 +471,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 				{&kextG11FBT, f24d, r24d, arrsize(f24d),	6},
 				{&kextG11FBT, f25, r25, arrsize(f25),	6},
 				{&kextG11FBT, f26, r26, arrsize(f26),	1},
+				
 				
 			};
 			PANIC_COND(!LookupPatchPlus::applyAll(patcher, patches , address, size), "nblue", "kextG11FBT Failed to apply dbg patches!");
@@ -10437,11 +10438,11 @@ void Gen11::SetupParams2 (void *param_2, CRTCParams *param_3)
 		setpc=0;
 		
 		param_3->TRANS_CLK_SEL=TGL_TRANS_CLK_SEL_PORT(display->port0);
-		/*param_3->TRANS_MSA_MISC =intel_ddi_set_dp_msa(display, false);
+		param_3->TRANS_MSA_MISC =intel_ddi_set_dp_msa(display, false);
 		param_3->TRANS_DDI_FUNC_CTL= intel_ddi_transcoder_func_reg_val_get();
 		param_3->PIPE_MISC=bdw_set_pipe_misc();
 		param_3->TRANSCONF= 0xc0000024;
-		*/
+		
 		/*int fScanoutHeight=getMember<int>(param_2, kexticl ? 0x2fc : 0xfc);
 		int fLinkScanoutWidth=getMember<int>(param_2, kexticl ? 0x2f8 : 0xf8);
 		param_3->PIPESRC =
