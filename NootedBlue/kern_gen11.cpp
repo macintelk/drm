@@ -242,7 +242,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			//{"__ZN21AppleIntelFramebuffer19getPixelInformationEiiiP18IOPixelInformation",fgetPixelInformation, this->ofgetPixelInformation},
 			//{"__ZN15AppleIntelPlane18configurePlaneiCSCEP19FlipTransactionArgs10IGColorCtl",dovoid},
 			//{"__ZN15AppleIntelPlane17configurePlaneCUSEP19FlipTransactionArgs10IGColorCtl",dovoid},
-			//{"__ZN21AppleIntelDisplayPath8initHDCPEv", dovoid},
+			{"__ZN21AppleIntelDisplayPath8initHDCPEv", dovoid},
 			{"__ZN17AppleIntelPortHAL4initEP10PortConfig",AppleIntelPortHALinit, this->oAppleIntelPortHALinit},
 			{"__ZN21AppleIntelDisplayPath13getLinkConfigEP16IOFBDPLinkConfig",getLinkConfig, this->ogetLinkConfig},
 			
@@ -1395,11 +1395,11 @@ uint32_t Gen11::configureReport	(void *that,void *param_1,uint param_2,void *par
 	{
 		Report=0;
 
-		getMember<uint32_t>(frame0, kexticl ? 0x87c4 : 0x4284)=2;//sleepmode
-		fsetAttribute(frame0, 'powr',0);
-		getMember<uint32_t>(frame0, kexticl ? 0x87c4 : 0x4284)=0;//sleepmode
+		//getMember<uint32_t>(frame0, kexticl ? 0x87c4 : 0x4284)=2;//sleepmode
+		//fsetAttribute(frame0, 'powr',0);
+		getMember<uint32_t>(frame0, kexticl ? 0x87c4 : 0x4284)=1;//sleepmode
 		fsetAttribute(frame0, 'powr',2);
-		
+		IOSleep(1);
 	}
 	
 	
