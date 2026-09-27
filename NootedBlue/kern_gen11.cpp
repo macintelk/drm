@@ -2491,13 +2491,13 @@ static void plaenp(void *that,void *param_1, bool isconfig)
 			break;
 		case PLANE_CTL_TILED_X:
 			fb->modifier = I915_FORMAT_MOD_X_TILED;
-			if (isconfig) getMember<int>(param_1, 0x3c)=0;//tiling
-			if (!isconfig) getMember<u8>(frame0, 0x4a18)=0;
+			if (isconfig) getMember<int>(param_1, kexticl ? 0x44 : 0x3c)=0;//tiling
+			if (!isconfig) getMember<u8>(frame0,  kexticl ? 0x8f58 : 0x4a18)=0;
 			tiling2=9;
 			break;
 		case PLANE_CTL_TILED_Y:
-			if (isconfig) getMember<int>(param_1, 0x3c)=1;//tiling
-			if (!isconfig) getMember<u8>(frame0, 0x4a18)=1;
+			if (isconfig) getMember<int>(param_1, kexticl ? 0x44 : 0x3c)=1;//tiling
+			if (!isconfig) getMember<u8>(frame0, kexticl ? 0x8f58 : 0x4a18)=1;
 			if (val & PLANE_CTL_RENDER_DECOMPRESSION_ENABLE)
 				if (DISPLAY_VER(display) >= 14)
 					fb->modifier = I915_FORMAT_MOD_4_TILED_MTL_RC_CCS;
@@ -2514,8 +2514,8 @@ static void plaenp(void *that,void *param_1, bool isconfig)
 				fb->modifier = I915_FORMAT_MOD_Y_TILED;
 			break;
 		case PLANE_CTL_TILED_YF:
-			if (isconfig) getMember<int>(param_1, 0x3c)=1;//tiling
-			if (!isconfig) getMember<u8>(frame0, 0x4a18)=1;
+			if (isconfig) getMember<int>(param_1, kexticl ? 0x44 : 0x3c)=1;//tiling
+			if (!isconfig) getMember<u8>(frame0, kexticl ? 0x8f58 : 0x4a18)=1;
 			if (HAS_4TILE(display)) {
 				rc_mask = PLANE_CTL_RENDER_DECOMPRESSION_ENABLE |
 						  PLANE_CTL_CLEAR_COLOR_DISABLE;
@@ -2626,7 +2626,7 @@ skipp:
 	//}
 
 	
-	u32 applestride = getMember<uint32_t>(frame0, 0x4334);
+	u32 applestride = getMember<uint32_t>(frame0, kexticl ? 0x8874 : 0x4334);
 	u32 stride = applestride / skl_plane_stride_mult(fb, 0, rotation);
 	
 	NBlue::callback->iGPU->setProperty("PLANE_CTL", plane_ctl,32);
