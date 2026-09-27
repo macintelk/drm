@@ -2479,6 +2479,8 @@ static void plaenp(void *that,void *param_1, bool isconfig)
 	tiling = val & PLANE_CTL_TILED_MASK;
 	u8 tiling2=7;
 	
+	//tiling=PLANE_CTL_TILED_X;// force if need
+	
 	switch (tiling) {
 		case PLANE_CTL_TILED_LINEAR:
 			fb->modifier = DRM_FORMAT_MOD_LINEAR;
@@ -2487,12 +2489,12 @@ static void plaenp(void *that,void *param_1, bool isconfig)
 		case PLANE_CTL_TILED_X:
 			fb->modifier = I915_FORMAT_MOD_X_TILED;
 			if (isconfig) getMember<int>(param_1, 0x3c)=0;//tiling
-			if (!isconfig) getMember<u8>(param_1, 0x4a18)=0;
+			if (!isconfig) getMember<u8>(frame0, 0x4a18)=0;
 			tiling2=9;
 			break;
 		case PLANE_CTL_TILED_Y:
 			if (isconfig) getMember<int>(param_1, 0x3c)=1;//tiling
-			if (!isconfig) getMember<u8>(param_1, 0x4a18)=1;
+			if (!isconfig) getMember<u8>(frame0, 0x4a18)=1;
 			if (val & PLANE_CTL_RENDER_DECOMPRESSION_ENABLE)
 				if (DISPLAY_VER(display) >= 14)
 					fb->modifier = I915_FORMAT_MOD_4_TILED_MTL_RC_CCS;
@@ -2510,7 +2512,7 @@ static void plaenp(void *that,void *param_1, bool isconfig)
 			break;
 		case PLANE_CTL_TILED_YF:
 			if (isconfig) getMember<int>(param_1, 0x3c)=1;//tiling
-			if (!isconfig) getMember<u8>(param_1, 0x4a18)=1;
+			if (!isconfig) getMember<u8>(frame0, 0x4a18)=1;
 			if (HAS_4TILE(display)) {
 				rc_mask = PLANE_CTL_RENDER_DECOMPRESSION_ENABLE |
 						  PLANE_CTL_CLEAR_COLOR_DISABLE;
@@ -2621,9 +2623,12 @@ skipp:
 	//}
 
 	
-	//u32 scanout_stride;
-	//scanout_stride = fb->width*4;
-	//u32 stride = scanout_stride / skl_plane_stride_mult(fb, 0, rotation);
+	u32 scanout_stride;
+	scanout_stride = fb->width*4;
+	u32 stride = scanout_stride / skl_plane_stride_mult(fb, 0, rotation);
+	
+	NBlue::callback->iGPU->setProperty("PLANE_CTL", plane_ctl,32);
+	NBlue::callback->iGPU->setProperty("PLANE_STRIDE", stride,32);
 	
 	//getMember<uint32_t>(that, 0x100)=plane_ctl;//PLANE_CTL
 	//getMember<uint32_t>(that, 0x104)=plane_color_ctl;//PLANE_COLOR_CTL
@@ -2631,8 +2636,12 @@ skipp:
 	//getMember<uint32_t>(that, 0x110)=offset;//PLANE_OFFSET
 	//getMember<uint32_t>(that, 0x11c)=size;//PLANE_SIZE
 	//getMember<uint32_t>(that, 0x118)=stride;//PLANE_STRIDE
+
+	//calcs are ok but not working unless injecting values
+	getMember<uint32_t>(that, 0x100)=0x84000400;//PLANE_CTL linux 0x84000400
+	getMember<uint32_t>(that, 0x118)=0xd;//PLANE_STRIDE linux 0x0000000d
 	
-	getMember<uint32_t>(that, 0x118)=getMember<uint32_t>(frame0, 0x4334)>>tiling2;//PLANE_STRIDE
+	//getMember<uint32_t>(that, 0x118)=getMember<uint32_t>(frame0, 0x4334)>>tiling2;//PLANE_STRIDE
 }
 
 void  Gen11::configurePlane(void *that,void *param_1)
