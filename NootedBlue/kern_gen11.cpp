@@ -2431,6 +2431,9 @@ intel_fb_align_height(const struct drm_framebuffer *fb,
 	return ALIGN2(height, tile_height);
 }
 
+
+
+
 static void plaenp(void *that,void *param_1, bool isconfig)
 {
 	u32 planeID=getMember<uint32_t>(that, 0x7c);
@@ -2484,8 +2487,8 @@ static void plaenp(void *that,void *param_1, bool isconfig)
 	switch (tiling) {
 		case PLANE_CTL_TILED_LINEAR:
 			fb->modifier = DRM_FORMAT_MOD_LINEAR;
+			return; // ignore as non desktop mode
 			break;
-		default:
 		case PLANE_CTL_TILED_X:
 			fb->modifier = I915_FORMAT_MOD_X_TILED;
 			if (isconfig) getMember<int>(param_1, 0x3c)=0;//tiling
@@ -2623,25 +2626,22 @@ skipp:
 	//}
 
 	
-	u32 scanout_stride;
-	scanout_stride = fb->width*4;
-	u32 stride = scanout_stride / skl_plane_stride_mult(fb, 0, rotation);
+	u32 applestride = getMember<uint32_t>(frame0, 0x4334);
+	u32 stride = applestride / skl_plane_stride_mult(fb, 0, rotation);
 	
 	NBlue::callback->iGPU->setProperty("PLANE_CTL", plane_ctl,32);
 	NBlue::callback->iGPU->setProperty("PLANE_STRIDE", stride,32);
 	
-	//getMember<uint32_t>(that, 0x100)=plane_ctl;//PLANE_CTL
-	//getMember<uint32_t>(that, 0x104)=plane_color_ctl;//PLANE_COLOR_CTL
+	getMember<uint32_t>(that, 0x100)=plane_ctl;//PLANE_CTL
+	getMember<uint32_t>(that, 0x104)=plane_color_ctl;//PLANE_COLOR_CTL
 	//getMember<uint32_t>(that, 0x120)=base;//PLANE_SURF
 	//getMember<uint32_t>(that, 0x110)=offset;//PLANE_OFFSET
 	//getMember<uint32_t>(that, 0x11c)=size;//PLANE_SIZE
-	//getMember<uint32_t>(that, 0x118)=stride;//PLANE_STRIDE
+	getMember<uint32_t>(that, 0x118)=stride;//PLANE_STRIDE
 
-	//calcs are ok but not working unless injecting values
-	getMember<uint32_t>(that, 0x100)=0x84000400;//PLANE_CTL linux 0x84000400
-	getMember<uint32_t>(that, 0x118)=0xd;//PLANE_STRIDE linux 0x0000000d
+	//getMember<uint32_t>(that, 0x100)=0x84000400;//PLANE_CTL linux 0x84000400
+	//getMember<uint32_t>(that, 0x118)=0xd;//PLANE_STRIDE linux 0x0000000d
 	
-	//getMember<uint32_t>(that, 0x118)=getMember<uint32_t>(frame0, 0x4334)>>tiling2;//PLANE_STRIDE
 }
 
 void  Gen11::configurePlane(void *that,void *param_1)
