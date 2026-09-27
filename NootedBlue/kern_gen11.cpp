@@ -92,7 +92,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			{"__ZN17AppleIntelPortHAL4initEP10PortConfig",AppleIntelPortHALinit, this->oAppleIntelPortHALinit},
 			{"__ZN31AppleIntelFramebufferController11SetupParamsEP21AppleIntelFramebufferP21AppleIntelDisplayPathP10CRTCParamsPK29IODetailedTimingInformationV2",SetupParams,	this->oSetupParams},
 			//{"__ZN31AppleIntelFramebufferController19setupPipeWatermarksEP21AppleIntelFramebufferP21AppleIntelDisplayPathP10CRTCParams",setupPipeWatermarks, this->osetupPipeWatermarks},
-			//{"__ZN15AppleIntelPlane10setupPlaneEP21AppleIntelDisplayPathi",setupPlane, this->osetupPlane},
+			
 			{"__ZN14AppleIntelPort8writeAUXEjPvj",writeAUX, this->owriteAUX},
 			{"__ZN14AppleIntelPort7readAUXEjPvj",readAUX, this->oreadAUX},
 			{"__ZN31AppleIntelFramebufferController15enableVDDForAuxEP14AppleIntelPort",enableVDDForAux2, this->oenableVDDForAux2},
@@ -109,7 +109,8 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			{"__ZN31AppleIntelFramebufferController10enablePipeEP21AppleIntelFramebufferP21AppleIntelDisplayPathPK29IODetailedTimingInformationV2",enablePipe, this->oenablePipe},
 			{"__ZN21AppleIntelFramebuffer11initVRRCapsEv",initVRRCaps, this->oinitVRRCaps},
 			{"__ZN14AppleIntelPort19displayPortReadEDIDEjjPhj",displayPortReadEDID, this->odisplayPortReadEDID},
-			//{"__ZN15AppleIntelPlane14configurePlaneEP19FlipTransactionArgs",configurePlane, this->oconfigurePlane},
+			{"__ZN15AppleIntelPlane14configurePlaneEP19FlipTransactionArgs",configurePlane, this->oconfigurePlane},
+			{"__ZN15AppleIntelPlane10setupPlaneEP21AppleIntelDisplayPathi",setupPlane, this->osetupPlane},
 			{"__ZN19AppleIntelPowerWell17enablePowerWellPGEj.cold.1", dovoid},
 			{"__ZN31AppleIntelFramebufferController12disableHWDC6Ev",disableHWDC6, this->odisableHWDC6},
 			{"__ZN14AppleIntelPort12getPortByDDIEj",getPortByDDI, this->ogetPortByDDI},
@@ -263,9 +264,8 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			//{"__ZN21AppleIntelFramebuffer22PerformFlipTransactionEP30IOAccelDisplayPipeTransaction2yP21FlipTransactionParams",PerformFlipTransaction, this->oPerformFlipTransaction},
 			//{"__ZN21AppleIntelFramebuffer21PreProcessTransactionEj",PreProcessTransaction, this->oPreProcessTransaction},
 			//{"__ZN15AppleIntelPlane11updatePlaneEb",updatePlane, this->oupdatePlane},
-			//{"__ZN15AppleIntelPlane10setupPlaneEP21AppleIntelDisplayPath",setupPlane2, this->osetupPlane2},
 			
-			
+			{"__ZN15AppleIntelPlane10setupPlaneEP21AppleIntelDisplayPath",setupPlane2, this->osetupPlane2},
 			{"__ZN15AppleIntelPlane14configurePlaneEP19FlipTransactionArgs",configurePlane, this->oconfigurePlane},
 			
 			
@@ -1676,92 +1676,6 @@ unsigned int intel_tile_size(struct intel_display *display)
 	return DISPLAY_VER(display) == 2 ? 2048 : 4096;
 }
 
-#define HAS_128B_Y_TILING(__display)	(!(__display)->platform.i915g && !(__display)->platform.i915gm)
-
-unsigned int
-intel_tile_width_bytes(struct intel_display *display, uint64_t modifier)
-{
-	unsigned int cpp = 0;//fb->format->cpp[color_plane];
-	
-	switch (modifier) {
-	case DRM_FORMAT_MOD_LINEAR:
-		return intel_tile_size(display);
-	case I915_FORMAT_MOD_X_TILED:
-		if (DISPLAY_VER(display) == 2)
-			return 128;
-		else
-			return 512;
-	case I915_FORMAT_MOD_4_TILED_BMG_CCS:
-	case I915_FORMAT_MOD_4_TILED_LNL_CCS:
-	case I915_FORMAT_MOD_4_TILED_DG2_RC_CCS:
-	case I915_FORMAT_MOD_4_TILED_DG2_RC_CCS_CC:
-	case I915_FORMAT_MOD_4_TILED_DG2_MC_CCS:
-	case I915_FORMAT_MOD_4_TILED:
-		return 128;
-	case I915_FORMAT_MOD_Y_TILED_CCS:
-	//	if (intel_fb_is_ccs_aux_plane(fb, color_plane))
-			//return 128;
-	case I915_FORMAT_MOD_4_TILED_MTL_RC_CCS:
-	case I915_FORMAT_MOD_4_TILED_MTL_RC_CCS_CC:
-	case I915_FORMAT_MOD_4_TILED_MTL_MC_CCS:
-	case I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS:
-	case I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS_CC:
-	case I915_FORMAT_MOD_Y_TILED_GEN12_MC_CCS:
-	//	if (intel_fb_is_ccs_aux_plane(fb, color_plane) ||
-		//	is_gen12_ccs_cc_plane(fb, color_plane))
-			return 64;
-	case I915_FORMAT_MOD_Y_TILED:
-		if (HAS_128B_Y_TILING(display))
-			return 128;
-		else
-			return 512;
-	case I915_FORMAT_MOD_Yf_TILED_CCS:
-	//	if (intel_fb_is_ccs_aux_plane(fb, color_plane))
-		//	return 128;
-	/*case I915_FORMAT_MOD_Yf_TILED:
-		switch (cpp) {
-		case 1:
-			return 64;
-		case 2:
-		case 4:
-			return 128;
-		case 8:
-		case 16:
-			return 256;
-		default:
-			return cpp;
-		}
-		break;*/
-	default:
-		return cpp;
-	}
-}
-
-static inline bool drm_rotation_90_or_270(unsigned int rotation)
-{
-	return rotation & (DRM_MODE_ROTATE_90 | DRM_MODE_ROTATE_270);
-}
-
-unsigned int intel_tile_height(struct intel_display *display,uint64_t modifier)
-{
-
-	return intel_tile_size(display) /
-		intel_tile_width_bytes(display, modifier);
-}
-
-static unsigned int skl_plane_stride_mult(uint64_t modifier, unsigned int rotation)
-{
-	struct intel_display *display = NBlue::callback->i915b->display;
-	if (modifier == DRM_FORMAT_MOD_LINEAR)
-		return 64;
-	else if (drm_rotation_90_or_270(rotation))
-		return intel_tile_height(display, modifier);
-	else
-		return intel_tile_width_bytes(display, modifier);
-}
-
-
-
 
 static const struct drm_format_info gen12_ccs_formats[] = {
 	{ .format = DRM_FORMAT_XRGB8888, .depth = 24, .num_planes = 2,
@@ -1931,120 +1845,259 @@ static const struct drm_format_info skl_ccs_formats[] = {
 };
 
 	
-	static const struct intel_modifier_desc intel_modifiers[] = {
-		{
-			.modifier = I915_FORMAT_MOD_4_TILED_LNL_CCS,
-			.display_ver = { 20,(u8) -1 },
-			.plane_caps = INTEL_PLANE_CAP_TILING_4,
-		}, {
-			.modifier = I915_FORMAT_MOD_4_TILED_BMG_CCS,
-			.display_ver = { 14,(u8) -1 },
-			.plane_caps = INTEL_PLANE_CAP_TILING_4 | INTEL_PLANE_CAP_NEED64K_PHYS,
-		}, {
-			.modifier = I915_FORMAT_MOD_4_TILED_MTL_MC_CCS,
-			.display_ver = { 14, 14 },
-			.plane_caps = INTEL_PLANE_CAP_TILING_4 | INTEL_PLANE_CAP_CCS_MC,
 
-			.ccs.packed_aux_planes = BIT(1),
-			.ccs.planar_aux_planes = BIT(2) | BIT(3),
+static const struct intel_modifier_desc intel_modifiers[] = {
+	{
+		.modifier = I915_FORMAT_MOD_4_TILED_LNL_CCS,
+		.display_ver = { 20,(u8) -1 },
+		.plane_caps = INTEL_PLANE_CAP_TILING_4,
+	}, {
+		.modifier = I915_FORMAT_MOD_4_TILED_BMG_CCS,
+		.display_ver = { 14,(u8) -1 },
+		.plane_caps = INTEL_PLANE_CAP_TILING_4 | INTEL_PLANE_CAP_NEED64K_PHYS,
+	}, {
+		.modifier = I915_FORMAT_MOD_4_TILED_MTL_MC_CCS,
+		.display_ver = { 14, 14 },
+		.plane_caps = INTEL_PLANE_CAP_TILING_4 | INTEL_PLANE_CAP_CCS_MC,
 
-			FORMAT_OVERRIDE(gen12_ccs_formats),
-		}, {
-			.modifier = I915_FORMAT_MOD_4_TILED_MTL_RC_CCS,
-			.display_ver = { 14, 14 },
-			.plane_caps = INTEL_PLANE_CAP_TILING_4 | INTEL_PLANE_CAP_CCS_RC,
+		.ccs.packed_aux_planes = BIT(1),
+		.ccs.planar_aux_planes = BIT(2) | BIT(3),
 
-			.ccs.packed_aux_planes = BIT(1),
+		FORMAT_OVERRIDE(gen12_ccs_formats),
+	}, {
+		.modifier = I915_FORMAT_MOD_4_TILED_MTL_RC_CCS,
+		.display_ver = { 14, 14 },
+		.plane_caps = INTEL_PLANE_CAP_TILING_4 | INTEL_PLANE_CAP_CCS_RC,
 
-			FORMAT_OVERRIDE(gen12_ccs_formats),
-		}, {
-			.modifier = I915_FORMAT_MOD_4_TILED_MTL_RC_CCS_CC,
-			.display_ver = { 14, 14 },
-			.plane_caps = INTEL_PLANE_CAP_TILING_4 | INTEL_PLANE_CAP_CCS_RC_CC,
+		.ccs.packed_aux_planes = BIT(1),
 
-			.ccs.cc_planes = BIT(2),
-			.ccs.packed_aux_planes = BIT(1),
+		FORMAT_OVERRIDE(gen12_ccs_formats),
+	}, {
+		.modifier = I915_FORMAT_MOD_4_TILED_MTL_RC_CCS_CC,
+		.display_ver = { 14, 14 },
+		.plane_caps = INTEL_PLANE_CAP_TILING_4 | INTEL_PLANE_CAP_CCS_RC_CC,
 
-			FORMAT_OVERRIDE(gen12_ccs_cc_formats),
-		}, {
-			.modifier = I915_FORMAT_MOD_4_TILED_DG2_MC_CCS,
-			.display_ver = { 13, 13 },
-			.plane_caps = INTEL_PLANE_CAP_TILING_4 | INTEL_PLANE_CAP_CCS_MC,
-		}, {
-			.modifier = I915_FORMAT_MOD_4_TILED_DG2_RC_CCS_CC,
-			.display_ver = { 13, 13 },
-			.plane_caps = INTEL_PLANE_CAP_TILING_4 | INTEL_PLANE_CAP_CCS_RC_CC,
+		.ccs.cc_planes = BIT(2),
+		.ccs.packed_aux_planes = BIT(1),
 
-			.ccs.cc_planes = BIT(1),
+		FORMAT_OVERRIDE(gen12_ccs_cc_formats),
+	}, {
+		.modifier = I915_FORMAT_MOD_4_TILED_DG2_MC_CCS,
+		.display_ver = { 13, 13 },
+		.plane_caps = INTEL_PLANE_CAP_TILING_4 | INTEL_PLANE_CAP_CCS_MC,
+	}, {
+		.modifier = I915_FORMAT_MOD_4_TILED_DG2_RC_CCS_CC,
+		.display_ver = { 13, 13 },
+		.plane_caps = INTEL_PLANE_CAP_TILING_4 | INTEL_PLANE_CAP_CCS_RC_CC,
 
-			FORMAT_OVERRIDE(gen12_flat_ccs_cc_formats),
-		}, {
-			.modifier = I915_FORMAT_MOD_4_TILED_DG2_RC_CCS,
-			.display_ver = { 13, 13 },
-			.plane_caps = INTEL_PLANE_CAP_TILING_4 | INTEL_PLANE_CAP_CCS_RC,
-		}, {
-			.modifier = I915_FORMAT_MOD_4_TILED,
-			.display_ver = { 13, (u8)-1 },
-			.plane_caps = INTEL_PLANE_CAP_TILING_4,
-		}, {
-			.modifier = I915_FORMAT_MOD_Y_TILED_GEN12_MC_CCS,
-			.display_ver = { 12, 13 },
-			.plane_caps = INTEL_PLANE_CAP_TILING_Y | INTEL_PLANE_CAP_CCS_MC,
+		.ccs.cc_planes = BIT(1),
 
-			.ccs.packed_aux_planes = BIT(1),
-			.ccs.planar_aux_planes = BIT(2) | BIT(3),
+		FORMAT_OVERRIDE(gen12_flat_ccs_cc_formats),
+	}, {
+		.modifier = I915_FORMAT_MOD_4_TILED_DG2_RC_CCS,
+		.display_ver = { 13, 13 },
+		.plane_caps = INTEL_PLANE_CAP_TILING_4 | INTEL_PLANE_CAP_CCS_RC,
+	}, {
+		.modifier = I915_FORMAT_MOD_4_TILED,
+		.display_ver = { 13, (u8)-1 },
+		.plane_caps = INTEL_PLANE_CAP_TILING_4,
+	}, {
+		.modifier = I915_FORMAT_MOD_Y_TILED_GEN12_MC_CCS,
+		.display_ver = { 12, 13 },
+		.plane_caps = INTEL_PLANE_CAP_TILING_Y | INTEL_PLANE_CAP_CCS_MC,
 
-			FORMAT_OVERRIDE(gen12_ccs_formats),
-		}, {
-			.modifier = I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS,
-			.display_ver = { 12, 13 },
-			.plane_caps = INTEL_PLANE_CAP_TILING_Y | INTEL_PLANE_CAP_CCS_RC,
+		.ccs.packed_aux_planes = BIT(1),
+		.ccs.planar_aux_planes = BIT(2) | BIT(3),
 
-			.ccs.packed_aux_planes = BIT(1),
+		FORMAT_OVERRIDE(gen12_ccs_formats),
+	}, {
+		.modifier = I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS,
+		.display_ver = { 12, 13 },
+		.plane_caps = INTEL_PLANE_CAP_TILING_Y | INTEL_PLANE_CAP_CCS_RC,
 
-			FORMAT_OVERRIDE(gen12_ccs_formats),
-		}, {
-			.modifier = I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS_CC,
-			.display_ver = { 12, 13 },
-			.plane_caps = INTEL_PLANE_CAP_TILING_Y | INTEL_PLANE_CAP_CCS_RC_CC,
+		.ccs.packed_aux_planes = BIT(1),
 
-			.ccs.cc_planes = BIT(2),
-			.ccs.packed_aux_planes = BIT(1),
+		FORMAT_OVERRIDE(gen12_ccs_formats),
+	}, {
+		.modifier = I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS_CC,
+		.display_ver = { 12, 13 },
+		.plane_caps = INTEL_PLANE_CAP_TILING_Y | INTEL_PLANE_CAP_CCS_RC_CC,
 
-			FORMAT_OVERRIDE(gen12_ccs_cc_formats),
-		}, {
-			.modifier = I915_FORMAT_MOD_Yf_TILED_CCS,
-			.display_ver = { 9, 11 },
-			.plane_caps = INTEL_PLANE_CAP_TILING_Yf | INTEL_PLANE_CAP_CCS_RC,
+		.ccs.cc_planes = BIT(2),
+		.ccs.packed_aux_planes = BIT(1),
 
-			.ccs.packed_aux_planes = BIT(1),
+		FORMAT_OVERRIDE(gen12_ccs_cc_formats),
+	}, {
+		.modifier = I915_FORMAT_MOD_Yf_TILED_CCS,
+		.display_ver = { 9, 11 },
+		.plane_caps = INTEL_PLANE_CAP_TILING_Yf | INTEL_PLANE_CAP_CCS_RC,
 
-			FORMAT_OVERRIDE(skl_ccs_formats),
-		}, {
-			.modifier = I915_FORMAT_MOD_Y_TILED_CCS,
-			.display_ver = { 9, 11 },
-			.plane_caps = INTEL_PLANE_CAP_TILING_Y | INTEL_PLANE_CAP_CCS_RC,
+		.ccs.packed_aux_planes = BIT(1),
 
-			.ccs.packed_aux_planes = BIT(1),
+		FORMAT_OVERRIDE(skl_ccs_formats),
+	}, {
+		.modifier = I915_FORMAT_MOD_Y_TILED_CCS,
+		.display_ver = { 9, 11 },
+		.plane_caps = INTEL_PLANE_CAP_TILING_Y | INTEL_PLANE_CAP_CCS_RC,
 
-			FORMAT_OVERRIDE(skl_ccs_formats),
-		}, {
-			.modifier = I915_FORMAT_MOD_Yf_TILED,
-			.display_ver = { 9, 11 },
-			.plane_caps = INTEL_PLANE_CAP_TILING_Yf,
-		}, {
-			.modifier = I915_FORMAT_MOD_Y_TILED,
-			.display_ver = { 9, 13 },
-			.plane_caps = INTEL_PLANE_CAP_TILING_Y,
-		}, {
-			.modifier = I915_FORMAT_MOD_X_TILED,
-			.display_ver = { 0, 29 },
-			.plane_caps = INTEL_PLANE_CAP_TILING_X,
-		}, {
-			.modifier = DRM_FORMAT_MOD_LINEAR,
-			.display_ver = { 0, (u8)-1 },
-		},
-	};
+		.ccs.packed_aux_planes = BIT(1),
+
+		FORMAT_OVERRIDE(skl_ccs_formats),
+	}, {
+		.modifier = I915_FORMAT_MOD_Yf_TILED,
+		.display_ver = { 9, 11 },
+		.plane_caps = INTEL_PLANE_CAP_TILING_Yf,
+	}, {
+		.modifier = I915_FORMAT_MOD_Y_TILED,
+		.display_ver = { 9, 13 },
+		.plane_caps = INTEL_PLANE_CAP_TILING_Y,
+	}, {
+		.modifier = I915_FORMAT_MOD_X_TILED,
+		.display_ver = { 0, 29 },
+		.plane_caps = INTEL_PLANE_CAP_TILING_X,
+	}, {
+		.modifier = DRM_FORMAT_MOD_LINEAR,
+		.display_ver = { 0, (u8)-1 },
+	},
+};
+
+#define HAS_128B_Y_TILING(__display)	(!(__display)->platform.i915g && !(__display)->platform.i915gm)
+
+static const struct intel_modifier_desc *lookup_modifier_or_null(u64 modifier)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(intel_modifiers); i++)
+		if (intel_modifiers[i].modifier == modifier)
+			return &intel_modifiers[i];
+
+	return NULL;
+}
+
+static const struct intel_modifier_desc *lookup_modifier(u64 modifier)
+{
+	const struct intel_modifier_desc *md = lookup_modifier_or_null(modifier);
+
+	if ((!md))
+		return &intel_modifiers[0];
+
+	return md;
+}
+
+static bool format_is_yuv_semiplanar(const struct intel_modifier_desc *md,
+					 const struct drm_format_info *info)
+{
+	if (!info->is_yuv)
+		return false;
+
+	if (hweight8(md->ccs.planar_aux_planes) == 2)
+		return info->num_planes == 4;
+	else
+		return info->num_planes == 2;
+}
+
+static u8 ccs_aux_plane_mask(const struct intel_modifier_desc *md,
+				 const struct drm_format_info *format)
+{
+	if (format_is_yuv_semiplanar(md, format))
+		return md->ccs.planar_aux_planes;
+	else
+		return md->ccs.packed_aux_planes;
+}
+
+bool intel_fb_is_ccs_aux_plane(const struct drm_framebuffer *fb, int color_plane)
+{
+	const struct intel_modifier_desc *md = lookup_modifier(fb->modifier);
+
+	return ccs_aux_plane_mask(md, fb->format) & BIT(color_plane);
+}
+
+int intel_fb_rc_ccs_cc_plane(const struct drm_framebuffer *fb)
+{
+	const struct intel_modifier_desc *md = lookup_modifier(fb->modifier);
+
+	if (!md->ccs.cc_planes)
+		return -1;
+
+
+	return ilog2((int)md->ccs.cc_planes);
+}
+
+static bool is_gen12_ccs_cc_plane(const struct drm_framebuffer *fb, int color_plane)
+{
+	return intel_fb_rc_ccs_cc_plane(fb) == color_plane;
+}
+
+
+unsigned int
+intel_tile_width_bytes(const struct drm_framebuffer *fb, int color_plane)
+{
+	struct intel_display *display = NBlue::callback->i915b->display;
+	unsigned int cpp = fb->format->cpp[color_plane];
+
+	switch (fb->modifier) {
+	case DRM_FORMAT_MOD_LINEAR:
+		return intel_tile_size(display);
+	case I915_FORMAT_MOD_X_TILED:
+		if (DISPLAY_VER(display) == 2)
+			return 128;
+		else
+			return 512;
+	case I915_FORMAT_MOD_4_TILED_BMG_CCS:
+	case I915_FORMAT_MOD_4_TILED_LNL_CCS:
+	case I915_FORMAT_MOD_4_TILED_DG2_RC_CCS:
+	case I915_FORMAT_MOD_4_TILED_DG2_RC_CCS_CC:
+	case I915_FORMAT_MOD_4_TILED_DG2_MC_CCS:
+	case I915_FORMAT_MOD_4_TILED:
+		/*
+		 * Each 4K tile consists of 64B(8*8) subtiles, with
+		 * same shape as Y Tile(i.e 4*16B OWords)
+		 */
+		return 128;
+	case I915_FORMAT_MOD_Y_TILED_CCS:
+		if (intel_fb_is_ccs_aux_plane(fb, color_plane))
+			return 128;
+	case I915_FORMAT_MOD_4_TILED_MTL_RC_CCS:
+	case I915_FORMAT_MOD_4_TILED_MTL_RC_CCS_CC:
+	case I915_FORMAT_MOD_4_TILED_MTL_MC_CCS:
+	case I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS:
+	case I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS_CC:
+	case I915_FORMAT_MOD_Y_TILED_GEN12_MC_CCS:
+		if (intel_fb_is_ccs_aux_plane(fb, color_plane) ||
+			is_gen12_ccs_cc_plane(fb, color_plane))
+			return 64;
+	case I915_FORMAT_MOD_Y_TILED:
+		if (HAS_128B_Y_TILING(display))
+			return 128;
+		else
+			return 512;
+	case I915_FORMAT_MOD_Yf_TILED_CCS:
+		if (intel_fb_is_ccs_aux_plane(fb, color_plane))
+			return 128;
+	case I915_FORMAT_MOD_Yf_TILED:
+		switch (cpp) {
+		case 1:
+			return 64;
+		case 2:
+		case 4:
+			return 128;
+		case 8:
+		case 16:
+			return 256;
+		default:
+			return cpp;
+		}
+		break;
+	default:
+		return cpp;
+	}
+}
+
+
+
+
+
+	
 
 
 static const struct drm_format_info *
@@ -2061,16 +2114,7 @@ static const struct drm_format_info *
 		return NULL;
 	}
 	
-	static const struct intel_modifier_desc *lookup_modifier_or_null(u64 modifier)
-	{
-		int i;
-
-		for (i = 0; i < ARRAY_SIZE(intel_modifiers); i++)
-			if (intel_modifiers[i].modifier == modifier)
-				return &intel_modifiers[i];
-
-		return NULL;
-	}
+	
 	
 const struct drm_format_info *
 intel_fb_get_format_info(u32 pixel_format, u64 modifier)
@@ -2081,6 +2125,57 @@ intel_fb_get_format_info(u32 pixel_format, u64 modifier)
 		return NULL;
 
 	return lookup_format_info(md->formats, md->format_count, pixel_format);
+}
+
+static inline bool drm_rotation_90_or_270(unsigned int rotation)
+{
+	return rotation & (DRM_MODE_ROTATE_90 | DRM_MODE_ROTATE_270);
+}
+
+unsigned int intel_tile_height(const struct drm_framebuffer *fb, int color_plane)
+{
+	struct intel_display *display = NBlue::callback->i915b->display;
+
+	return intel_tile_size(display) /
+		intel_tile_width_bytes(fb, color_plane);
+}
+
+static bool check_modifier_display_ver_range(const struct intel_modifier_desc *md,
+						 u8 display_ver_from, u8 display_ver_until)
+{
+	return md->display_ver.from <= display_ver_until &&
+		display_ver_from <= md->display_ver.until;
+}
+
+
+
+
+static bool intel_fb_is_gen12_ccs_aux_plane(const struct drm_framebuffer *fb, int color_plane)
+{
+	const struct intel_modifier_desc *md = lookup_modifier(fb->modifier);
+
+	return check_modifier_display_ver_range(md, 12, 14) &&
+		   ccs_aux_plane_mask(md, fb->format) & BIT(color_plane);
+}
+
+
+
+bool is_surface_linear(const struct drm_framebuffer *fb, int color_plane)
+{
+	return fb->modifier == DRM_FORMAT_MOD_LINEAR ||
+		   intel_fb_is_gen12_ccs_aux_plane(fb, color_plane) ||
+		   is_gen12_ccs_cc_plane(fb, color_plane);
+}
+
+static unsigned int skl_plane_stride_mult(const struct drm_framebuffer *fb,
+										  int color_plane, unsigned int rotation)
+{
+	if (is_surface_linear(fb, color_plane))
+		return 64;
+	else if (drm_rotation_90_or_270(rotation))
+		return intel_tile_height(fb, color_plane);
+	else
+		return intel_tile_width_bytes(fb, color_plane);
 }
 
 const struct drm_format_info *__drm_format_info(u32 format)
@@ -2327,7 +2422,16 @@ drm_get_format_info(u32 pixel_format, u64 modifier)
 }
 
 
-void plaenp(void *that,void *param_1)
+unsigned int
+intel_fb_align_height(const struct drm_framebuffer *fb,
+			  int color_plane, unsigned int height)
+{
+	unsigned int tile_height = intel_tile_height(fb, color_plane);
+
+	return ALIGN2(height, tile_height);
+}
+
+static void plaenp(void *that,void *param_1, bool isconfig)
 {
 	u32 planeID=getMember<uint32_t>(that, 0x7c);
 	
@@ -2335,71 +2439,17 @@ void plaenp(void *that,void *param_1)
 	enum pipe pipe=PIPE_A;
 	int fourcc, pixel_format;
 	struct intel_display *display = NBlue::callback->i915b->display;
+	struct drm_framebuffer *fb=&display->fb0;
 	u32 val, base, offset, stride_mult, tiling, alpha;
 	uint64_t modifier;
+	u32 color_ctl;
+	u8 rotation = 0;
+	u32 rc_mask;
+	int aligned_height;
+	int size;
+	u32 plane_ctl;
 	
 	val = intel_de_read(display, PLANE_CTL(pipe, plane_id));
-	pixel_format = val & PLANE_CTL_FORMAT_MASK_ICL;
-	
-	u32 color_ctl;
-	color_ctl = intel_de_read(display, PLANE_COLOR_CTL(pipe, plane_id));
-	alpha = REG_FIELD_GET(PLANE_COLOR_ALPHA_MASK, color_ctl);
-	
-	fourcc = skl_format_to_fourcc(pixel_format,val & PLANE_CTL_ORDER_RGBX, alpha);
-	
-	tiling = val & PLANE_CTL_TILED_MASK;
-	
-	
-	switch (tiling) {
-		case PLANE_CTL_TILED_LINEAR:
-			modifier = DRM_FORMAT_MOD_LINEAR;
-			break;
-		case PLANE_CTL_TILED_X:
-			modifier = I915_FORMAT_MOD_X_TILED;
-			getMember<int>(param_1, 0x3c)=0;//tiling
-			break;
-		case PLANE_CTL_TILED_Y:
-			getMember<int>(param_1, 0x3c)=1;//tiling
-			if (val & PLANE_CTL_RENDER_DECOMPRESSION_ENABLE)
-				if (DISPLAY_VER(display) >= 14)
-					modifier = I915_FORMAT_MOD_4_TILED_MTL_RC_CCS;
-				else if (DISPLAY_VER(display) >= 12)
-					modifier = I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS;
-				else
-					modifier = I915_FORMAT_MOD_Y_TILED_CCS;
-			else if (val & PLANE_CTL_MEDIA_DECOMPRESSION_ENABLE)
-				if (DISPLAY_VER(display) >= 14)
-					modifier = I915_FORMAT_MOD_4_TILED_MTL_MC_CCS;
-				else
-					modifier = I915_FORMAT_MOD_Y_TILED_GEN12_MC_CCS;
-			else
-				modifier = I915_FORMAT_MOD_Y_TILED;
-			break;
-		case PLANE_CTL_TILED_YF:
-			getMember<int>(param_1, 0x3c)=1;//tiling
-			if (HAS_4TILE(display)) {
-				u32 rc_mask = PLANE_CTL_RENDER_DECOMPRESSION_ENABLE |
-						  PLANE_CTL_CLEAR_COLOR_DISABLE;
-
-				if ((val & rc_mask) == rc_mask)
-					modifier = I915_FORMAT_MOD_4_TILED_DG2_RC_CCS;
-				else if (val & PLANE_CTL_MEDIA_DECOMPRESSION_ENABLE)
-					modifier = I915_FORMAT_MOD_4_TILED_DG2_MC_CCS;
-				else if (val & PLANE_CTL_RENDER_DECOMPRESSION_ENABLE)
-					modifier = I915_FORMAT_MOD_4_TILED_DG2_RC_CCS_CC;
-				else
-					modifier = I915_FORMAT_MOD_4_TILED;
-			} else {
-				if (val & PLANE_CTL_RENDER_DECOMPRESSION_ENABLE)
-					modifier = I915_FORMAT_MOD_Yf_TILED_CCS;
-				else
-					modifier = I915_FORMAT_MOD_Yf_TILED;
-			}
-			break;
-			
-	}
-	
-	u8 rotation = 0;
 	
 	switch (val & PLANE_CTL_ROTATE_MASK) {
 	case PLANE_CTL_ROTATE_0:
@@ -2416,35 +2466,105 @@ void plaenp(void *that,void *param_1)
 		break;
 	}
 	
+	//if (fb->format->format) goto skipp;
+	
+	pixel_format = val & PLANE_CTL_FORMAT_MASK_ICL;
+	
+	
+	color_ctl = intel_de_read(display, PLANE_COLOR_CTL(pipe, plane_id));
+	alpha = REG_FIELD_GET(PLANE_COLOR_ALPHA_MASK, color_ctl);
+	
+	fourcc = skl_format_to_fourcc(pixel_format,val & PLANE_CTL_ORDER_RGBX, alpha);
+	
+	tiling = val & PLANE_CTL_TILED_MASK;
+	u8 tiling2=7;
+	
+	switch (tiling) {
+		case PLANE_CTL_TILED_LINEAR:
+			fb->modifier = DRM_FORMAT_MOD_LINEAR;
+			break;
+		default:
+		case PLANE_CTL_TILED_X:
+			fb->modifier = I915_FORMAT_MOD_X_TILED;
+			if (isconfig) getMember<int>(param_1, 0x3c)=0;//tiling
+			if (!isconfig) getMember<u8>(param_1, 0x4a18)=0;
+			tiling2=9;
+			break;
+		case PLANE_CTL_TILED_Y:
+			if (isconfig) getMember<int>(param_1, 0x3c)=1;//tiling
+			if (!isconfig) getMember<u8>(param_1, 0x4a18)=1;
+			if (val & PLANE_CTL_RENDER_DECOMPRESSION_ENABLE)
+				if (DISPLAY_VER(display) >= 14)
+					fb->modifier = I915_FORMAT_MOD_4_TILED_MTL_RC_CCS;
+				else if (DISPLAY_VER(display) >= 12)
+					fb->modifier = I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS;
+				else
+					fb->modifier = I915_FORMAT_MOD_Y_TILED_CCS;
+			else if (val & PLANE_CTL_MEDIA_DECOMPRESSION_ENABLE)
+				if (DISPLAY_VER(display) >= 14)
+					fb->modifier = I915_FORMAT_MOD_4_TILED_MTL_MC_CCS;
+				else
+					fb->modifier = I915_FORMAT_MOD_Y_TILED_GEN12_MC_CCS;
+			else
+				fb->modifier = I915_FORMAT_MOD_Y_TILED;
+			break;
+		case PLANE_CTL_TILED_YF:
+			if (isconfig) getMember<int>(param_1, 0x3c)=1;//tiling
+			if (!isconfig) getMember<u8>(param_1, 0x4a18)=1;
+			if (HAS_4TILE(display)) {
+				rc_mask = PLANE_CTL_RENDER_DECOMPRESSION_ENABLE |
+						  PLANE_CTL_CLEAR_COLOR_DISABLE;
+
+				if ((val & rc_mask) == rc_mask)
+					fb->modifier = I915_FORMAT_MOD_4_TILED_DG2_RC_CCS;
+				else if (val & PLANE_CTL_MEDIA_DECOMPRESSION_ENABLE)
+					fb->modifier = I915_FORMAT_MOD_4_TILED_DG2_MC_CCS;
+				else if (val & PLANE_CTL_RENDER_DECOMPRESSION_ENABLE)
+					fb->modifier = I915_FORMAT_MOD_4_TILED_DG2_RC_CCS_CC;
+				else
+					fb->modifier = I915_FORMAT_MOD_4_TILED;
+			} else {
+				if (val & PLANE_CTL_RENDER_DECOMPRESSION_ENABLE)
+					fb->modifier = I915_FORMAT_MOD_Yf_TILED_CCS;
+				else
+					fb->modifier = I915_FORMAT_MOD_Yf_TILED;
+			}
+			break;
+			
+	}
+	
+	fb->format=drm_get_format_info(fourcc,modifier);
+	
+	
+	
+	
+	
 	if (DISPLAY_VER(display) >= 11 && val & PLANE_CTL_FLIP_HORIZONTAL)
 		rotation |= DRM_MODE_REFLECT_X;
 	
 	base = intel_de_read(display, PLANE_SURF(pipe, plane_id)) & PLANE_SURF_ADDR_MASK;
 	offset = intel_de_read(display, PLANE_OFFSET(pipe, plane_id));
 	
-
 	
 	val = intel_de_read(display, PLANE_SIZE(pipe, plane_id));
-	int height = REG_FIELD_GET(PLANE_HEIGHT_MASK, val) + 1;
-	int width = REG_FIELD_GET(PLANE_WIDTH_MASK, val) + 1;
+	fb->height = REG_FIELD_GET(PLANE_HEIGHT_MASK, val) + 1;
+	fb->width = REG_FIELD_GET(PLANE_WIDTH_MASK, val) + 1;
 	
 	val = intel_de_read(display, PLANE_STRIDE(pipe, plane_id));
-	stride_mult = skl_plane_stride_mult(modifier, rotation);
+	stride_mult = skl_plane_stride_mult(fb, 0, DRM_MODE_ROTATE_0);
 
-	unsigned int pitches[4];
-	pitches[0] = REG_FIELD_GET(PLANE_STRIDE__MASK, val) * stride_mult;
+	fb->pitches[0] = REG_FIELD_GET(PLANE_STRIDE__MASK, val) * stride_mult;
 
-	int aligned_height = intel_tile_size(display) /	intel_tile_width_bytes(display, modifier);
+	aligned_height = intel_fb_align_height(fb, 0, fb->height);
 
-	aligned_height= ALIGN2(height, aligned_height);
 
-	int size = pitches[0] * aligned_height;
+	size = fb->pitches[0] * aligned_height;
 	
-	u32 format=drm_get_format_info(fourcc,modifier)->format;
+skipp:
 	
-	u32 plane_ctl=PLANE_CTL_ENABLE;
-	plane_ctl |= skl_plane_ctl_format(format);
-	plane_ctl |= skl_plane_ctl_tiling(modifier);
+	plane_ctl=PLANE_CTL_ENABLE;
+	plane_ctl |= skl_plane_ctl_format(fb->format->format);
+	plane_ctl |= skl_plane_ctl_tiling(fb->modifier);
 	plane_ctl |= skl_plane_ctl_rotate(rotation & DRM_MODE_ROTATE_MASK);
 	
 	
@@ -2475,7 +2595,7 @@ void plaenp(void *that,void *param_1)
 	u32 gamma_mode = intel_de_read(display, GAMMA_MODE(pipe));
 	u32 csc_mode = intel_de_read(display, PIPE_CSC_MODE(pipe));
 	
-	//getMember<uint32_t>(frame0, 0x45a8)=gamma_mode;
+	//getMember<uint32_t>(frame0, 0x45a8)=gamma_mode;//fColorMode
 	
 	u32 plane_color_ctl = PLANE_COLOR_PLANE_GAMMA_DISABLE;
 	
@@ -2495,26 +2615,30 @@ void plaenp(void *that,void *param_1)
 		//plane_color_ctl |= PLANE_COLOR_PLANE_CSC_ENABLE;
 
 	//if (plane_state->hw.gamma_lut) {
-		plane_color_ctl &= ~PLANE_COLOR_PLANE_GAMMA_DISABLE;
+		//plane_color_ctl &= ~PLANE_COLOR_PLANE_GAMMA_DISABLE;
 		//if (drm_color_lut32_size(plane_state->hw.gamma_lut) != 32)
 			//plane_color_ctl |= PLANE_COLOR_POST_CSC_GAMMA_MULTSEG_ENABLE;
 	//}
 
 	
-	getMember<uint32_t>(that, 0x100)=plane_ctl;//PLANE_CTL
-	getMember<uint32_t>(that, 0x104)=plane_color_ctl;//PLANE_COLOR_CTL
+	//u32 scanout_stride;
+	//scanout_stride = fb->width*4;
+	//u32 stride = scanout_stride / skl_plane_stride_mult(fb, 0, rotation);
+	
+	//getMember<uint32_t>(that, 0x100)=plane_ctl;//PLANE_CTL
+	//getMember<uint32_t>(that, 0x104)=plane_color_ctl;//PLANE_COLOR_CTL
 	//getMember<uint32_t>(that, 0x120)=base;//PLANE_SURF
 	//getMember<uint32_t>(that, 0x110)=offset;//PLANE_OFFSET
 	//getMember<uint32_t>(that, 0x11c)=size;//PLANE_SIZE
-	getMember<uint32_t>(that, 0x118)=(pitches[0]/stride_mult)-1;//PLANE_STRIDE
-
+	//getMember<uint32_t>(that, 0x118)=stride;//PLANE_STRIDE
 	
+	getMember<uint32_t>(that, 0x118)=getMember<uint32_t>(frame0, 0x4334)>>tiling2;//PLANE_STRIDE
 }
 
 void  Gen11::configurePlane(void *that,void *param_1)
 {
 	FunctionCast(configurePlane, callback->oconfigurePlane)(that, param_1);
-	plaenp(that,param_1);
+	plaenp(that,param_1,true);
 	
 }
 
@@ -2522,12 +2646,13 @@ void  Gen11::configurePlane(void *that,void *param_1)
 void Gen11::setupPlane(void *that,void *param_1,int param_2)
 {//icl
 	FunctionCast(setupPlane, callback->osetupPlane)(that ,param_1,param_2);
-	//skl_get_initial_plane_config
+	plaenp(that,param_1,false);
 }
 
 void Gen11::setupPlane2(void *that,void *param_1)
 { //tgl
 	FunctionCast(setupPlane2, callback->osetupPlane2)(that ,param_1);
+	plaenp(that,param_1,false);
 }
 
 

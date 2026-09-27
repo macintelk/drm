@@ -6040,11 +6040,190 @@ struct intel_dsb {
 	int hw_dewake_scanline;
 };
 
+#define DRM_FORMAT_MAX_PLANES	4u
+
+struct drm_format_info {
+	/** @format: 4CC format identifier (DRM_FORMAT_*) */
+	u32 format;
+
+	/**
+	 * @depth:
+	 *
+	 * Color depth (number of bits per pixel excluding padding bits),
+	 * valid for a subset of RGB formats only. This is a legacy field, do
+	 * not use in new code and set to 0 for new formats.
+	 */
+	u8 depth;
+
+	/** @num_planes: Number of color planes (1 to 3) */
+	u8 num_planes;
+
+	union {
+		/**
+		 * @cpp:
+		 *
+		 * Number of bytes per pixel (per plane), this is aliased with
+		 * @char_per_block. It is deprecated in favour of using the
+		 * triplet @char_per_block, @block_w, @block_h for better
+		 * describing the pixel format.
+		 */
+		u8 cpp[DRM_FORMAT_MAX_PLANES];
+
+		/**
+		 * @char_per_block:
+		 *
+		 * Number of bytes per block (per plane), where blocks are
+		 * defined as a rectangle of pixels which are stored next to
+		 * each other in a byte aligned memory region. Together with
+		 * @block_w and @block_h this is used to properly describe tiles
+		 * in tiled formats or to describe groups of pixels in packed
+		 * formats for which the memory needed for a single pixel is not
+		 * byte aligned.
+		 *
+		 * @cpp has been kept for historical reasons because there are
+		 * a lot of places in drivers where it's used. In drm core for
+		 * generic code paths the preferred way is to use
+		 * @char_per_block, drm_format_info_block_width() and
+		 * drm_format_info_block_height() which allows handling both
+		 * block and non-block formats in the same way.
+		 *
+		 * For formats that are intended to be used only with non-linear
+		 * modifiers both @cpp and @char_per_block must be 0 in the
+		 * generic format table. Drivers could supply accurate
+		 * information from their drm_mode_config.get_format_info hook
+		 * if they want the core to be validating the pitch.
+		 */
+		u8 char_per_block[DRM_FORMAT_MAX_PLANES];
+	};
+
+	/**
+	 * @block_w:
+	 *
+	 * Block width in pixels, this is intended to be accessed through
+	 * drm_format_info_block_width()
+	 */
+	u8 block_w[DRM_FORMAT_MAX_PLANES];
+
+	/**
+	 * @block_h:
+	 *
+	 * Block height in pixels, this is intended to be accessed through
+	 * drm_format_info_block_height()
+	 */
+	u8 block_h[DRM_FORMAT_MAX_PLANES];
+
+	/** @hsub: Horizontal chroma subsampling factor */
+	u8 hsub;
+	/** @vsub: Vertical chroma subsampling factor */
+	u8 vsub;
+
+	/** @has_alpha: Does the format embeds an alpha component? */
+	bool has_alpha;
+
+	/** @is_yuv: Is it a YUV format? */
+	bool is_yuv;
+
+	/** @is_color_indexed: Is it a color-indexed format? */
+	bool is_color_indexed;
+};
+
+struct drm_framebuffer {
+	/**
+	 * @dev: DRM device this framebuffer belongs to
+	 */
+	//struct drm_device *dev;
+	/**
+	 * @head: Place on the &drm_mode_config.fb_list, access protected by
+	 * &drm_mode_config.fb_lock.
+	 */
+	struct list_head head;
+
+	/**
+	 * @base: base modeset object structure, contains the reference count.
+	 */
+	//struct drm_mode_object base;
+
+	/**
+	 * @comm: Name of the process allocating the fb, used for fb dumping.
+	 */
+	//char comm[TASK_COMM_LEN];
+
+	/**
+	 * @format: framebuffer format information
+	 */
+	const struct drm_format_info *format;
+	/**
+	 * @funcs: framebuffer vfunc table
+	 */
+	//const struct drm_framebuffer_funcs *funcs;
+	/**
+	 * @pitches: Line stride per buffer. For userspace created object this
+	 * is copied from drm_mode_fb_cmd2.
+	 */
+	unsigned int pitches[DRM_FORMAT_MAX_PLANES];
+	/**
+	 * @offsets: Offset from buffer start to the actual pixel data in bytes,
+	 * per buffer. For userspace created object this is copied from
+	 * drm_mode_fb_cmd2.
+	 *
+	 * Note that this is a linear offset and does not take into account
+	 * tiling or buffer layout per @modifier. It is meant to be used when
+	 * the actual pixel data for this framebuffer plane starts at an offset,
+	 * e.g. when multiple planes are allocated within the same backing
+	 * storage buffer object. For tiled layouts this generally means its
+	 * @offsets must at least be tile-size aligned, but hardware often has
+	 * stricter requirements.
+	 *
+	 * This should not be used to specifiy x/y pixel offsets into the buffer
+	 * data (even for linear buffers). Specifying an x/y pixel offset is
+	 * instead done through the source rectangle in &struct drm_plane_state.
+	 */
+	unsigned int offsets[DRM_FORMAT_MAX_PLANES];
+	/**
+	 * @modifier: Data layout modifier. This is used to describe
+	 * tiling, or also special layouts (like compression) of auxiliary
+	 * buffers. For userspace created object this is copied from
+	 * drm_mode_fb_cmd2.
+	 */
+	uint64_t modifier;
+	/**
+	 * @width: Logical width of the visible area of the framebuffer, in
+	 * pixels.
+	 */
+	unsigned int width;
+	/**
+	 * @height: Logical height of the visible area of the framebuffer, in
+	 * pixels.
+	 */
+	unsigned int height;
+	/**
+	 * @flags: Framebuffer flags like DRM_MODE_FB_INTERLACED or
+	 * DRM_MODE_FB_MODIFIERS.
+	 */
+	int flags;
+	/**
+	 * @internal_flags: Framebuffer flags like DRM_FRAMEBUFFER_HAS_HANDLE_REF.
+	 */
+	unsigned int internal_flags;
+	/**
+	 * @filp_head: Placed on &drm_file.fbs, protected by &drm_file.fbs_lock.
+	 */
+	struct list_head filp_head;
+	/**
+	 * @obj: GEM objects backing the framebuffer, one per plane (optional).
+	 *
+	 * This is used by the GEM framebuffer helpers, see e.g.
+	 * drm_gem_fb_create().
+	 */
+	//struct drm_gem_object *obj[DRM_FORMAT_MAX_PLANES];
+};
+
 struct intel_display {
 	
 	struct intel_display_platforms platform;
 	struct intel_crtc_state crtc_state0;
 	struct intel_dp intel_dp0;
+	struct drm_framebuffer fb0;
 	
 	enum intel_pch pch_type;
 	
@@ -12741,92 +12920,9 @@ enum intel_guc_rc_options {
 #define HAS_4TILE(__display)		((__display)->platform.dg2 || DISPLAY_VER(__display) >= 14)
 
 
-#define DRM_FORMAT_MAX_PLANES	4u
 
-struct drm_format_info {
-	/** @format: 4CC format identifier (DRM_FORMAT_*) */
-	u32 format;
 
-	/**
-	 * @depth:
-	 *
-	 * Color depth (number of bits per pixel excluding padding bits),
-	 * valid for a subset of RGB formats only. This is a legacy field, do
-	 * not use in new code and set to 0 for new formats.
-	 */
-	u8 depth;
 
-	/** @num_planes: Number of color planes (1 to 3) */
-	u8 num_planes;
-
-	union {
-		/**
-		 * @cpp:
-		 *
-		 * Number of bytes per pixel (per plane), this is aliased with
-		 * @char_per_block. It is deprecated in favour of using the
-		 * triplet @char_per_block, @block_w, @block_h for better
-		 * describing the pixel format.
-		 */
-		u8 cpp[DRM_FORMAT_MAX_PLANES];
-
-		/**
-		 * @char_per_block:
-		 *
-		 * Number of bytes per block (per plane), where blocks are
-		 * defined as a rectangle of pixels which are stored next to
-		 * each other in a byte aligned memory region. Together with
-		 * @block_w and @block_h this is used to properly describe tiles
-		 * in tiled formats or to describe groups of pixels in packed
-		 * formats for which the memory needed for a single pixel is not
-		 * byte aligned.
-		 *
-		 * @cpp has been kept for historical reasons because there are
-		 * a lot of places in drivers where it's used. In drm core for
-		 * generic code paths the preferred way is to use
-		 * @char_per_block, drm_format_info_block_width() and
-		 * drm_format_info_block_height() which allows handling both
-		 * block and non-block formats in the same way.
-		 *
-		 * For formats that are intended to be used only with non-linear
-		 * modifiers both @cpp and @char_per_block must be 0 in the
-		 * generic format table. Drivers could supply accurate
-		 * information from their drm_mode_config.get_format_info hook
-		 * if they want the core to be validating the pitch.
-		 */
-		u8 char_per_block[DRM_FORMAT_MAX_PLANES];
-	};
-
-	/**
-	 * @block_w:
-	 *
-	 * Block width in pixels, this is intended to be accessed through
-	 * drm_format_info_block_width()
-	 */
-	u8 block_w[DRM_FORMAT_MAX_PLANES];
-
-	/**
-	 * @block_h:
-	 *
-	 * Block height in pixels, this is intended to be accessed through
-	 * drm_format_info_block_height()
-	 */
-	u8 block_h[DRM_FORMAT_MAX_PLANES];
-
-	/** @hsub: Horizontal chroma subsampling factor */
-	u8 hsub;
-	/** @vsub: Vertical chroma subsampling factor */
-	u8 vsub;
-
-	/** @has_alpha: Does the format embeds an alpha component? */
-	bool has_alpha;
-
-	/** @is_yuv: Is it a YUV format? */
-	bool is_yuv;
-
-	/** @is_color_indexed: Is it a color-indexed format? */
-	bool is_color_indexed;
-};
 
 struct intel_modifier_desc {
 	u64 modifier;
@@ -12869,6 +12965,11 @@ struct intel_modifier_desc {
 					 INTEL_PLANE_CAP_TILING_Yf | \
 					 INTEL_PLANE_CAP_TILING_4)
 #define INTEL_PLANE_CAP_TILING_NONE	0
+
+
+
+
+
 
 
 
