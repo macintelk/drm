@@ -7961,8 +7961,8 @@ void Gen11::enablePipe(void *that,void *param_1, void *param_2,void *param_3)
 	dmc_configure_event(display, dmc_id, PIPEDMC_EVENT_VBLANK, true);
 	intel_flipq_enable(crtc_state,pipe);
 	
-	//u8 inte= getMember<uint8_t>(ccont2, kexttgld ? 0xfdc : 0xfd4);
-	//if (inte!='\x02')
+	char inte= getMember<char>(ccont2, kexttgld ? 0xfdc : 0xfd4);
+	if (inte!='\x02')
 		hwEnableInterrupts(ccont2);
 	
 }
