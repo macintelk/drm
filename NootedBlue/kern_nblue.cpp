@@ -2935,6 +2935,7 @@ int NBlue::intel_opregion_setup()
 					crtc_state->cpu_transcoder = (enum transcoder) display->pipe0;
 				
 				//crtc_state->master_transcoder = INVALID_TRANSCODER;
+				crtc_state->crc_enabled=true;
 				
 				parse_panel_options(display, panel);
 				parse_generic_dtd(display, panel);
