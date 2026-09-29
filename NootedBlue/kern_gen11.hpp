@@ -972,8 +972,8 @@ public:
 	static void  disableHWDC6(void *that);
 	mach_vm_address_t odisableHWDC6 {};
 	
-
-	
+	static uint64_t  hwEnableInterrupts(void *that);
+	mach_vm_address_t ohwEnableInterrupts {};
 	
 	
 public:

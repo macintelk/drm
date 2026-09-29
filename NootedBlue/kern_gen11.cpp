@@ -124,6 +124,11 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			{"__ZN19AppleIntelPowerWell19disablePowerWellDDIEj",disablePowerWellDDI, this->odisablePowerWellDDI},
 			{"__ZN19AppleIntelPowerWell18disablePowerWellPGEj",disablePowerWellPG, this->odisablePowerWellPG},
 			//{"__ZN20IntelFBClientControl11doAttributeEjPmmS0_S0_P25IOExternalMethodArguments",wrapFBClientDoAttribute,	this->orgFBClientDoAttribute},
+			
+			{"__ZN31AppleIntelFramebufferController18hwEnableInterruptsEv",hwEnableInterrupts, this->ohwEnableInterrupts},
+			{"__ZN31AppleIntelFramebufferController15configureReportEP19IOReportChannelListjPvS2_",configureReport, this->oconfigureReport},
+			
+			
 			//{"__ZN31AppleIntelFramebufferController16hwRegsNeedUpdateEP21AppleIntelFramebufferP21AppleIntelDisplayPathP10CRTCParamsPK29IODetailedTimingInformationV2PN16AppleIntelScaler12SCALERPARAMSE",hwRegsNeedUpdate, this->ohwRegsNeedUpdate},
 			/*{"__ZN21AppleIntelFramebuffer31frameBufferNotificationcallbackEP8OSObjectPvP13IOFramebufferiS2_",aframeBufferNotificationcallback, this->oaframeBufferNotificationcallback},
 			{"__ZN31AppleIntelFramebufferController9hwSetModeEP21AppleIntelFramebufferP21AppleIntelDisplayPathiPK29IODetailedTimingInformationV2",hwSetMode, this->ohwSetMode},*/
@@ -277,6 +282,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			
 			
 			
+			
 			//{"__ZN24AppleIntelBaseController21getCallbackCapabilityEP24AGDCCallbackCapability_t",getCallbackCapability, this->ogetCallbackCapability},
 			//{"__ZN24AppleIntelBaseController16GetGPUCapabilityEP19AGDCGPUCapability_t",GetGPUCapability, this->oGetGPUCapability},
 			
@@ -293,7 +299,8 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		
 		if (isprod) {
 			KernelPatcher::RouteRequest requestsp[] = {
-
+				
+				{"__ZN31AppleIntelFramebufferController18hwEnableInterruptsEv",hwEnableInterrupts, this->ohwEnableInterrupts},
 				{"__ZN31AppleIntelFramebufferController12disableHWDC6Ev",disableHWDC6, this->odisableHWDC6},
 				{"__ZN31AppleIntelFramebufferController10enablePipeEP21AppleIntelFramebufferP21AppleIntelDisplayPathPK29IODetailedTimingInformationV2",enablePipe, this->oenablePipe},
 				{"__ZN31AppleIntelFramebufferController13probeBootPipeEPbPN17AppleIntelPortHAL3DDIE",probeBootPipe, this->oprobeBootPipe},
@@ -324,6 +331,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		{
 			KernelPatcher::RouteRequest requestsd[] = {
 				
+				{"__ZN24AppleIntelBaseController18hwEnableInterruptsEv",hwEnableInterrupts, this->ohwEnableInterrupts},
 				{"__ZN24AppleIntelBaseController12disableHWDC6Ev",disableHWDC6, this->odisableHWDC6},
 				{"__ZN24AppleIntelBaseController10enablePipeEP21AppleIntelFramebufferP21AppleIntelDisplayPathPK29IODetailedTimingInformationV2",enablePipe, this->oenablePipe},
 				{"__ZN24AppleIntelBaseController13probeBootPipeEPbPN17AppleIntelPortHAL3DDIE",probeBootPipe, this->oprobeBootPipe},
@@ -1527,6 +1535,11 @@ uint64_t Gen11::PreProcessTransaction(void *that,uint param_1)
 	return ret;
 }
 
+uint64_t Gen11::hwEnableInterrupts(void *that)
+{
+	auto ret= FunctionCast(hwEnableInterrupts, callback->ohwEnableInterrupts)(that);
+	return ret;
+}
 
 
 
@@ -7808,6 +7821,124 @@ static void gen11_irq_reset(struct drm_i915_private *dev_priv)
 	gen2_irq_reset(display, GEN8_PCU_IRQ_REGS);
 }
 
+int intel_mode_vblank_start(const struct drm_display_mode *mode)
+{
+	int vblank_start = mode->crtc_vblank_start;
+
+	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
+		vblank_start = DIV_ROUND_UP(vblank_start, 2);
+
+	return vblank_start;
+}
+
+static int cdclk_factor(struct intel_display *display)
+{
+	if (DISPLAY_VER(display) >= 30)
+		return 120;
+	else
+		return 280;
+}
+static int intel_dsb_noarm_exec_time_us(void)
+{
+	return 80;
+}
+
+static int intel_dsb_arm_exec_time_us(void)
+{
+	return 20;
+}
+
+int intel_dsb_exec_time_us(void)
+{
+	return intel_dsb_noarm_exec_time_us() +
+		intel_dsb_arm_exec_time_us();
+}
+int intel_flipq_exec_time_us(struct intel_display *display)
+{
+	return intel_dsb_exec_time_us() +
+		DIV_ROUND_UP(display->port_clock * cdclk_factor(display), 540000) +
+	0;//display->sagv.block_time_us;
+}
+
+static inline u64 mul_u32_u32(u32 a, u32 b)
+{
+	return (u64)a * b;
+}
+
+# define do_div(n,base) ({					\
+	uint32_t __base = (base);				\
+	uint32_t __rem;						\
+	__rem = ((uint64_t)(n)) % __base;			\
+	(n) = ((uint64_t)(n)) / __base;				\
+	__rem;							\
+ })
+
+#define DIV_ROUND_UP_POW2(n, d) \
+	((n) / (d) + !!((n) & ((d) - 1)))
+
+#define DIV_ROUND_DOWN_ULL(ll, d) \
+	({ unsigned long long _tmp = (ll); do_div(_tmp, d); _tmp; })
+
+#define DIV_ROUND_UP_ULL(ll, d) \
+	DIV_ROUND_DOWN_ULL((unsigned long long)(ll) + (d) - 1, (d))
+
+int intel_usecs_to_scanlines(const struct drm_display_mode *adjusted_mode,
+				 int usecs)
+{
+	/* paranoia */
+	if (!adjusted_mode->crtc_htotal)
+		return 1;
+
+	return DIV_ROUND_UP_ULL(mul_u32_u32(usecs, adjusted_mode->crtc_clock),
+				1000 * adjusted_mode->crtc_htotal);
+}
+static int intel_flipq_exec_time_lines(const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *i915=NBlue::callback->i915b;
+	struct intel_display *display=i915->display;
+
+	return intel_usecs_to_scanlines(&crtc_state->hw.adjusted_mode,
+					intel_flipq_exec_time_us(display));
+}
+
+u32 intel_pipedmc_start_mmioaddr(struct intel_display *display, enum pipe pipe)
+{
+	struct intel_dmc *dmc = display_to_dmc(display);
+	enum intel_dmc_id dmc_id = (enum intel_dmc_id)PIPE_TO_DMC_ID(pipe);
+
+	return dmc ? dmc->dmc_info[dmc_id].start_mmioaddr : 0;
+}
+
+void intel_flipq_enable(const struct intel_crtc_state *crtc_state, enum pipe pipe)
+{
+	struct drm_i915_private *i915=NBlue::callback->i915b;
+	struct intel_display *display=i915->display;
+	
+	
+	int scanline = intel_mode_vblank_start(&crtc_state->hw.adjusted_mode) -
+		intel_flipq_exec_time_lines(crtc_state);
+
+	if (DISPLAY_VER(display) >= 30) {
+		u32 start_mmioaddr = intel_pipedmc_start_mmioaddr(display,pipe);
+
+		intel_de_write(display, PTL_PIPEDMC_EXEC_TIME_LINES(start_mmioaddr),
+				   intel_flipq_exec_time_lines(crtc_state));
+		intel_de_write(display, PTL_PIPEDMC_END_OF_EXEC_GB(start_mmioaddr),
+				   100);
+	}
+
+	intel_de_write(display, PIPEDMC_SCANLINECMPUPPER(pipe),
+			   PIPEDMC_SCANLINE_UPPER(scanline));
+	intel_de_write(display, PIPEDMC_SCANLINECMPLOWER(pipe),
+			   PIPEDMC_SCANLINEINRANGECMP_EN |
+			   PIPEDMC_SCANLINE_LOWER(scanline - 2));
+
+	enum intel_dmc_id dmc_id = (enum intel_dmc_id)PIPE_TO_DMC_ID(pipe);
+	dmc_configure_event(display, dmc_id, PIPEDMC_EVENT_SCANLINE_INRANGE_FQ_TRIGGER, true);
+	
+	intel_de_write(display, PIPEDMC_FQ_CTRL(pipe), PIPEDMC_FQ_CTRL_ENABLE);
+}
+
 void Gen11::enablePipe(void *that,void *param_1, void *param_2,void *param_3)
 {
 	FunctionCast(enablePipe, callback->oenablePipe)(that, param_1,param_2,param_3);
@@ -7815,6 +7946,7 @@ void Gen11::enablePipe(void *that,void *param_1, void *param_2,void *param_3)
 	struct drm_i915_private *i915=NBlue::callback->i915b;
 	struct intel_display *display=i915->display;
 	struct intel_dp *intel_dp=&display->intel_dp0;
+	struct intel_crtc_state *crtc_state =&display->crtc_state0;
 	
 	uint32_t fbNum = getMember<uint32_t>(param_1, 0x1dc);
 	enum pipe pipe=fbNum==0 ? PIPE_A: PIPE_B;
@@ -7822,12 +7954,16 @@ void Gen11::enablePipe(void *that,void *param_1, void *param_2,void *param_3)
 	
 	icl_set_pipe_chicken(pipe);
 	
-	intel_dmc_enable_pipe(&display->crtc_state0,pipe);
+	intel_dmc_enable_pipe(crtc_state,pipe);
 
-	intel_crt_set_dpms(pipe, &display->crtc_state0, DRM_MODE_DPMS_ON);
+	intel_crt_set_dpms(pipe, crtc_state, DRM_MODE_DPMS_ON);
 	
-	//dmc_configure_event(display, dmc_id, PIPEDMC_EVENT_VBLANK, true);
-	//dmc_configure_event(display, dmc_id, PIPEDMC_EVENT_SCANLINE_INRANGE_FQ_TRIGGER, true);
+	dmc_configure_event(display, dmc_id, PIPEDMC_EVENT_VBLANK, true);
+	intel_flipq_enable(crtc_state,pipe);
+	
+	//u8 inte= getMember<uint8_t>(ccont2, kexttgld ? 0xfdc : 0xfd4);
+	//if (inte!='\x02')
+		hwEnableInterrupts(ccont2);
 	
 }
 
@@ -10973,6 +11109,8 @@ uint64_t  Gen11::linkTraining(void *that,void *param_1)
 	
 	//getMember<uint32_t>(frame0, kexticl ? 0xe45 : 0x420c)=0x3;//fWSAAState
 	//getMember<uint32_t>(frame0, kexticl ? 0x85e0 : 0x4210)=0x1;//fWSAAState2
+	
+	
 	
 	if (ret) return 0;
 
