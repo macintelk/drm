@@ -11174,17 +11174,13 @@ void intel_enable_transcoder(struct intel_display *display, struct intel_crtc_st
 	}
 
 	/* Wa_1409098942:adlp+ */
-	/*if (DISPLAY_VER(display) >= 13 &&
+	if (DISPLAY_VER(display) >= 13 &&
 		new_crtc_state->dsc.compression_enable) {
 		val &= ~TRANSCONF_PIXEL_COUNT_SCALING_MASK;
 		val |= REG_FIELD_PREP(TRANSCONF_PIXEL_COUNT_SCALING_MASK,
 					  TRANSCONF_PIXEL_COUNT_SCALING_X4);
-	}*/
-	
-	val = intel_de_read(display, TRANSCONF(display, cpu_transcoder));
-	if (val & TRANSCONF_ENABLE) {
-		return;
 	}
+	
 
 	intel_de_write(display, TRANSCONF(display, cpu_transcoder),
 			   val | TRANSCONF_ENABLE);

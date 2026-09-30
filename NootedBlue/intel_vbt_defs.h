@@ -13232,6 +13232,8 @@ static const u8 infoframe_type_to_idx[] = {
 #define  PSR2_MAN_TRK_CTL_ENABLE				REG_BIT(31)
 #define  DDI_A_4_LANES				REG_BIT(4)
 
+#define   TRANSCONF_PIXEL_COUNT_SCALING_MASK	REG_GENMASK(1, 0)
+#define   TRANSCONF_PIXEL_COUNT_SCALING_X4	1
 
 
 
