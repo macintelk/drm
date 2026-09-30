@@ -2646,7 +2646,7 @@ skipp:
 	NBlue::callback->iGPU->setProperty("PLANE_STRIDE", stride,32);
 	
 	getMember<uint32_t>(that, 0x100)=plane_ctl;//PLANE_CTL
-	getMember<uint32_t>(that, 0x104)=plane_color_ctl;//PLANE_COLOR_CTL
+	//getMember<uint32_t>(that, 0x104)=plane_color_ctl;//PLANE_COLOR_CTL
 	//getMember<uint32_t>(that, 0x120)=base;//PLANE_SURF
 	//getMember<uint32_t>(that, 0x110)=offset;//PLANE_OFFSET
 	//getMember<uint32_t>(that, 0x11c)=size;//PLANE_SIZE
