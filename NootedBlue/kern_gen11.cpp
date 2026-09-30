@@ -11560,6 +11560,9 @@ void Gen11::SetupParams (void *that,void *param_1,void *param_2,CRTCParams *para
 		setpc=1;
 	}
 	
+	if (pc->index == 0)
+		param_3->TRANS_CLK_SEL=TGL_TRANS_CLK_SEL_PORT(display->port0);//0x10000000
+	
 	FunctionCast(SetupParams, callback->oSetupParams)(that ,param_1,param_2,param_3,param_4);
 	if (kexticl && setpc) {
 		SetupParams2(param_2, param_3);
