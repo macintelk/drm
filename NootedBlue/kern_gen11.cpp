@@ -86,7 +86,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			{"__ZN31AppleIntelFramebufferController17updateSliceConfigEj",updateSliceConfig, this->oupdateSliceConfig},
 			{"__ZN31AppleIntelFramebufferController18setAsyncSliceCountE13IGSliceConfig",setAsyncSliceCount, this->osetAsyncSliceCount},
 			{"__ZN21AppleIntelFramebuffer4initEP31AppleIntelFramebufferControllerj",AppleIntelFramebufferinit, this->oAppleIntelFramebufferinit},
-			{"__ZN31AppleIntelFramebufferController21probeCDClockFrequencyEv",wrapProbeCDClockFrequency,	this->orgProbeCDClockFrequency},
+			//{"__ZN31AppleIntelFramebufferController21probeCDClockFrequencyEv",wrapProbeCDClockFrequency,	this->orgProbeCDClockFrequency},
 			{"__ZN31AppleIntelFramebufferController18hwInitializeCStateEv",hwInitializeCState, this->ohwInitializeCState},
 			{"__ZN31AppleIntelFramebufferController20hwConfigureCustomAUXEb",hwConfigureCustomAUX, this->ohwConfigureCustomAUX},
 			{"__ZN17AppleIntelPortHAL4initEP10PortConfig",AppleIntelPortHALinit, this->oAppleIntelPortHALinit},
@@ -310,7 +310,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 				{"__ZN31AppleIntelFramebufferController15hwSetPanelPowerEj",hwSetPanelPower, this->ohwSetPanelPower},
 				{"__ZN31AppleIntelFramebufferController11SetupParamsEP21AppleIntelFramebufferP21AppleIntelDisplayPathP10CRTCParamsPK29IODetailedTimingInformationV2",SetupParams,	this->oSetupParams},
 				{"__ZN31AppleIntelFramebufferController19setupPipeWatermarksEP21AppleIntelFramebufferP21AppleIntelDisplayPathP10CRTCParams",setupPipeWatermarks, this->osetupPipeWatermarks},
-				{"__ZN31AppleIntelFramebufferController21probeCDClockFrequencyEv",wrapProbeCDClockFrequency,	this->orgProbeCDClockFrequency},
+				//{"__ZN31AppleIntelFramebufferController21probeCDClockFrequencyEv",wrapProbeCDClockFrequency,	this->orgProbeCDClockFrequency},
 				{"__ZN31AppleIntelFramebufferController17updateSliceConfigEj",updateSliceConfig, this->oupdateSliceConfig},
 				{"__ZN31AppleIntelFramebufferController18setAsyncSliceCountE13IGSliceConfig",setAsyncSliceCount, this->osetAsyncSliceCount},
 				{"__ZN31AppleIntelFramebufferController9hwGetCRTCEP21AppleIntelFramebufferP21AppleIntelDisplayPath",hwGetCRTC, this->ohwGetCRTC},
@@ -341,7 +341,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 				{"__ZN24AppleIntelBaseController15hwSetPanelPowerEj",hwSetPanelPower, this->ohwSetPanelPower},
 				{"__ZN24AppleIntelBaseController11SetupParamsEP21AppleIntelFramebufferP21AppleIntelDisplayPathP10CRTCParamsPK29IODetailedTimingInformationV2",SetupParams,	this->oSetupParams},
 				{"__ZN24AppleIntelBaseController19setupPipeWatermarksEP21AppleIntelFramebufferP21AppleIntelDisplayPathP10CRTCParams",setupPipeWatermarks, this->osetupPipeWatermarks},
-				{"__ZN24AppleIntelBaseController21probeCDClockFrequencyEv",wrapProbeCDClockFrequency,	this->orgProbeCDClockFrequency},
+				//{"__ZN24AppleIntelBaseController21probeCDClockFrequencyEv",wrapProbeCDClockFrequency,	this->orgProbeCDClockFrequency},
 				{"__ZN24AppleIntelBaseController17updateSliceConfigEj",updateSliceConfig, this->oupdateSliceConfig},
 				{"__ZN24AppleIntelBaseController18setAsyncSliceCountE13IGSliceConfig",setAsyncSliceCount, this->osetAsyncSliceCount},
 				{"__ZN24AppleIntelBaseController9hwGetCRTCEP21AppleIntelFramebufferP21AppleIntelDisplayPath",hwGetCRTC, this->ohwGetCRTC},
@@ -10179,7 +10179,7 @@ void intel_dp_set_link_params(struct intel_dp *intel_dp,
 }
 
 
-void intel_ddi_enable_transcoder_clock(struct intel_crtc_state *crtc_state)
+u32 intel_ddi_enable_transcoder_clock(struct intel_crtc_state *crtc_state, bool rval)
 {
 	struct intel_display *display =NBlue::callback->i915b->display;
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
@@ -10187,7 +10187,7 @@ void intel_ddi_enable_transcoder_clock(struct intel_crtc_state *crtc_state)
 	u32 val;
 
 	if (cpu_transcoder == TRANSCODER_EDP)
-		return;
+		return 0;
 
 	if (DISPLAY_VER(display) >= 13)
 		val = TGL_TRANS_CLK_SEL_PORT(phy);
@@ -10195,8 +10195,12 @@ void intel_ddi_enable_transcoder_clock(struct intel_crtc_state *crtc_state)
 		val = TGL_TRANS_CLK_SEL_PORT(display->port0);
 	else
 		val = TRANS_CLK_SEL_PORT(display->port0);
+	
+	if (rval) return val;
 
 	intel_de_write(display, TRANS_CLK_SEL(cpu_transcoder), val);
+	
+	return val;
 }
 
 static void intel_dp_enable_port(struct intel_dp *intel_dp,
@@ -10366,6 +10370,128 @@ is_trans_port_sync_mode(const struct intel_crtc_state *crtc_state)
 		is_trans_port_sync_slave(crtc_state);
 }
 
+
+
+
+static void icl_pll_power_enable(struct intel_display *display,
+				 u32 enable_reg)
+{
+	intel_de_rmw(display, enable_reg, 0, PLL_POWER_ENABLE);
+
+
+	if (intel_de_wait_for_set_ms(display, enable_reg, PLL_POWER_STATE, 1))
+		return;
+}
+
+static void icl_pll_enable(struct intel_display *display,
+						   u32 enable_reg)
+{
+	intel_de_rmw(display, enable_reg, 0, PLL_ENABLE);
+
+	/* Timeout is actually 600us. */
+	if (intel_de_wait_for_set_ms(display, enable_reg, PLL_LOCK, 1))
+		return;
+}
+
+
+
+static void adlp_cmtg_clock_gating_wa(struct intel_display *display)
+{
+	u32 val;
+
+	if (!(display->platform.alderlake_p && IS_DISPLAY_STEP(display, STEP_A0, STEP_B0)) )
+		return;
+
+	val = intel_de_read(display, TRANS_CMTG_CHICKEN);
+	val = intel_de_rmw(display, TRANS_CMTG_CHICKEN, ~0, DISABLE_DPT_CLK_GATING);
+	if (( val & ~DISABLE_DPT_CLK_GATING))
+		return;
+}
+
+static void combo_pll_enable(struct intel_display *display)
+{
+	u32 enable_reg = ICL_DPLL_ENABLE(DPLL_ID_ICL_DPLL0);
+	
+	icl_pll_power_enable(display, enable_reg);
+	
+	u32 val = intel_de_read(display, enable_reg);
+	if (!(val & PLL_ENABLE)) panic("PLL_ENABLE");
+	
+	u32 cfgcr0_reg, cfgcr1_reg, div0_reg = INVALID_MMIO_REG;
+	u32 cfgcr0, cfgcr1;
+	
+	if (display->platform.alderlake_s) {
+		cfgcr0_reg = ADLS_DPLL_CFGCR0(DPLL_ID_ICL_DPLL0);
+		cfgcr1_reg = ADLS_DPLL_CFGCR1(DPLL_ID_ICL_DPLL0);
+	} else if (display->platform.rocketlake) {
+		cfgcr0_reg = RKL_DPLL_CFGCR0(DPLL_ID_ICL_DPLL0);
+		cfgcr1_reg = RKL_DPLL_CFGCR1(DPLL_ID_ICL_DPLL0);
+	} else if (DISPLAY_VER(display) >= 12) {
+		cfgcr0_reg = TGL_DPLL_CFGCR0(DPLL_ID_ICL_DPLL0);
+		cfgcr1_reg = TGL_DPLL_CFGCR1(DPLL_ID_ICL_DPLL0);
+		div0_reg = TGL_DPLL0_DIV0(DPLL_ID_ICL_DPLL0);
+	}
+	
+	cfgcr0=intel_de_read(display, cfgcr0_reg);
+	cfgcr1=intel_de_read(display, cfgcr1_reg);
+	
+	intel_de_write(display, cfgcr0_reg, cfgcr0);
+	intel_de_write(display, cfgcr1_reg, cfgcr1);
+	
+	intel_de_posting_read(display, cfgcr1_reg);
+	
+	icl_pll_enable(display, enable_reg);
+	
+	adlp_cmtg_clock_gating_wa(display);
+	
+}
+
+
+void Gen11::initCDClock(void *that)
+{
+	struct intel_display *display = NBlue::callback->i915b->display;
+	combo_pll_enable(display);
+	
+	FunctionCast(initCDClock, callback->oinitCDClock)(that);
+}
+
+static void icl_pll_disable(struct intel_display *display,
+				u32 enable_reg)
+{
+	/* The first steps are done by intel_ddi_post_disable(). */
+
+	/*
+	 * DVFS pre sequence would be here, but in our driver the cdclk code
+	 * paths should already be setting the appropriate voltage, hence we do
+	 * nothing here.
+	 */
+
+	intel_de_rmw(display, enable_reg, PLL_ENABLE, 0);
+
+	/* Timeout is actually 1us. */
+	if (intel_de_wait_for_clear_ms(display, enable_reg, PLL_LOCK, 1))
+		panic( "PLL %d locked\n", 0);
+
+	/* DVFS post sequence would be here. See the comment above. */
+
+	intel_de_rmw(display, enable_reg, PLL_POWER_ENABLE, 0);
+
+	/*
+	 * The spec says we need to "wait" but it also says it should be
+	 * immediate.
+	 */
+	if (intel_de_wait_for_clear_ms(display, enable_reg, PLL_POWER_STATE, 1))
+		panic( "PLL %d Power not disabled\n",
+			0);
+}
+
+static void combo_pll_disable(struct intel_display *display)
+{
+	u32 enable_reg = ICL_DPLL_ENABLE(DPLL_ID_ICL_DPLL0);
+
+	icl_pll_disable(display, enable_reg);
+}
+
 bool tgl_ddi_pre_enable_dp(struct intel_display *display, struct intel_crtc_state *crtc_state)
 {
 	struct intel_dp *intel_dp = &display->intel_dp0;
@@ -10394,8 +10520,6 @@ bool tgl_ddi_pre_enable_dp(struct intel_display *display, struct intel_crtc_stat
 	//if (!kexticl) Gen11::callback->disableVDDForAux(ccont2);
 	//else Gen11::callback->disableVDDForAux2(ccont2,linkp);
 	
-	
-
 	_icl_ddi_enable_clock(display, ICL_DPCLKA_CFGCR0,
 							  ICL_DPCLKA_CFGCR0_DDI_CLK_SEL_MASK(display->phy0),
 							  ICL_DPCLKA_CFGCR0_DDI_CLK_SEL(DPLL_ID_ICL_DPLL0, display->phy0),
@@ -10407,7 +10531,7 @@ bool tgl_ddi_pre_enable_dp(struct intel_display *display, struct intel_crtc_stat
 								   dig_port->ddi_io_power_domain);
 	}*/
 	
-	intel_ddi_enable_transcoder_clock(crtc_state);
+	intel_ddi_enable_transcoder_clock(crtc_state,false);
 	
 	intel_ddi_config_transcoder_func(crtc_state);
 
@@ -11560,9 +11684,6 @@ void Gen11::SetupParams (void *that,void *param_1,void *param_2,CRTCParams *para
 		setpc=1;
 	}
 	
-	if (pc->index == 0)
-		param_3->TRANS_CLK_SEL=TGL_TRANS_CLK_SEL_PORT(display->port0);//0x10000000
-	
 	FunctionCast(SetupParams, callback->oSetupParams)(that ,param_1,param_2,param_3,param_4);
 	if (kexticl && setpc) {
 		SetupParams2(param_2, param_3);
@@ -11573,10 +11694,12 @@ void Gen11::SetupParams2 (void *param_2, CRTCParams *param_3)
 {
 	
 	struct intel_display *display = NBlue::callback->i915b->display;
+	struct intel_crtc_state *crtc_state=&display->crtc_state0;
+	
 	if (setpc){
 		setpc=0;
 		
-		param_3->TRANS_CLK_SEL=TGL_TRANS_CLK_SEL_PORT(display->port0);
+		param_3->TRANS_CLK_SEL=intel_ddi_enable_transcoder_clock(crtc_state,true);
 		param_3->TRANS_MSA_MISC =intel_ddi_set_dp_msa(display, false);
 		param_3->TRANS_DDI_FUNC_CTL= intel_ddi_transcoder_func_reg_val_get();
 		param_3->PIPE_MISC=bdw_set_pipe_misc();
@@ -11615,10 +11738,7 @@ uint64_t Gen11::hwSetPanelPower(void *that,uint param_1)
 	return ret;
 };
 
-void Gen11::initCDClock(void *that)
-{
-	FunctionCast(initCDClock, callback->oinitCDClock)(that);
-}
+
 int Gen11::readAUX(void *that,uint param_1,void *param_2,uint param_3)
 {
 	auto ret=FunctionCast(readAUX, callback->oreadAUX)(that ,param_1,param_2,param_3);
