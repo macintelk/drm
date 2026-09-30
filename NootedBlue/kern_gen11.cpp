@@ -11180,6 +11180,11 @@ void intel_enable_transcoder(struct intel_display *display, struct intel_crtc_st
 		val |= REG_FIELD_PREP(TRANSCONF_PIXEL_COUNT_SCALING_MASK,
 					  TRANSCONF_PIXEL_COUNT_SCALING_X4);
 	}*/
+	
+	val = intel_de_read(display, TRANSCONF(display, cpu_transcoder));
+	if (val & TRANSCONF_ENABLE) {
+		return;
+	}
 
 	intel_de_write(display, TRANSCONF(display, cpu_transcoder),
 			   val | TRANSCONF_ENABLE);
