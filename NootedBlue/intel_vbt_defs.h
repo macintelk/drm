@@ -13230,7 +13230,7 @@ static const u8 infoframe_type_to_idx[] = {
 #define _PSR2_MAN_TRK_CTL_EDP					0x6f910
 #define PSR2_MAN_TRK_CTL(dev_priv, tran)					_MMIO_TRANS2(dev_priv, tran, _PSR2_MAN_TRK_CTL_A)
 #define  PSR2_MAN_TRK_CTL_ENABLE				REG_BIT(31)
-
+#define  DDI_A_4_LANES				REG_BIT(4)
 
 
 
