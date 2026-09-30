@@ -11362,7 +11362,7 @@ uint64_t  Gen11::linkTraining(void *that,void *param_1)
 	struct intel_crtc_state *crtc_state=&display->crtc_state0;
 	int lane_count=display->panel.vbt.edp.lanes;
 	
-	intel_dp->link_rate = (int)getMember<u64>(frame0, kexticl ? 0x8898 : 0x4358);//linkSymbolClock
+	intel_dp->link_rate = (int)getMember<u64>(frame0, kexticl ? 0x8898 : 0x4358)/1000;//linkSymbolClock
 	crtc_state->port_clock=intel_dp->link_rate;
 
 	intel_dp->para=(struct AGDCDPPortConfig_t *)param_1;
