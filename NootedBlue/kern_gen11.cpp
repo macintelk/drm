@@ -8391,6 +8391,17 @@ static u32 intel_ddi_set_dp_msa(struct intel_display *display, bool wr)
 	return temp;
 }
 
+u8 icl_hdr_plane_mask(void)
+{
+	return BIT(PLANE_1) | BIT(PLANE_2) | BIT(PLANE_3);
+}
+
+static bool is_hdr_mode(const struct intel_crtc_state *crtc_state)
+{
+	return (crtc_state->active_planes &
+		~(icl_hdr_plane_mask() | BIT(PLANE_CURSOR))) == 0;
+}
+
 static u32 bdw_set_pipe_misc()
 {
 	struct intel_display *display = NBlue::callback->i915b->display;
@@ -8428,8 +8439,8 @@ static u32 bdw_set_pipe_misc()
 		val |= DISPLAY_VER(display) >= 30 ? PIPE_MISC_YUV420_ENABLE :
 			PIPE_MISC_YUV420_ENABLE | PIPE_MISC_YUV420_MODE_FULL_BLEND;
 
-	//if (DISPLAY_VER(display) >= 11 && is_hdr_mode(crtc_state))
-	//	val |= PIPE_MISC_HDR_MODE_PRECISION;
+	if (DISPLAY_VER(display) >= 11 && is_hdr_mode(crtc_state))
+		val |= PIPE_MISC_HDR_MODE_PRECISION;
 
 	if (DISPLAY_VER(display) >= 12)
 		val |= PIPE_MISC_PIXEL_ROUNDING_TRUNC;

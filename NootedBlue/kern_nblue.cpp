@@ -980,6 +980,7 @@ parse_lfp_backlight()
 	
 	intel_dp->link_rate = port_clock;
 	crtc_state->port_clock=port_clock;
+	crtc_state->active_planes |= BIT(PLANE_1);
 
 	backlight_data = (const struct bdb_lfp_backlight *)bdb_find_section(display, BDB_LFP_BACKLIGHT);
 	if (!backlight_data)
