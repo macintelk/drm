@@ -7650,11 +7650,11 @@ static void intel_psr_enable_sink(struct intel_dp *intel_dp,
 		//_panel_replay_enable_sink(intel_dp, crtc_state) :
 		_psr_enable_sink(intel_dp, crtc_state);
 
-	//if (intel_dp_is_edp(intel_dp))
-	//{
+	if (intel_dp_is_edp())
+	{
 		u8 val = DP_SET_POWER_D0;
 		Gen11::callback->writeAUX(linkp,DP_SET_POWER,&val, 1);
-	//}
+	}
 }
 
 static bool psr_interrupt_error_check(struct intel_dp *intel_dp)
@@ -10154,7 +10154,7 @@ static int drm_dp_read_extended_dpcd_caps(
 		  DP_EXTENDED_RECEIVER_CAP_FIELD_PRESENT))
 		return 0;
 
-	ret = Gen11::callback->writeAUX(linkp,DP_DP13_DPCD_REV,&dpcd_ext,
+	ret = Gen11::callback->readAUX(linkp,DP_DP13_DPCD_REV,&dpcd_ext,
 									sizeof(dpcd_ext));
 	
 	//ret = drm_dp_dpcd_read_data( DP_DP13_DPCD_REV, &dpcd_ext,
@@ -10185,7 +10185,7 @@ int drm_dp_read_dpcd_caps(
 	int ret;
 
 	
-	ret =Gen11::callback->writeAUX(linkp,DP_DPCD_REV,&dpcd,
+	ret =Gen11::callback->readAUX(linkp,DP_DPCD_REV,&dpcd,
 							  DP_RECEIVER_CAP_SIZE);
 	
 	//ret = drm_dp_dpcd_read_data( DP_DPCD_REV, dpcd, DP_RECEIVER_CAP_SIZE);
@@ -12071,6 +12071,240 @@ intel_dp_detect_dsc_caps(struct intel_dp *intel_dp)
 	*/				//  connector);
 }
 
+
+
+static void _panel_replay_compute_su_granularity(struct intel_dp *intel_dp)
+{
+	u16 w;
+	u8 y;
+
+	if (!(intel_dp->panel_replay_caps.dpcd[INTEL_PR_DPCD_INDEX(DP_PANEL_REPLAY_CAP_CAPABILITY)] &
+		   DP_PANEL_REPLAY_SU_GRANULARITY_REQUIRED)) {
+		w = 4;
+		y = 4;
+		goto exit;
+	}
+
+	/*
+	 * Spec says that if the value read is 0 the default granularity should
+	 * be used instead.
+	 */
+	w = (u16)(*(u16 *)&intel_dp->panel_replay_caps.dpcd[INTEL_PR_DPCD_INDEX(DP_PANEL_REPLAY_CAP_X_GRANULARITY)]) ? : 4;
+	y = intel_dp->panel_replay_caps.dpcd[INTEL_PR_DPCD_INDEX(DP_PANEL_REPLAY_CAP_Y_GRANULARITY)] ? : 1;
+
+exit:
+	intel_dp->panel_replay_caps.su_w_granularity = w;
+	intel_dp->panel_replay_caps.su_y_granularity = y;
+}
+
+static enum intel_panel_replay_dsc_support
+compute_pr_dsc_support(struct intel_dp *intel_dp)
+{
+	u8 pr_dsc_mode;
+	u8 val;
+
+	val = intel_dp->panel_replay_caps.dpcd[INTEL_PR_DPCD_INDEX(DP_PANEL_REPLAY_CAP_CAPABILITY)];
+	//pr_dsc_mode = REG_FIELD_GET8(DP_PANEL_REPLAY_DSC_DECODE_CAPABILITY_IN_PR_MASK, val);
+	pr_dsc_mode = (u8)REG_FIELD_GET(DP_PANEL_REPLAY_DSC_DECODE_CAPABILITY_IN_PR_MASK, val);
+	
+	switch (pr_dsc_mode) {
+	case DP_DSC_DECODE_CAPABILITY_IN_PR_FULL_FRAME_ONLY:
+		return INTEL_DP_PANEL_REPLAY_DSC_FULL_FRAME_ONLY;
+	case DP_DSC_DECODE_CAPABILITY_IN_PR_SUPPORTED:
+		return INTEL_DP_PANEL_REPLAY_DSC_SELECTIVE_UPDATE;
+	default:
+	case DP_DSC_DECODE_CAPABILITY_IN_PR_NOT_SUPPORTED:
+	case DP_DSC_DECODE_CAPABILITY_IN_PR_RESERVED:
+		return INTEL_DP_PANEL_REPLAY_DSC_NOT_SUPPORTED;
+	}
+}
+
+static void _panel_replay_init_dpcd(struct intel_dp *intel_dp)
+{
+	struct intel_display *display = NBlue::callback->i915b->display;
+	int ret;
+
+	/* TODO: Enable Panel Replay on MST once it's properly implemented. */
+	if (intel_dp->mst_detect == DRM_DP_MST)
+		return;
+
+	/*if (intel_dp_is_edp(intel_dp) &&
+		intel_has_dpcd_quirk(intel_dp, QUIRK_DISABLE_EDP_PANEL_REPLAY)) {
+		drm_dbg_kms(display->drm,
+				"Panel Replay support not currently available for this setup\n");
+		return;
+	}*/
+
+	ret =Gen11::callback->readAUX(linkp, DP_PANEL_REPLAY_CAP_SUPPORT,intel_dp->panel_replay_caps.dpcd,
+								  sizeof(intel_dp->panel_replay_caps.dpcd));
+	
+//	ret = drm_dp_dpcd_read_data(&intel_dp->aux, DP_PANEL_REPLAY_CAP_SUPPORT,
+				//	&connector->dp.panel_replay_caps.dpcd,
+				//	sizeof(connector->dp.panel_replay_caps.dpcd));
+	if (ret < 0)
+		return;
+
+	if (!(intel_dp->panel_replay_caps.dpcd[INTEL_PR_DPCD_INDEX(DP_PANEL_REPLAY_CAP_SUPPORT)] &
+		  DP_PANEL_REPLAY_SUPPORT))
+		return;
+
+	if (intel_dp_is_edp()) {
+		if (!intel_alpm_aux_less_wake_supported(intel_dp)) {
+			//drm_dbg_kms(display->drm,
+				//	"Panel doesn't support AUX-less ALPM, eDP Panel Replay not possible\n");
+			return;
+		}
+
+		if (!(intel_dp->panel_replay_caps.dpcd[INTEL_PR_DPCD_INDEX(DP_PANEL_REPLAY_CAP_SUPPORT)] &
+			  DP_PANEL_REPLAY_EARLY_TRANSPORT_SUPPORT)) {
+			//drm_dbg_kms(display->drm,
+					//"Panel doesn't support early transport, eDP Panel Replay not possible\n");
+			return;
+		}
+	}
+
+	intel_dp->panel_replay_caps.support = true;
+	intel_dp->psr.sink_panel_replay_support = true;
+
+	if (intel_dp->panel_replay_caps.dpcd[INTEL_PR_DPCD_INDEX(DP_PANEL_REPLAY_CAP_SUPPORT)] &
+		DP_PANEL_REPLAY_SU_SUPPORT) {
+		intel_dp->panel_replay_caps.su_support = true;
+
+		_panel_replay_compute_su_granularity(intel_dp);
+	}
+
+	intel_dp->panel_replay_caps.dsc_support = compute_pr_dsc_support(intel_dp);
+
+	/*drm_dbg_kms(display->drm,
+			"Panel replay %sis supported by panel (in DSC mode: %s)\n",
+			connector->dp.panel_replay_caps.su_support ?
+			"selective_update " : "",
+			panel_replay_dsc_support_str(connector->dp.panel_replay_caps.dsc_support));*/
+}
+
+bool intel_alpm_aux_wake_supported(struct intel_dp *intel_dp)
+{
+	return intel_dp->alpm_dpcd & DP_ALPM_CAP;
+}
+
+static void _psr_compute_su_granularity(struct intel_dp *intel_dp)
+{
+	struct intel_display *display = NBlue::callback->i915b->display;
+	ssize_t r;
+	u16 w;
+	u8 y;
+
+	/*
+	 * If sink don't have specific granularity requirements set legacy
+	 * ones.
+	 */
+	if (!(intel_dp->psr_caps.dpcd[1] & DP_PSR2_SU_GRANULARITY_REQUIRED)) {
+		/* As PSR2 HW sends full lines, we do not care about x granularity */
+		w = (u16)(4);
+		y = 4;
+		goto exit;
+	}
+
+	r =Gen11::callback->readAUX(linkp, DP_PSR2_SU_X_GRANULARITY,&w, sizeof(w));
+	
+	//r = drm_dp_dpcd_read(&intel_dp->aux, DP_PSR2_SU_X_GRANULARITY, &w, sizeof(w));
+	//if (r != sizeof(w))
+		//drm_dbg_kms(display->drm,
+			//	"Unable to read selective update x granularity\n");
+	/*
+	 * Spec says that if the value read is 0 the default granularity should
+	 * be used instead.
+	 */
+	if (r != sizeof(w) || w == 0)
+		w = (u16)(4);
+
+	r =Gen11::callback->readAUX(linkp, DP_PSR2_SU_Y_GRANULARITY,&y, 1);
+	
+	//r = drm_dp_dpcd_read(&intel_dp->aux, DP_PSR2_SU_Y_GRANULARITY, &y, 1);
+	if (r != 1) {
+		//drm_dbg_kms(display->drm,
+			//	"Unable to read selective update y granularity\n");
+		y = 4;
+	}
+	if (y == 0)
+		y = 1;
+
+exit:
+	intel_dp->psr_caps.su_w_granularity = (u16)(w);
+	intel_dp->psr_caps.su_y_granularity = y;
+}
+
+static void _psr_init_dpcd(struct intel_dp *intel_dp)
+{
+	struct intel_display *display = NBlue::callback->i915b->display;
+	int ret;
+	
+	ret =Gen11::callback->readAUX(linkp, DP_PSR_SUPPORT,intel_dp->psr_caps.dpcd,
+								  sizeof(intel_dp->psr_caps.dpcd));
+
+	//ret = drm_dp_dpcd_read_data(&intel_dp->aux, DP_PSR_SUPPORT, connector->dp.psr_caps.dpcd,
+				//	sizeof(connector->dp.psr_caps.dpcd));
+	if (ret < 0)
+		return;
+
+	if (!intel_dp->psr_caps.dpcd[0])
+		return;
+
+	//drm_dbg_kms(display->drm, "eDP panel supports PSR version %x\n",
+			//	intel_dp->dp.psr_caps.dpcd[0]);
+
+	//if (drm_dp_has_quirk(&intel_dp->desc, DP_DPCD_QUIRK_NO_PSR)) {
+	//drm_dbg_kms(display->drm,
+			//	"PSR support not currently available for this panel\n");
+		//return;
+	//}
+
+	if (!(intel_dp->edp_dpcd[1] & DP_EDP_SET_POWER_CAP)) {
+		//drm_dbg_kms(display->drm,
+			//	"Panel lacks power state control, PSR cannot be enabled\n");
+		return;
+	}
+
+	intel_dp->psr_caps.support = true;
+	intel_dp->psr.sink_support = true;
+
+	intel_dp->psr_caps.sync_latency = intel_dp_get_sink_sync_latency(intel_dp);
+
+	if (DISPLAY_VER(display) >= 9 &&
+		intel_dp->psr_caps.dpcd[0] >= DP_PSR2_WITH_Y_COORD_IS_SUPPORTED) {
+		bool y_req = intel_dp->psr_caps.dpcd[1] &
+				 DP_PSR2_SU_Y_COORDINATE_REQUIRED;
+
+		/*
+		 * All panels that supports PSR version 03h (PSR2 +
+		 * Y-coordinate) can handle Y-coordinates in VSC but we are
+		 * only sure that it is going to be used when required by the
+		 * panel. This way panel is capable to do selective update
+		 * without a aux frame sync.
+		 *
+		 * To support PSR version 02h and PSR version 03h without
+		 * Y-coordinate requirement panels we would need to enable
+		 * GTC first.
+		 */
+		intel_dp->psr_caps.su_support = y_req &&
+			intel_alpm_aux_wake_supported(intel_dp);
+		//drm_dbg_kms(display->drm, "PSR2 %ssupported\n",
+			//	connector->dp.psr_caps.su_support ? "" : "not ");
+	}
+
+	if (intel_dp->psr_caps.su_support)
+		_psr_compute_su_granularity(intel_dp);
+}
+
+
+void intel_psr_init_dpcd(struct intel_dp *intel_dp)
+{
+	_psr_init_dpcd(intel_dp);
+
+	_panel_replay_init_dpcd(intel_dp);
+}
+
+
 void Gen11::SetupParams (void *that,void *param_1,void *param_2,CRTCParams *param_3,void *param_4)
 {
 	struct intel_display *display = NBlue::callback->i915b->display;
@@ -12105,7 +12339,7 @@ void Gen11::SetupParams (void *that,void *param_1,void *param_2,CRTCParams *para
 		readAUX(linkp, DP_RECEIVER_ALPM_CAP,&intel_dp->alpm_dpcd,1);
 		
 		crtc_state->hw.adjusted_mode.flags |= intel_crt_get_flags(display);
-		//intel_psr_init_dpcd(intel_dp);
+		intel_psr_init_dpcd(intel_dp);
 		
 		intel_dp->sink_rates[0] = 162000;
 		intel_dp->num_sink_rates = 1;

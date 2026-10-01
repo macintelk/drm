@@ -5800,6 +5800,18 @@ struct intel_dp {
 	bool use_max_params;
 	
 	struct {
+		u8 dpcd[7];
+#define INTEL_PR_DPCD_INDEX(pr_dpcd_register)	((pr_dpcd_register) - DP_PANEL_REPLAY_CAP_SUPPORT)
+
+		bool support;
+		bool su_support;
+		enum intel_panel_replay_dsc_support dsc_support;
+
+		u16 su_w_granularity;
+		u16 su_y_granularity;
+	} panel_replay_caps;
+	
+	struct {
 		u8 dpcd[2];
 
 		bool support;
@@ -13323,6 +13335,33 @@ static const u8 infoframe_type_to_idx[] = {
 #define EDP_DISPLAY_CTL_CAP_SIZE	5
 #define DP_LTTPR_COMMON_CAP_SIZE	8
 #define DP_LTTPR_PHY_CAP_SIZE		3
+#define DP_PANEL_REPLAY_CAP_SUPPORT			0x0b0  /* DP 2.0 */
+# define DP_PANEL_REPLAY_SUPPORT			(1 << 0)
+# define DP_PANEL_REPLAY_SU_SUPPORT			(1 << 1)
+# define DP_PANEL_REPLAY_EARLY_TRANSPORT_SUPPORT	(1 << 2) /* eDP 1.5 */
+#define DP_PANEL_REPLAY_CAP_CAPABILITY					0xb1
+# define DP_PANEL_REPLAY_SU_GRANULARITY_REQUIRED				(1 << 5)
+#define DP_PANEL_REPLAY_CAP_X_GRANULARITY		0xb2
+#define DP_PANEL_REPLAY_CAP_Y_GRANULARITY		0xb4
+#define DP_PANEL_REPLAY_CAP_SIZE	7
+
+#define DP_PANEL_REPLAY_CAP_CAPABILITY					0xb1
+# define DP_PANEL_REPLAY_DSC_DECODE_CAPABILITY_IN_PR_SHIFT			1 /* DP 2.1a */
+# define DP_PANEL_REPLAY_DSC_DECODE_CAPABILITY_IN_PR_MASK			(3 << DP_PANEL_REPLAY_DSC_DECODE_CAPABILITY_IN_PR_SHIFT)
+# define DP_DSC_DECODE_CAPABILITY_IN_PR_SUPPORTED				0x00
+# define DP_DSC_DECODE_CAPABILITY_IN_PR_FULL_FRAME_ONLY				0x01
+# define DP_DSC_DECODE_CAPABILITY_IN_PR_NOT_SUPPORTED				0x02
+# define DP_DSC_DECODE_CAPABILITY_IN_PR_RESERVED				0x03
+# define DP_PANEL_REPLAY_ASYNC_VIDEO_TIMING_NOT_SUPPORTED_IN_PR			(1 << 3)
+# define DP_PANEL_REPLAY_DSC_CRC_OF_MULTIPLE_SUS_SUPPORTED			(1 << 4)
+# define DP_PANEL_REPLAY_SU_GRANULARITY_REQUIRED				(1 << 5)
+# define DP_PANEL_REPLAY_SU_Y_GRANULARITY_EXTENDED_CAPABILITY_SUPPORTED		(1 << 6)
+# define DP_PANEL_REPLAY_LINK_OFF_SUPPORTED_IN_PR_AFTER_ADAPTIVE_SYNC_SDP	(1 << 7)
+# define DP_EDP_SET_POWER_CAP				(1 << 7)
+
+
+
+
 
 
 
