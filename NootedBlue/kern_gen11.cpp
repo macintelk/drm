@@ -10154,7 +10154,7 @@ static int drm_dp_read_extended_dpcd_caps(
 		  DP_EXTENDED_RECEIVER_CAP_FIELD_PRESENT))
 		return 0;
 
-	ret = Gen11::callback->readAUX(linkp,DP_DP13_DPCD_REV,&dpcd_ext,
+	ret = Gen11::callback->readAUX(linkp,DP_DP13_DPCD_REV,dpcd_ext,
 									sizeof(dpcd_ext));
 	
 	//ret = drm_dp_dpcd_read_data( DP_DP13_DPCD_REV, &dpcd_ext,
@@ -10185,7 +10185,7 @@ int drm_dp_read_dpcd_caps(
 	int ret;
 
 	
-	ret =Gen11::callback->readAUX(linkp,DP_DPCD_REV,&dpcd,
+	ret =Gen11::callback->readAUX(linkp,DP_DPCD_REV,dpcd,
 							  DP_RECEIVER_CAP_SIZE);
 	
 	//ret = drm_dp_dpcd_read_data( DP_DPCD_REV, dpcd, DP_RECEIVER_CAP_SIZE);
