@@ -13359,6 +13359,9 @@ static const u8 infoframe_type_to_idx[] = {
 # define DP_PANEL_REPLAY_LINK_OFF_SUPPORTED_IN_PR_AFTER_ADAPTIVE_SYNC_SDP	(1 << 7)
 # define DP_EDP_SET_POWER_CAP				(1 << 7)
 
+#define HAS_DP20(__display)		((__display)->platform.dg2 || DISPLAY_VER(__display) >= 14)
+#define HAS_PSR(__display)		(DISPLAY_INFO(__display)->has_psr)
+
 
 
 

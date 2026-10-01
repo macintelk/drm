@@ -6884,6 +6884,7 @@ void intel_dmc_enable_pipe(const struct intel_crtc_state *crtc_state, enum pipe 
 	assert_dmc_loaded(display, dmc_id);
 
 	intel_de_rmw(display, PIPEDMC_CONTROL(pipe), 0, PIPEDMC_ENABLE);
+	
 }
 
 static void irq_init(struct intel_display *display, struct i915_irq_regs regs,
@@ -10731,22 +10732,71 @@ int intel_dp_output_format_link_bpp_x16(enum intel_output_format output_format, 
 	return fxp_q4_from_int(pipe_bpp);
 }
 
+#define PSR_SETUP_TIME(x) [DP_PSR_SETUP_TIME_ ## x >> DP_PSR_SETUP_TIME_SHIFT] = (x)
+
+int drm_dp_psr_setup_time(const u8 psr_cap[EDP_PSR_RECEIVER_CAP_SIZE])
+{
+	static const u16 psr_setup_time_us[] = {
+		PSR_SETUP_TIME(330),
+		PSR_SETUP_TIME(275),
+		PSR_SETUP_TIME(220),
+		PSR_SETUP_TIME(165),
+		PSR_SETUP_TIME(110),
+		PSR_SETUP_TIME(55),
+		PSR_SETUP_TIME(0),
+	};
+	int i;
+
+	i = (psr_cap[1] & DP_PSR_SETUP_TIME_MASK) >> DP_PSR_SETUP_TIME_SHIFT;
+	if (i >= ARRAY_SIZE(psr_setup_time_us))
+		return -EINVAL;
+
+	return psr_setup_time_us[i];
+}
+
+static int intel_psr_entry_setup_frames(struct intel_dp *intel_dp,
+					const struct drm_display_mode *adjusted_mode)
+{
+	struct intel_display *display = NBlue::callback->i915b->display;
+	int psr_setup_time = drm_dp_psr_setup_time(intel_dp->psr_caps.dpcd);
+	int entry_setup_frames = 0;
+
+	if (psr_setup_time < 0) {
+
+		return -ETIME;
+	}
+
+	if (intel_usecs_to_scanlines(adjusted_mode, psr_setup_time) >
+		adjusted_mode->crtc_vtotal - adjusted_mode->crtc_vdisplay - 1) {
+		if (DISPLAY_VER(display) >= 20) {
+			/* setup entry frames can be up to 3 frames */
+			entry_setup_frames = 1;
+
+		} else {
+
+			return -ETIME;
+		}
+	}
+
+	return entry_setup_frames;
+}
 
 static bool _psr_compute_config(struct intel_dp *intel_dp,
 				struct intel_crtc_state *crtc_state)
 {
+
 	//struct intel_display *display = to_intel_display(intel_dp);
 	const struct drm_display_mode *adjusted_mode = &crtc_state->hw.adjusted_mode;
 	int entry_setup_frames;
 
-	//if (!CAN_PSR(intel_dp) || !display->params.enable_psr)
-	//	return false;
+	if (!CAN_PSR(intel_dp))// || !display->params.enable_psr)
+		return false;
 
 
 	if (crtc_state->vrr.enable)
 		return false;
 
-	entry_setup_frames = 0;//intel_psr_entry_setup_frames(intel_dp, conn_state, adjusted_mode);
+	entry_setup_frames = intel_psr_entry_setup_frames(intel_dp, adjusted_mode);
 
 	if (entry_setup_frames >= 0) {
 		crtc_state->entry_setup_frames = entry_setup_frames;
@@ -10757,6 +10807,7 @@ static bool _psr_compute_config(struct intel_dp *intel_dp,
 
 	return true;
 }
+
 
 int intel_dp_compute_config(struct intel_display *display, struct intel_crtc_state *pipe_config)
 {
@@ -10865,16 +10916,16 @@ int intel_dp_compute_config(struct intel_display *display, struct intel_crtc_sta
 	//intel_psr_compute_config(intel_dp, pipe_config, conn_state);
 	pipe_config->panel_replay_dsc_support = INTEL_DP_PANEL_REPLAY_DSC_NOT_SUPPORTED;
 	
-	pipe_config->has_panel_replay = CAN_PANEL_REPLAY(intel_dp);//_panel_replay_compute_config(pipe_config, conn_state);
+	pipe_config->has_panel_replay = false;//_panel_replay_compute_config(pipe_config, conn_state);
 
-	pipe_config->has_psr = crtc_state->has_panel_replay ? true :
-		_psr_compute_config(intel_dp, pipe_config);
+	pipe_config->has_psr = crtc_state->has_panel_replay ? true : _psr_compute_config(intel_dp, pipe_config);
 	
+	pipe_config->has_psr = false; // allow can_enable_pipedmc
 	
-	//intel_alpm_lobf_compute_config(intel_dp, pipe_config, conn_state);
-	//intel_dp_drrs_compute_config(connector, pipe_config, link_bpp_x16);
-	//intel_dp_compute_vsc_sdp(intel_dp, pipe_config, conn_state);
-	//intel_dp_compute_hdr_metadata_infoframe_sdp(intel_dp, pipe_config, conn_state);
+	if (!crtc_state->has_psr)
+		return 0;
+
+	//crtc_state->has_sel_update = intel_sel_update_config_valid(crtc_state);
 
 	return 0;
 }
@@ -11230,7 +11281,7 @@ void intel_psr_get_config(struct intel_display *display, struct intel_crtc_state
 		return;
 
 //	mutex_lock(&intel_dp->psr.lock);
-	if (!intel_dp->psr.enabled)
+	if (!intel_dp->psr.enabled) //always true
 		goto unlock;
 
 	if (intel_dp->psr.panel_replay_enabled) {
@@ -12339,6 +12390,14 @@ void Gen11::SetupParams (void *that,void *param_1,void *param_2,CRTCParams *para
 		readAUX(linkp, DP_RECEIVER_ALPM_CAP,&intel_dp->alpm_dpcd,1);
 		
 		crtc_state->hw.adjusted_mode.flags |= intel_crt_get_flags(display);
+		
+		if ((HAS_DP20(display) && !intel_dp_is_edp()) ||
+			DISPLAY_VER(display) >= 20)
+			intel_dp->psr.source_panel_replay_support = true;
+
+		if (HAS_PSR(display) && intel_dp_is_edp())
+			intel_dp->psr.source_support = true;
+
 		intel_psr_init_dpcd(intel_dp);
 		
 		intel_dp->sink_rates[0] = 162000;
