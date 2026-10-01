@@ -10137,6 +10137,109 @@ int drm_dp_read_downstream_info(struct intel_dp *intel_dp,
 	return 0;
 }
 
+static int drm_dp_read_extended_dpcd_caps(
+					  u8 dpcd[DP_RECEIVER_CAP_SIZE])
+{
+	u8 dpcd_ext[DP_RECEIVER_CAP_SIZE];
+	int ret;
+
+	/*
+	 * Prior to DP1.3 the bit represented by
+	 * DP_EXTENDED_RECEIVER_CAP_FIELD_PRESENT was reserved.
+	 * If it is set DP_DPCD_REV at 0000h could be at a value less than
+	 * the true capability of the panel. The only way to check is to
+	 * then compare 0000h and 2200h.
+	 */
+	if (!(dpcd[DP_TRAINING_AUX_RD_INTERVAL] &
+		  DP_EXTENDED_RECEIVER_CAP_FIELD_PRESENT))
+		return 0;
+
+	ret = Gen11::callback->writeAUX(linkp,DP_DP13_DPCD_REV,&dpcd_ext,
+									sizeof(dpcd_ext));
+	
+	//ret = drm_dp_dpcd_read_data( DP_DP13_DPCD_REV, &dpcd_ext,
+				//	sizeof(dpcd_ext));
+	if (ret < 0)
+		return ret;
+
+	if (dpcd[DP_DPCD_REV] > dpcd_ext[DP_DPCD_REV]) {
+		//drm_dbg_kms(aux->drm_dev,
+		//		"%s: Extended DPCD rev less than base DPCD rev (%d > %d)\n",
+			//	aux->name, dpcd[DP_DPCD_REV], dpcd_ext[DP_DPCD_REV]);
+		return 0;
+	}
+
+	if (!memcmp(dpcd, dpcd_ext, sizeof(dpcd_ext)))
+		return 0;
+
+	//drm_dbg_kms(aux->drm_dev, "%s: Base DPCD: %*ph\n", aux->name, DP_RECEIVER_CAP_SIZE, dpcd);
+
+	memcpy(dpcd, dpcd_ext, sizeof(dpcd_ext));
+
+	return 0;
+}
+
+int drm_dp_read_dpcd_caps(
+			  u8 dpcd[DP_RECEIVER_CAP_SIZE])
+{
+	int ret;
+
+	
+	ret =Gen11::callback->writeAUX(linkp,DP_DPCD_REV,&dpcd,
+							  DP_RECEIVER_CAP_SIZE);
+	
+	//ret = drm_dp_dpcd_read_data( DP_DPCD_REV, dpcd, DP_RECEIVER_CAP_SIZE);
+	if (ret < 0)
+		return ret;
+	if (dpcd[DP_DPCD_REV] == 0)
+		return -EIO;
+
+	ret = drm_dp_read_extended_dpcd_caps( dpcd);
+	if (ret < 0)
+		return ret;
+
+	//drm_dbg_kms(aux->drm_dev, "%s: DPCD: %*ph\n", aux->name, DP_RECEIVER_CAP_SIZE, dpcd);
+
+	return ret;
+}
+
+static void intel_dp_reset_lttpr_common_caps(struct intel_dp *intel_dp)
+{
+	memset(intel_dp->lttpr_common_caps, 0, sizeof(intel_dp->lttpr_common_caps));
+}
+
+int intel_dp_init_lttpr_and_dprx_caps(struct intel_dp *intel_dp)
+{
+	struct intel_display *display = NBlue::callback->i915b->display;
+	int lttpr_count = 0;
+
+	/*
+	 * Detecting LTTPRs must be avoided on platforms with an AUX timeout
+	 * period < 3.2ms. (see DP Standard v2.0, 2.11.2, 3.6.6.1).
+	 */
+	/*if (!intel_dp_is_edp() &&
+		(DISPLAY_VER(display) >= 10 && !display->platform.geminilake)) {
+		u8 dpcd[DP_RECEIVER_CAP_SIZE];
+		int err = intel_dp_read_dprx_caps(intel_dp, dpcd);
+
+		if (err != 0)
+			return err;
+
+		lttpr_count = intel_dp_init_lttpr(intel_dp, dpcd);
+	}*/
+
+	/*
+	 * The DPTX shall read the DPRX caps after LTTPR detection, so re-read
+	 * it here.
+	 */
+	if (drm_dp_read_dpcd_caps( intel_dp->dpcd)) {
+		intel_dp_reset_lttpr_common_caps(intel_dp);
+		return -EIO;
+	}
+
+	return lttpr_count;
+}
+
 bool intel_dp_start_link_train(struct intel_display *display, struct intel_crtc_state *crtc_state,struct intel_dp *intel_dp)
 {
 	//struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
@@ -10146,12 +10249,12 @@ bool intel_dp_start_link_train(struct intel_display *display, struct intel_crtc_
 	int lttpr_count=0;
 
 	//intel_hpd_block(encoder);
-/*
+
 	lttpr_count = intel_dp_init_lttpr_and_dprx_caps(intel_dp);
 
 	if (lttpr_count < 0)
 		lttpr_count = 0;
-*/
+
 	intel_dp_prepare_link_train(display, intel_dp);
 
 	/*if (intel_dp_is_uhbr(crtc_state))
@@ -11638,6 +11741,283 @@ static unsigned int intel_crt_get_flags(struct intel_display *display)
 	return flags;
 }
 
+
+
+int intel_dp_link_symbol_size(int rate)
+{
+	return drm_dp_is_uhbr_rate(rate) ? 32 : 10;
+}
+
+int intel_dp_link_symbol_clock(int rate)
+{
+	return DIV_ROUND_CLOSEST(rate * 10, intel_dp_link_symbol_size(rate));
+}
+
+int drm_dp_bw_code_to_link_rate(u8 link_bw)
+{
+	switch (link_bw) {
+	case DP_LINK_BW_10:
+		return 1000000;
+	case DP_LINK_BW_13_5:
+		return 1350000;
+	case DP_LINK_BW_20:
+		return 2000000;
+	default:
+		/* Spec says link_rate = link_bw * 0.27Gbps */
+		return link_bw * 27000;
+	}
+}
+
+static int max_dprx_rate(struct intel_dp *intel_dp)
+{
+	struct intel_display *display = NBlue::callback->i915b->display;
+	int max_rate;
+
+
+		max_rate = drm_dp_bw_code_to_link_rate(intel_dp->dpcd[0x001]);
+
+	/*
+	 * Some platforms + eDP panels may not reliably support HBR3
+	 * due to signal integrity limitations, despite advertising it.
+	 * Cap the link rate to HBR2 to avoid unstable configurations for the
+	 * known machines.
+	 */
+	//if (intel_dp_is_edp(intel_dp) && intel_has_quirk(display, QUIRK_EDP_LIMIT_RATE_HBR2))
+	//	max_rate = min(max_rate, 540000);
+
+	return max_rate;
+}
+
+
+
+
+static u8 dp_lttpr_common_cap(const u8 caps[DP_LTTPR_COMMON_CAP_SIZE], int r)
+{
+	return caps[r - DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV];
+}
+
+int drm_dp_lttpr_max_link_rate(const u8 caps[DP_LTTPR_COMMON_CAP_SIZE])
+{
+	u8 rate = dp_lttpr_common_cap(caps, DP_MAX_LINK_RATE_PHY_REPEATER);
+
+	return drm_dp_bw_code_to_link_rate(rate);
+}
+static inline bool
+drm_dp_128b132b_supported(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
+{
+	return dpcd[DP_MAIN_LINK_CHANNEL_CODING] & DP_CAP_ANSI_128B132B;
+}
+int drm_dp_lttpr_count(const u8 caps[DP_LTTPR_COMMON_CAP_SIZE])
+{
+	u8 count = dp_lttpr_common_cap(caps, DP_PHY_REPEATER_CNT);
+
+	switch (hweight8(count)) {
+	case 0:
+		return 0;
+	case 1:
+		return 8 - ilog2(count);
+	case 8:
+		return -ERANGE;
+	default:
+		return -EINVAL;
+	}
+}
+
+static void intel_dp_set_dpcd_sink_rates(struct intel_dp *intel_dp)
+{
+	static const int dp_rates[] = {
+		162000, 270000, 540000, 810000
+	};
+	int i, max_rate;
+	int max_lttpr_rate;
+
+	/*if (drm_dp_has_quirk(&intel_dp->desc, DP_DPCD_QUIRK_CAN_DO_MAX_LINK_RATE_3_24_GBPS)) {
+
+	 static const int quirk_rates[] = { 162000, 270000, 324000 };
+
+		memcpy(intel_dp->sink_rates, quirk_rates, sizeof(quirk_rates));
+		intel_dp->num_sink_rates = ARRAY_SIZE(quirk_rates);
+
+		return;
+	}*/
+
+	/*
+	 * Sink rates for 8b/10b.
+	 */
+	max_rate = max_dprx_rate(intel_dp);
+	max_lttpr_rate = drm_dp_lttpr_max_link_rate(intel_dp->lttpr_common_caps);
+	if (max_lttpr_rate)
+		max_rate = min(max_rate, max_lttpr_rate);
+
+	for (i = 0; i < ARRAY_SIZE(dp_rates); i++) {
+		if (dp_rates[i] > max_rate)
+			break;
+		intel_dp->sink_rates[i] = dp_rates[i];
+	}
+
+	/*
+	 * Sink rates for 128b/132b. If set, sink should support all 8b/10b
+	 * rates and 10 Gbps.
+	 */
+	if (drm_dp_128b132b_supported(intel_dp->dpcd)) {
+		u8 uhbr_rates = 0;
+
+		//BUILD_BUG_ON(ARRAY_SIZE(intel_dp->sink_rates) < ARRAY_SIZE(dp_rates) + 3);
+
+		Gen11::callback->readAUX(linkp,DP_128B132B_SUPPORTED_LINK_RATES,&uhbr_rates, 1);
+		
+		//drm_dp_dpcd_readb(&intel_dp->aux,
+				//  DP_128B132B_SUPPORTED_LINK_RATES, &uhbr_rates);
+
+		if (drm_dp_lttpr_count(intel_dp->lttpr_common_caps)) {
+
+			if (intel_dp->lttpr_common_caps[0] >= 0x20 &&
+				intel_dp->lttpr_common_caps[DP_MAIN_LINK_CHANNEL_CODING_PHY_REPEATER -
+							DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV] &
+				DP_PHY_REPEATER_128B132B_SUPPORTED) {
+				/* Repeater supports 128b/132b, valid UHBR rates */
+				uhbr_rates &= intel_dp->lttpr_common_caps[DP_PHY_REPEATER_128B132B_RATES -
+									  DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV];
+			} else {
+				/* Does not support 128b/132b */
+				uhbr_rates = 0;
+			}
+		}
+
+		if (uhbr_rates & DP_UHBR10)
+			intel_dp->sink_rates[i++] = 1000000;
+		if (uhbr_rates & DP_UHBR13_5)
+			intel_dp->sink_rates[i++] = 1350000;
+		if (uhbr_rates & DP_UHBR20)
+			intel_dp->sink_rates[i++] = 2000000;
+	}
+
+	intel_dp->num_sink_rates = i;
+}
+
+static void intel_dp_set_default_sink_rates(struct intel_dp *intel_dp)
+{
+	intel_dp->sink_rates[0] = 162000;
+	intel_dp->num_sink_rates = 1;
+}
+
+static void intel_dp_set_sink_rates(struct intel_dp *intel_dp)
+{
+	struct intel_display *display = NBlue::callback->i915b->display;
+
+	intel_dp_set_dpcd_sink_rates(intel_dp);
+
+	if (intel_dp->num_sink_rates)
+		return;
+
+	/*drm_err(display->drm,
+		"[CONNECTOR:%d:%s][ENCODER:%d:%s] Invalid DPCD with no link rates, using defaults\n",
+		connector->base.base.id, connector->base.name,
+		encoder->base.base.id, encoder->base.name);
+*/
+	intel_dp_set_default_sink_rates(intel_dp);
+}
+
+static void
+intel_edp_set_sink_rates(struct intel_dp *intel_dp)
+{
+	struct intel_display *display = NBlue::callback->i915b->display;
+
+	intel_dp->num_sink_rates = 0;
+
+	if (intel_dp->edp_dpcd[0] >= DP_EDP_14) {
+		u16 sink_rates[DP_MAX_SUPPORTED_RATES];
+		int i;
+
+		Gen11::callback->readAUX(linkp,DP_SUPPORTED_LINK_RATES,&sink_rates, sizeof(sink_rates));
+		
+		//drm_dp_dpcd_read(&intel_dp->aux, DP_SUPPORTED_LINK_RATES,
+				// sink_rates, sizeof(sink_rates));
+
+		for (i = 0; i < ARRAY_SIZE(sink_rates); i++) {
+			int rate;
+
+			/* Value read multiplied by 200kHz gives the per-lane
+			 * link rate in kHz. The source rates are, however,
+			 * stored in terms of LS_Clk kHz. The full conversion
+			 * back to symbols is
+			 * (val * 200kHz)*(8/10 ch. encoding)*(1/8 bit to Byte)
+			 */
+
+			//rate = le16_to_cpu(sink_rates[i]) * 200 / 10;
+			rate = (u16)(sink_rates[i]) * 200 / 10;
+			
+			if (rate == 0)
+				break;
+
+			/*
+			 * Some platforms cannot reliably drive HBR3 rates due to PHY limitations,
+			 * even if the sink advertises support. Reject any sink rates above HBR2 on
+			 * the known machines for stable output.
+			 */
+			//if (rate > 540000 &&
+			//	intel_has_quirk(display, QUIRK_EDP_LIMIT_RATE_HBR2))
+			//	break;
+
+			intel_dp->sink_rates[i] = rate;
+		}
+		intel_dp->num_sink_rates = i;
+	}
+
+	/*
+	 * Use DP_LINK_RATE_SET if DP_SUPPORTED_LINK_RATES are available,
+	 * default to DP_MAX_LINK_RATE and DP_LINK_BW_SET otherwise.
+	 */
+	if (intel_dp->num_sink_rates)
+		intel_dp->use_rate_select = true;
+	else
+		intel_dp_set_sink_rates(intel_dp);
+
+	//intel_edp_set_data_override_rates(intel_dp);
+}
+
+static inline u8
+drm_dp_max_lane_count(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
+{
+	return dpcd[DP_MAX_LANE_COUNT] & 0x1f;
+}
+
+
+static int max_dprx_lane_count(struct intel_dp *intel_dp)
+{
+	//if (intel_dp_tunnel_bw_alloc_is_enabled(intel_dp))
+	//	return drm_dp_tunnel_max_dprx_lane_count(intel_dp->tunnel);
+
+	return drm_dp_max_lane_count(intel_dp->dpcd);
+}
+static void intel_dp_set_default_max_sink_lane_count(struct intel_dp *intel_dp)
+{
+	intel_dp->max_sink_lane_count = 1;
+}
+
+static void intel_dp_set_max_sink_lane_count(struct intel_dp *intel_dp)
+{
+	struct intel_display *display =NBlue::callback->i915b->display;
+
+
+	intel_dp->max_sink_lane_count = max_dprx_lane_count(intel_dp);
+
+	switch (intel_dp->max_sink_lane_count) {
+	case 1:
+	case 2:
+	case 4:
+		return;
+	}
+
+	/*drm_err(display->drm,
+		"[CONNECTOR:%d:%s][ENCODER:%d:%s] Invalid DPCD max lane count (%d), using default\n",
+		connector->base.base.id, connector->base.name,
+		encoder->base.base.id, encoder->base.name,
+		intel_dp->max_sink_lane_count);
+*/
+	intel_dp_set_default_max_sink_lane_count(intel_dp);
+}
+
 void Gen11::SetupParams (void *that,void *param_1,void *param_2,CRTCParams *param_3,void *param_4)
 {
 	struct intel_display *display = NBlue::callback->i915b->display;
@@ -11672,12 +12052,17 @@ void Gen11::SetupParams (void *that,void *param_1,void *param_2,CRTCParams *para
 		readAUX(linkp, DP_RECEIVER_ALPM_CAP,&intel_dp->alpm_dpcd,1);
 		
 		crtc_state->hw.adjusted_mode.flags |= intel_crt_get_flags(display);
-		/*intel_psr_init_dpcd(intel_dp);
+		//intel_psr_init_dpcd(intel_dp);
+		
+		intel_dp->sink_rates[0] = 162000;
+		intel_dp->num_sink_rates = 1;
+		intel_dp->max_sink_lane_count = 1;
+		
 		intel_edp_set_sink_rates(intel_dp);
 		intel_dp_set_max_sink_lane_count(intel_dp);
-		intel_dp_detect_dsc_caps(intel_dp, connector);
-		*/
-		//hsw_get_pipe_config
+		//intel_dp_detect_dsc_caps(intel_dp, connector);
+
+		 //hsw_get_pipe_config
 		//intel_ddi_init
 		intel_get_transcoder_timings(display,crtc_state);
 		icl_ddi_combo_get_config(display, crtc_state);
