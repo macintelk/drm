@@ -10005,7 +10005,7 @@ static int drm_dp_read_extended_dpcd_caps(struct intel_dp *intel_dp,
 		  DP_EXTENDED_RECEIVER_CAP_FIELD_PRESENT))
 		return 0;
 
-	ret = Gen11::callback->readAUX(linkp, DP_DP13_DPCD_REV, &dpcd_ext,
+	ret = Gen11::callback->readAUX(linkp, DP_DP13_DPCD_REV, dpcd_ext,
 					sizeof(dpcd_ext));
 	if (ret < 0)
 		return ret;
@@ -11929,7 +11929,7 @@ intel_edp_set_sink_rates(struct intel_dp *intel_dp)
 		u16 sink_rates[DP_MAX_SUPPORTED_RATES];
 		int i;
 
-		Gen11::callback->readAUX(linkp,DP_SUPPORTED_LINK_RATES,&sink_rates, sizeof(sink_rates));
+		Gen11::callback->readAUX(linkp,DP_SUPPORTED_LINK_RATES,sink_rates, sizeof(sink_rates));
 		
 		//drm_dp_dpcd_read(&intel_dp->aux, DP_SUPPORTED_LINK_RATES,
 				// sink_rates, sizeof(sink_rates));
@@ -12018,6 +12018,59 @@ static void intel_dp_set_max_sink_lane_count(struct intel_dp *intel_dp)
 	intel_dp_set_default_max_sink_lane_count(intel_dp);
 }
 
+static int intel_dp_read_dsc_dpcd(
+				  u8 dsc_dpcd[DP_DSC_RECEIVER_CAP_SIZE])
+{
+	int ret;
+
+	ret =Gen11::callback->readAUX(linkp, DP_DSC_SUPPORT,dsc_dpcd,DP_DSC_RECEIVER_CAP_SIZE);
+	
+	//ret = drm_dp_dpcd_read_data(aux, DP_DSC_SUPPORT, dsc_dpcd,
+	//				DP_DSC_RECEIVER_CAP_SIZE);
+	if (ret) {
+		/*drm_dbg_kms(aux->drm_dev,
+				"Could not read DSC DPCD register 0x%x Error: %pe\n",
+				DP_DSC_SUPPORT, ERR_PTR(ret));*/
+		return ret;
+	}
+
+	/*drm_dbg_kms(aux->drm_dev, "DSC DPCD: %*ph\n",
+			DP_DSC_RECEIVER_CAP_SIZE,
+			dsc_dpcd);*/
+	return 0;
+}
+
+static void intel_edp_get_dsc_sink_cap(struct intel_dp *intel_dp, u8 edp_dpcd_rev)
+{
+	if (edp_dpcd_rev < DP_EDP_14)
+		return;
+
+	if (intel_dp_read_dsc_dpcd(
+							   intel_dp->dsc_dpcd) < 0)
+		return;
+
+	//if (intel_dp->dsc_dpcd[0] & DP_DSC_DECOMPRESSION_IS_SUPPORTED)
+	//	init_dsc_overall_throughput_limits(connector, false);
+}
+
+static void
+intel_dp_detect_dsc_caps(struct intel_dp *intel_dp)
+{
+	struct intel_display *display = NBlue::callback->i915b->display;
+
+	/* Read DP Sink DSC Cap DPCD regs for DP v1.4 */
+	if (!HAS_DSC(display))
+		return;
+
+	if (intel_dp_is_edp())
+		intel_edp_get_dsc_sink_cap(intel_dp,intel_dp->edp_dpcd[0]
+					   );
+	/*else
+		intel_dp_get_dsc_sink_cap(intel_dp->dpcd[DP_DPCD_REV],
+					  &intel_dp->desc, drm_dp_is_branch(intel_dp->dpcd),
+	*/				//  connector);
+}
+
 void Gen11::SetupParams (void *that,void *param_1,void *param_2,CRTCParams *param_3,void *param_4)
 {
 	struct intel_display *display = NBlue::callback->i915b->display;
@@ -12036,7 +12089,7 @@ void Gen11::SetupParams (void *that,void *param_1,void *param_2,CRTCParams *para
 		//dpcd_access_needs_probe
 		drm_dp_read_dpcd_caps(intel_dp,intel_dp->dpcd);
 		
-		readAUX(linkp,DP_EDP_DPCD_REV,&intel_dp->edp_dpcd, sizeof(intel_dp->edp_dpcd));
+		readAUX(linkp,DP_EDP_DPCD_REV,intel_dp->edp_dpcd, sizeof(intel_dp->edp_dpcd));
 		
 		drm_dp_read_downstream_info(intel_dp, intel_dp->dpcd,intel_dp->downstream_ports);
 		
@@ -12060,7 +12113,7 @@ void Gen11::SetupParams (void *that,void *param_1,void *param_2,CRTCParams *para
 		
 		intel_edp_set_sink_rates(intel_dp);
 		intel_dp_set_max_sink_lane_count(intel_dp);
-		//intel_dp_detect_dsc_caps(intel_dp, connector);
+		intel_dp_detect_dsc_caps(intel_dp);
 
 		 //hsw_get_pipe_config
 		//intel_ddi_init

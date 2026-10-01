@@ -5815,6 +5815,7 @@ struct intel_dp {
 	struct intel_psr psr;
 	IOFBDPLinkConfig para0;
 	
+	u8 dsc_dpcd[0x10];
 	u8 dpcd[0xf];
 	u8 edp_dpcd[5];
 	u8 lttpr_common_caps[8];
@@ -13312,8 +13313,16 @@ static const u8 infoframe_type_to_idx[] = {
 # define DP_UHBR20                             (1 << 1)
 # define DP_UHBR13_5                           (1 << 2)
 
-
-
+#define DP_DSC_SUPPORT                      0x060   /* DP 1.4 */
+# define DP_DSC_DECOMPRESSION_IS_SUPPORTED  (1 << 0)
+#define DP_BRANCH_OUI_HEADER_SIZE	0xc
+#define DP_RECEIVER_CAP_SIZE		0xf
+#define DP_DSC_RECEIVER_CAP_SIZE        0x10 /* DSC Capabilities 0x60 through 0x6F */
+#define DP_DSC_BRANCH_CAP_SIZE		3
+#define EDP_PSR_RECEIVER_CAP_SIZE	2
+#define EDP_DISPLAY_CTL_CAP_SIZE	5
+#define DP_LTTPR_COMMON_CAP_SIZE	8
+#define DP_LTTPR_PHY_CAP_SIZE		3
 
 
 
