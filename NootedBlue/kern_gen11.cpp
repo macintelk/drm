@@ -443,7 +443,6 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		
 		static const uint8_t f26p[]= {0xe8, 0x31, 0x12, 0x09, 0x00, 0x48, 0x8b, 0x7b, 0x70, 0xbe, 0x00, 0x05, 0x00, 0x00, 0x03, 0xb3, 0xb8, 0x00, 0x00, 0x00, 0x8b, 0x93, 0x4c, 0x01, 0x00, 0x00};
 		static const uint8_t r26p[]= {0xe8, 0x31, 0x12, 0x09, 0x00, 0x48, 0x8b, 0x7b, 0x70, 0xbe, 0x00, 0x00, 0x00, 0x00, 0x03, 0xb3, 0xb8, 0x00, 0x00, 0x00, 0x8b, 0x93, 0x20, 0x01, 0x00, 0x00};
-		
 
 		
 		if (isprod){
@@ -479,7 +478,6 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 				{&kextG11FBT, f24d, r24d, arrsize(f24d),	6},
 				{&kextG11FBT, f25, r25, arrsize(f25),	6},
 				{&kextG11FBT, f26, r26, arrsize(f26),	1},
-				
 				
 			};
 			PANIC_COND(!LookupPatchPlus::applyAll(patcher, patches , address, size), "nblue", "kextG11FBT Failed to apply dbg patches!");
@@ -10317,7 +10315,7 @@ u32 intel_ddi_enable_transcoder_clock(struct intel_crtc_state *crtc_state, bool 
 		val = TRANS_CLK_SEL_PORT(display->port0);
 	
 	if (rval) return val;
-
+	
 	intel_de_write(display, TRANS_CLK_SEL(cpu_transcoder), val);
 	
 	return val;
@@ -12445,7 +12443,7 @@ void Gen11::SetupParams2 (void *param_2, CRTCParams *param_3)
 	
 	if (setpc){
 		setpc=0;
-		
+
 		param_3->TRANS_CLK_SEL=intel_ddi_enable_transcoder_clock(crtc_state,true);
 		param_3->TRANS_MSA_MISC =intel_ddi_set_dp_msa(display, false);
 		param_3->TRANS_DDI_FUNC_CTL= intel_ddi_transcoder_func_reg_val_get();
