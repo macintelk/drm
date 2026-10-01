@@ -13288,7 +13288,10 @@ static const u8 infoframe_type_to_idx[] = {
 #define     SKL_CDCLK_PREPARE_FOR_CHANGE	0x3
 #define     SKL_CDCLK_READY_FOR_CHANGE		0x1
 
-
+#define  TRANS_DDI_PORT_WIDTH_MASK	REG_GENMASK(3, 1)
+#define  TRANS_DDI_PORT_WIDTH(width)	REG_FIELD_PREP(TRANS_DDI_PORT_WIDTH_MASK, (width) - 1)
+#define  TRANS_DDI_HDMI_SCRAMBLING	(1 << 0)
+#define  TRANS_DDI_HIGH_TMDS_CHAR_RATE	(1 << 4)
 
 
 

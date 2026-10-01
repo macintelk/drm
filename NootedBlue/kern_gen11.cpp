@@ -8265,7 +8265,12 @@ void Gen11::hwInitializeCState(void *that)
 }
 
 
-
+static inline bool
+intel_crtc_has_type(const struct intel_crtc_state *crtc_state,
+			enum intel_output_type type)
+{
+	return crtc_state->output_types & BIT(type);
+}
 
 
 void Gen11::setupPipeWatermarks (void *that,void *param_1,void *param_2,CRTCParams *param_3)
@@ -8329,9 +8334,25 @@ static u32 intel_ddi_transcoder_func_reg_val_get()
 			break;
 		}
 	}
+
 	
-	temp |= TRANS_DDI_MODE_SELECT_DP_SST;
-	temp |= DDI_PORT_WIDTH(crtc_state->lane_count);
+	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI)) {
+		if (crtc_state->has_hdmi_sink)
+			temp |= TRANS_DDI_MODE_SELECT_HDMI;
+		else
+			temp |= TRANS_DDI_MODE_SELECT_DVI;
+
+		if (crtc_state->hdmi_scrambling)
+			temp |= TRANS_DDI_HDMI_SCRAMBLING;
+		if (crtc_state->hdmi_high_tmds_clock_ratio)
+			temp |= TRANS_DDI_HIGH_TMDS_CHAR_RATE;
+		if (DISPLAY_VER(display) >= 14)
+			temp |= TRANS_DDI_PORT_WIDTH(crtc_state->lane_count);
+	} else {
+		temp |= TRANS_DDI_MODE_SELECT_DP_SST;
+		temp |= DDI_PORT_WIDTH(crtc_state->lane_count);
+	}
+
 	
 
 	return temp;
@@ -8352,8 +8373,8 @@ static u32 intel_ddi_set_dp_msa(struct intel_display *display, bool wr)
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 	u32 temp;
 
-	//if (!intel_crtc_has_dp_encoder(crtc_state))
-	//	return 0;
+	if (!intel_crtc_has_dp_encoder(crtc_state))
+		return 0;
 	
 	temp = DP_MSA_MISC_SYNC_CLOCK;
 
@@ -8382,9 +8403,9 @@ static u32 intel_ddi_set_dp_msa(struct intel_display *display, bool wr)
 	if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR444)
 		temp |= DP_MSA_MISC_COLOR_YCBCR_444_BT709;
 
-
+//DP 1.4a
 	//if (intel_dp_needs_vsc_sdp())
-	//	temp |= DP_MSA_MISC_COLOR_VSC_SDP;
+		//temp |= DP_MSA_MISC_COLOR_VSC_SDP;
 	
 	if (wr)
 	intel_de_write(display, TRANS_MSA_MISC(display, cpu_transcoder),temp);
@@ -8461,12 +8482,7 @@ intel_get_buf_trans(const struct intel_ddi_buf_trans *trans, int *num_entries)
 	return trans;
 }
 
-static inline bool
-intel_crtc_has_type(const struct intel_crtc_state *crtc_state,
-			enum intel_output_type type)
-{
-	return crtc_state->output_types & BIT(type);
-}
+
 
 static bool use_edp_low_vswing()
 {

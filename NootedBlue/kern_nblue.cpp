@@ -878,6 +878,9 @@ parse_edp(struct intel_display *display,
 	default:
 		break;
 	}
+	
+	//fix 4 lines
+	if (panel->vbt.edp.lanes == 1) panel->vbt.edp.lanes = 4;
 
 	switch (edp_link_params->preemphasis) {
 	case EDP_PREEMPHASIS_NONE:
@@ -2933,7 +2936,7 @@ int NBlue::intel_opregion_setup()
 				if (HAS_TRANSCODER(display, TRANSCODER_EDP) && display->port0 == PORT_A)
 					crtc_state->cpu_transcoder = TRANSCODER_EDP;
 				else
-					crtc_state->cpu_transcoder = (enum transcoder) display->pipe0;
+					crtc_state->cpu_transcoder = (enum transcoder) display->pipe0;//TRANSCODER_A = PIPE_A,
 				
 				//crtc_state->master_transcoder = INVALID_TRANSCODER;
 				crtc_state->crc_enabled=true;
