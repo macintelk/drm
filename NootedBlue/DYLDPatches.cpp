@@ -30,6 +30,9 @@ void DYLDPatches::processPatcher(KernelPatcher &patcher) {
 		"Failed to route kernel symbols");
 }
 
+bool tglread=false;
+int ok=0;
+int sle=0;
 
 void DYLDPatches::wrapCsValidatePage(vnode *vp, memory_object_t pager, memory_object_offset_t page_offset,
 	const void *data, int *validated_p, int *tainted_p, int *nx_p) {
@@ -61,9 +64,7 @@ void DYLDPatches::wrapCsValidatePage(vnode *vp, memory_object_t pager, memory_ob
 			return;
 		}
 		
-
-			int ok=0;
-			int sle=0;
+		if (NBlue::callback->tglid && !tglread) {
 			vnode_t vnode = NULLVP;
 			vfs_context_t ctxt = vfs_context_create(nullptr);
 			errno_t err = vnode_lookup(TGLGraphicsMTLDriver2, 0, &vnode, ctxt);
@@ -71,13 +72,18 @@ void DYLDPatches::wrapCsValidatePage(vnode *vp, memory_object_t pager, memory_ob
 			vfs_context_rele(ctxt);
 			if (!err) ok=1;
 			
-			vnode = NULLVP;
-			ctxt = vfs_context_create(nullptr);
-			err = vnode_lookup(TGLGraphicsMTLDriver, 0, &vnode, ctxt);
-			if (!err) vnode_put(vnode);
-			vfs_context_rele(ctxt);
-			if (!err) { ok=1; sle=1;}
+			if (ok==0)
+			{
+				vnode = NULLVP;
+				ctxt = vfs_context_create(nullptr);
+				err = vnode_lookup(TGLGraphicsMTLDriver, 0, &vnode, ctxt);
+				if (!err) vnode_put(vnode);
+				vfs_context_rele(ctxt);
+				if (!err) { ok=1; sle=1;}
+			}
 			
+			if (ok) tglread=true;
+		}
 			
 			if (!ok && NBlue::callback->iclid) {
 				if ((!strncmp(path, libMTLIGCCompilerPluginPath, arrsize(libMTLIGCCompilerPluginPath)) )) {
