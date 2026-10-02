@@ -14656,6 +14656,16 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	//fw = getFWByName("tgl_guc_69.0.3.bin");
 	//fw = getFWByName("tgl_guc_70.1.1.bin");
 	
+	if (display->platform.alderlake_p) {
+		fw = getFWByName("adlp_guc_62.0.3.bin");
+	} else if (display->platform.alderlake_s) {
+		fw = getFWByName("adlp_guc_62.0.3.bin");
+	} else if (display->platform.rocketlake) {
+
+	} else if (display->platform.tigerlake) {
+
+	}
+	
 	if (!fw.data || fw.size == 0) return 0;
 	if (fw.size < sizeof(uc_css_header)) return 0;
 	

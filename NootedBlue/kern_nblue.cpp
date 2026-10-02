@@ -1682,6 +1682,23 @@ struct intel_display *intel_display_device_probe(struct intel_display *display)
 	
 
 	initialize_step(display, step);
+	
+	struct intel_display_runtime_info *display_runtime = DISPLAY_RUNTIME_INFO(display);
+	enum pipe pipe;
+	
+	if (intel_display_wa(display, INTEL_DISPLAY_WA_14011765242))
+		for_each_pipe(display, pipe)
+			display_runtime->num_scalers[pipe] = 0;
+	else if (DISPLAY_VER(display) >= 11)
+		for_each_pipe(display, pipe)
+			display_runtime->num_scalers[pipe] = 2;
+		
+	if (DISPLAY_VER(display) >= 13 || HAS_D12_PLANE_MINIMIZATION(display))
+			for_each_pipe(display, pipe)
+				display_runtime->num_sprites[pipe] = 4;
+		else if (DISPLAY_VER(display) >= 11)
+			for_each_pipe(display, pipe)
+				display_runtime->num_sprites[pipe] = 6;
 
 
 	return display;
