@@ -13362,6 +13362,10 @@ static const u8 infoframe_type_to_idx[] = {
 #define HAS_DP20(__display)		((__display)->platform.dg2 || DISPLAY_VER(__display) >= 14)
 #define HAS_PSR(__display)		(DISPLAY_INFO(__display)->has_psr)
 
+#define DRM_MODE_REFLECT_X      (1<<4)
+#define DRM_MODE_REFLECT_Y      (1<<5)
+#define   PLANE_CTL_FLIP_HORIZONTAL		REG_BIT(8)
+
 
 
 

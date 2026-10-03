@@ -99,7 +99,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			{"__ZN31AppleIntelFramebufferController16disableVDDForAuxEP14AppleIntelPort",disableVDDForAux2, this->odisableVDDForAux2},
 			{"__ZN31AppleIntelFramebufferController15hwSetPanelPowerEj",hwSetPanelPower, this->ohwSetPanelPower},
 			{"__ZN14AppleIntelPort12linkTrainingEP18AGDCDPPortConfig_t",linkTraining, this->olinkTraining},
-			{"__ZN21AppleIntelFramebuffer19getPixelInformationEiiiP18IOPixelInformation",fgetPixelInformation, this->ofgetPixelInformation},
+			//{"__ZN21AppleIntelFramebuffer19getPixelInformationEiiiP18IOPixelInformation",fgetPixelInformation, this->ofgetPixelInformation},
 			{"__ZN21AppleIntelDisplayPath8initHDCPEv", dovoid},
 			//{"__ZN15AppleIntelPlane17configurePlaneCUSEP19FlipTransactionArgs10IGColorCtl",dovoid},
 			//{"__ZN15AppleIntelPlane18configurePlaneiCSCEP19FlipTransactionArgs10IGColorCtl",dovoid},
@@ -124,6 +124,8 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			{"__ZN19AppleIntelPowerWell19disablePowerWellDDIEj",disablePowerWellDDI, this->odisablePowerWellDDI},
 			{"__ZN19AppleIntelPowerWell18disablePowerWellPGEj",disablePowerWellPG, this->odisablePowerWellPG},
 			//{"__ZN20IntelFBClientControl11doAttributeEjPmmS0_S0_P25IOExternalMethodArguments",wrapFBClientDoAttribute,	this->orgFBClientDoAttribute},
+			
+			
 			
 			{"__ZN31AppleIntelFramebufferController18hwEnableInterruptsEv",hwEnableInterrupts, this->ohwEnableInterrupts},
 			//{"__ZN31AppleIntelFramebufferController15configureReportEP19IOReportChannelListjPvS2_",configureReport, this->oconfigureReport},
@@ -245,7 +247,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			{"__ZN14AppleIntelPort7readAUXEjPvj",readAUX, this->oreadAUX},
 			//{"__ZN21AppleIntelFramebuffer12getAttributeEjPm",fgetAttribute, this->ofgetAttribute},
 			{"__ZN21AppleIntelFramebuffer12setAttributeEjm",fsetAttribute, this->ofsetAttribute},
-			{"__ZN21AppleIntelFramebuffer19getPixelInformationEiiiP18IOPixelInformation",fgetPixelInformation, this->ofgetPixelInformation},
+			//{"__ZN21AppleIntelFramebuffer19getPixelInformationEiiiP18IOPixelInformation",fgetPixelInformation, this->ofgetPixelInformation},
 			//{"__ZN15AppleIntelPlane18configurePlaneiCSCEP19FlipTransactionArgs10IGColorCtl",dovoid},
 			//{"__ZN15AppleIntelPlane17configurePlaneCUSEP19FlipTransactionArgs10IGColorCtl",dovoid},
 			{"__ZN21AppleIntelDisplayPath8initHDCPEv", dovoid},
@@ -280,8 +282,8 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			{"__ZN14AppleIntelPort11setPortModeENS_8PortModeE",setPortMode, this->osetPortMode},
 			
 			
-			
-			
+			{"__ZN20IntelFBClientControl11doAttributeEjPmmS0_S0_P25IOExternalMethodArguments",wrapFBClientDoAttribute,	this->orgFBClientDoAttribute},
+			{"__ZN31AppleIntelFramebufferController10processCmdEjPmmS0_S0_",fbprocessCmd, this->ofbprocessCmd},
 			
 			//{"__ZN24AppleIntelBaseController21getCallbackCapabilityEP24AGDCCallbackCapability_t",getCallbackCapability, this->ogetCallbackCapability},
 			//{"__ZN24AppleIntelBaseController16GetGPUCapabilityEP19AGDCGPUCapability_t",GetGPUCapability, this->oGetGPUCapability},
@@ -445,6 +447,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		static const uint8_t r26p[]= {0xe8, 0x31, 0x12, 0x09, 0x00, 0x48, 0x8b, 0x7b, 0x70, 0xbe, 0x00, 0x00, 0x00, 0x00, 0x03, 0xb3, 0xb8, 0x00, 0x00, 0x00, 0x8b, 0x93, 0x20, 0x01, 0x00, 0x00};
 
 		
+		
 		if (isprod){
 			LookupPatchPlus const patchesp[] = {// tgl production kext
 				{&kextG11FBT, f7p, r7p, arrsize(f7p),	1},
@@ -515,9 +518,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		//8 subslices
 		static const uint8_t f2a[] = {0x44, 0x89, 0xf8, 0xf7, 0xd0, 0xf3, 0x0f, 0xb8, 0xf0, 0x89, 0xb3, 0x88, 0x11, 0x00, 0x00};
 		static const uint8_t r2a[] = {0xc7, 0x83, 0x88, 0x11, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x90, 0x90, 0x90, 0x90, 0x90};
-		//ringmask
-		static const uint8_t f2b[] = {0x80, 0x8b, 0x40, 0x13, 0x00, 0x00, 0x1f};
-		static const uint8_t r2b[] = {0x80, 0x8b, 0x40, 0x13, 0x00, 0x00, 0x3f};
+
 		
 		//hwcaps tgl kext
 		static const uint8_t f3[] = {0x48, 0xb8, 0xc0, 0x00, 0x00, 0x00, 0x6c, 0x01, 0x00, 0x00, 0x48, 0x89, 0x83, 0x5c, 0x11, 0x00, 0x00, 0x48, 0xb8, 0xe0, 0x00, 0x00, 0x00, 0x6c, 0x01, 0x00, 0x00, 0x48, 0x89, 0x83, 0x64, 0x11, 0x00, 0x00, 0xc7, 0x83, 0x6c, 0x11, 0x00, 0x00, 0xe0, 0x00, 0x00, 0x00};
@@ -546,7 +547,6 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		LookupPatchPlus const patches[] = {
 			{&kextG11HW, f2, r2, arrsize(f2),	1},
 			{&kextG11HW, f2a, r2a, arrsize(f2a),	1},
-			{&kextG11HW, f2b, r2b, arrsize(f2b),	1},
 			/*{&kextG11HW, f3, r3, arrsize(f3),	1},
 			{&kextG11HW, f3a, r3a, arrsize(f3a),	1},
 			{&kextG11HW, f3b, r3b, arrsize(f3b),	1},*/
@@ -663,7 +663,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 				{&kext, f2a, r2a, arrsize(f2a),	1},
 				{&kext, f3, r3, arrsize(f3),	1},
 				{&kext, f3a, r3a, arrsize(f3a),	1},
-				//{&kext, f4, r4, arrsize(f4),	1},
+				{&kext, f4, r4, arrsize(f4),	1},
 				{&kext, f5, r5, arrsize(f5),	1},
 				
 				
@@ -1540,10 +1540,36 @@ uint64_t Gen11::hwEnableInterrupts(void *that)
 }
 
 
+int Gen11::fbprocessCmd(void *that,uint param_1,unsigned long *param_2,unsigned long param_3,unsigned long *param_4,unsigned long *param_5)
+{
+	/*if (param_1 == 1) {
+	  _DAT_0016dc38 = _DAT_0016dc38 + 1;
+	  uVar5 = 0xe00002c2;
+	  if ((param_5 != (ulong *)0x0) && (_DAT_0016dc48 = _DAT_0016dc48 + 1, 0x2b < *param_5)) {
+		_DAT_0016dc40 = _DAT_0016dc40 + 1;
+		*(undefined4 *)(param_4 + 5) = DAT_001beae8;
+		param_4[4] = DAT_001beae0;
+		param_4[3] = ram0x001bead8;
+		param_4[2] = s_AppleIntelBaseController_001beac4._12_8_;
+		param_4[1] = s_AppleIntelBaseController_001beac4._4_8_;
+		*param_4 = __id;
+		*param_5 = 0x2c;
+		uVar5 = 0;
+	  }
+	  break;
+	}
+	*/
+	if (param_1 == 0x2001)
+	{
+		return 0;
+	}
+	auto ret= FunctionCast(fbprocessCmd, callback->ofbprocessCmd)(that, param_1, param_2, param_3, param_4, param_5);
+	return ret;
+}
 
-#define DRM_MODE_REFLECT_X      (1<<4)
-#define DRM_MODE_REFLECT_Y      (1<<5)
-#define   PLANE_CTL_FLIP_HORIZONTAL		REG_BIT(8)
+
+
+
 
 static u32 icl_plane_ctl_flip(unsigned int reflect)
 {
@@ -2647,6 +2673,7 @@ skipp:
 	//getMember<uint32_t>(that, 0x110)=offset;//PLANE_OFFSET
 	//getMember<uint32_t>(that, 0x11c)=size;//PLANE_SIZE
 	getMember<uint32_t>(that, 0x118)=stride;//PLANE_STRIDE
+	
 
 	//getMember<uint32_t>(that, 0x100)=0x84000400;//PLANE_CTL linux 0x84000400
 	//getMember<uint32_t>(that, 0x118)=0xd;//PLANE_STRIDE linux 0x0000000d
@@ -4002,7 +4029,54 @@ unsigned short Gen11::acquireDoorbell(void* self, void* param_1, bool param_2)
 
 IOReturn Gen11::wrapFBClientDoAttribute(void *fbclient, uint32_t attribute, unsigned long *unk1, unsigned long unk2, unsigned long *unk3, unsigned long *unk4,  void *externalMethodArguments) {
 	
-	if (attribute == 0x923) {
+	/* 
+	 if (param_1 == 1) {
+	 _DAT_0016dc38 = _DAT_0016dc38 + 1;
+  uVar8 = 0xe00002c2;
+  if ((param_5 != (ulong *)0x0) && (_DAT_0016dc48 = _DAT_0016dc48 + 1, 0x2b < *param_5)) {
+	_DAT_0016dc40 = _DAT_0016dc40 + 1;
+	param_4->VendorClass = DAT_001beae8;
+	*(undefined8 *)(param_4->VendorString + 0x1c) = DAT_001beae0;
+	*(undefined8 *)(param_4->VendorString + 0x14) = ram0x001bead8;
+	*(undefined8 *)(param_4->VendorString + 0xc) =
+		 s_AppleIntelBaseController_001beac4._12_8_;
+	*(undefined8 *)(param_4->VendorString + 4) = s_AppleIntelBaseController_001beac4._4_8_;
+	cVar6 = s_AppleIntelBaseController_001beac4[0];
+	cVar3 = s_AppleIntelBaseController_001beac4[1];
+	cVar4 = s_AppleIntelBaseController_001beac4[2];
+	cVar5 = s_AppleIntelBaseController_001beac4[3];
+	param_4->Version = __id;
+	param_4->VendorString[0] = cVar6;
+	param_4->VendorString[1] = cVar3;
+	param_4->VendorString[2] = cVar4;
+	param_4->VendorString[3] = cVar5;
+	*param_5 = 0x2c;
+	uVar8 = 0;
+  }
+  break;
+}
+	*/
+	
+	if (attribute == 1)//0x2001)
+	if (unk4 != (unsigned long *)0x0)
+		if (0x2b < *unk4) {
+			
+			FunctionCast(wrapFBClientDoAttribute, callback->orgFBClientDoAttribute)(fbclient, attribute, unk1, unk2, unk3, unk4,  externalMethodArguments);
+			
+			//memset(param_4,0,0x2c);
+			AGDCVendorInfo *v=(AGDCVendorInfo*)unk3;
+			//v->Version.Raw=0;
+			//v->Version.Major=0;
+			//v->Version.Minor=0;
+			//v->VendorID= 0x106b;
+			//*v->VendorString=*(char*)"AppleIntelBaseController";
+			//v->VendorClass=kAGDCVendorClassIntegratedGPU;
+			v->VendorClass=kAGDCVendorClassOtherHW;// acel loader hack !!
+			return 0;
+	}
+	
+	
+	if (attribute == 0x923 && kexticl) {
 		return kIOReturnUnsupported;
 	}
 	

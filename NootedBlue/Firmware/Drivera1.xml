@@ -143,13 +143,11 @@
 		<key>AddressSpaceEnableMask</key>
 		<integer>3</integer>
 		<key>AllowIOSurfaceRenderCompression</key>
-		<integer>1</integer>
+		<integer>0</integer>
 		<key>CsbProcModeSelect</key>
 		<integer>0</integer>
-		<key>DisableBA</key>
-		<integer>0</integer>
 		<key>DisablePageFaultHandling</key>
-		<integer>0</integer>
+		<integer>1</integer>
 		<key>DisplaySurfaceInEDRAM</key>
 		<integer>0</integer>
 		<key>EUThrottle</key>
@@ -164,8 +162,6 @@
 		<integer>0</integer>
 		<key>GraphicsSchedulerSelect</key>
 		<integer>4</integer>
-		<key>HwCtxCacheUpdate</key>
-		<integer>1</integer>
 		<key>MetalCoalesce</key>
 		<integer>1</integer>
 		<key>MultiForceWakeSelect</key>
@@ -185,7 +181,7 @@
 		<key>PreemptionTimerIntervalUS</key>
 		<integer>2000</integer>
 		<key>RingSizeKB</key>
-		<integer>32</integer>
+		<integer>16</integer>
 		<key>SamplerDataFetchThrottle</key>
 		<integer>0</integer>
 		<key>SamplerPipeThrottle</key>
@@ -195,7 +191,7 @@
 		<key>SchedThrottleCapMS</key>
 		<integer>100</integer>
 		<key>SchedulerFallbackOnFirmwareFail</key>
-		<integer>0</integer>
+		<integer>1</integer>
 		<key>SemaphoreWaitPoll</key>
 		<integer>1</integer>
 		<key>SeparateAddressSpace</key>
@@ -205,9 +201,9 @@
 		<key>SignalStampsPrimary</key>
 		<integer>0</integer>
 		<key>SingleChannelIndex</key>
-		<integer>0</integer>
+		<integer>1</integer>
 		<key>TelemetryDisable</key>
-		<integer>0</integer>
+		<integer>1</integer>
 		<key>WaitForComplete</key>
 		<integer>0</integer>
 	</dict>

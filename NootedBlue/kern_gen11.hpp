@@ -8,6 +8,31 @@
 #include <Headers/kern_util.hpp>
 
 
+typedef enum AGDCVendorClass {
+	kAGDCVendorClassReserved,
+	kAGDCVendorClassIntegratedGPU,
+	kAGDCVendorClassDiscreteGPU,
+	kAGDCVendorClassOtherHW,
+	kAGDCVendorClassOtherSW,
+	kAGDCVendorClassAppleGPUPolicyManager,
+	kAGDCVendorClassAppleGPUPowerManager,
+	kAGDCVendorClassGPURoot,
+	kAGDCVendorClassAppleGPUWrangler,
+	kAGDCVendorClassAppleMuxControl,
+} AGDCVendorClass_t;
+
+typedef struct AGDCVendorInfo {
+	union {
+		struct {
+			UInt16 Minor;
+			UInt16 Major;
+		};
+		UInt32 Raw;
+	} Version;
+	char VendorString[32];
+	UInt32 VendorID;
+	AGDCVendorClass_t VendorClass;
+} AGDCVendorInfo_t;
 
 
 struct PortConfig { 
@@ -974,6 +999,9 @@ public:
 	
 	static uint64_t  hwEnableInterrupts(void *that);
 	mach_vm_address_t ohwEnableInterrupts {};
+	
+	static int 	fbprocessCmd(void *that,uint param_1,unsigned long *param_2,unsigned long param_3,unsigned long *param_4,unsigned long *param_5);
+	mach_vm_address_t ofbprocessCmd {};
 	
 	
 public:
