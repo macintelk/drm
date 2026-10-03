@@ -2491,7 +2491,6 @@ static void plaenp(void *that,void *param_1, bool isconfig)
 	fourcc = skl_format_to_fourcc(pixel_format,val & PLANE_CTL_ORDER_RGBX, alpha);
 	
 	tiling = val & PLANE_CTL_TILED_MASK;
-	u8 tiling2=7;
 	
 	//tiling=PLANE_CTL_TILED_X;// force if need
 	
@@ -2504,7 +2503,6 @@ static void plaenp(void *that,void *param_1, bool isconfig)
 			fb->modifier = I915_FORMAT_MOD_X_TILED;
 			if (isconfig) getMember<int>(param_1, kexticl ? 0x44 : 0x3c)=0;//tiling
 			if (!isconfig) getMember<u8>(frame0,  kexticl ? 0x8f58 : 0x4a18)=0;
-			tiling2=9;
 			break;
 		case PLANE_CTL_TILED_Y:
 			if (isconfig) getMember<int>(param_1, kexticl ? 0x44 : 0x3c)=1;//tiling
@@ -2549,7 +2547,7 @@ static void plaenp(void *that,void *param_1, bool isconfig)
 			
 	}
 	
-	fb->format=drm_get_format_info(fourcc,modifier);
+	fb->format=drm_get_format_info(fourcc,fb->modifier);
 	
 	
 	
