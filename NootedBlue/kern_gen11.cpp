@@ -1301,7 +1301,7 @@ uint32_t Gen11::enableVDDForAux(void *that,void *param_1)
 	//if (ret==0xe00002eb) {
 		if (getMember<bool>(that, 0xe62 ) == true) {
 			//IOFramebuffer *r= (IOFramebuffer *)getMember<void *>(that, 0xd60);
-			//frame0->setProperty("AAPL,LCD-PowerState-ON", true);
+			frame0->setProperty("AAPL,LCD-PowerState-ON", true);
 		}
 	//}
 	return 0;
@@ -1315,7 +1315,7 @@ uint64_t Gen11::enableVDDForAux2(void *that,void *param_1)
 	//if (ret==0xe00002eb) {
 		if (getMember<bool>(that, 0xe48) == true) {
 			//IOFramebuffer *r= (IOFramebuffer *)getMember<void *>(that, 0xd18);
-			//frame0->setProperty("AAPL,LCD-PowerState-ON", true);
+			frame0->setProperty("AAPL,LCD-PowerState-ON", true);
 		}
 	//}
 	return 0;
@@ -1329,7 +1329,7 @@ uint64_t Gen11::disableVDDForAux2(void *that,void *param_1)
 	//if (ret==0xe00002eb) {
 		if (getMember<bool>(that, 0xe48) == true) {
 			//IOFramebuffer *r= (IOFramebuffer *)getMember<void *>(that, 0xd18);
-			//frame0->setProperty("AAPL,LCD-PowerState-ON", false);
+			frame0->setProperty("AAPL,LCD-PowerState-ON", false);
 		}
 	//}
 	return 0;
@@ -1343,7 +1343,7 @@ uint64_t Gen11::disableVDDForAux(void *that)
 	//if (ret==0xe00002eb) {
 		if (getMember<bool>(that,  0xe62 ) == true) {
 			//IOFramebuffer *r= (IOFramebuffer *)getMember<void *>(that, 0xd60);
-			//frame0->setProperty("AAPL,LCD-PowerState-ON", false);
+			frame0->setProperty("AAPL,LCD-PowerState-ON", false);
 		}
 	//}
 	return 0;
