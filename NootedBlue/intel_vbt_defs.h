@@ -13366,7 +13366,7 @@ static const u8 infoframe_type_to_idx[] = {
 #define DRM_MODE_REFLECT_Y      (1<<5)
 #define   PLANE_CTL_FLIP_HORIZONTAL		REG_BIT(8)
 
-
+#define HAS_RC6(i915)		 (INTEL_INFO(i915)->has_rc6)
 
 
 

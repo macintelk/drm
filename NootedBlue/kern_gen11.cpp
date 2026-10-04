@@ -5456,7 +5456,6 @@ void Gen11::engines(void *that)
 	guc->submission_selected = true;
 	
 	
-	
 }
 
 
@@ -15761,7 +15760,8 @@ static void gen11_rc6_enable(void *that)
 	Gen11::callback->SafeForceWake(that, false, 7);
 }
 
-static int intel_guc_resume0(struct intel_guc *guc)
+
+static int intel_guc_resume0(void *that, struct intel_guc *guc)
 {
 #define GUC_POWER_D0		1
 	
@@ -15773,24 +15773,31 @@ static int intel_guc_resume0(struct intel_guc *guc)
 	//if (!intel_guc_submission_is_used(guc) || !intel_guc_is_ready(guc))
 	//	return 0;
 
-	//Gen11::callback->hostToGuCAction(that,action,2,0xf,(uint *)0x0);
+	//Gen11::callback->hostToGuCAction(that,action + 1,1,0xf,action);
 	return intel_guc_send_mmio(guc, action, ARRAY_SIZE(action), NULL, 0);
 	//return intel_guc_send(guc, action, ARRAY_SIZE(action));
 	return 1;
 }
 
-static int intel_guc_sample_forcewake(struct intel_guc *guc)
+static int intel_guc_sample_forcewake(void *that, struct intel_guc *guc)
 {
-	
+	struct drm_i915_private *i915 = NBlue::callback->i915b;
 	u32 action[2];
 	
 #define GUC_FORCEWAKE_RENDER	(1 << 0)
 #define GUC_FORCEWAKE_MEDIA	(1 << 1)
 
 	action[0] = INTEL_GUC_ACTION_SAMPLE_FORCEWAKE;
-	action[1] = GUC_FORCEWAKE_RENDER | GUC_FORCEWAKE_MEDIA;
+	
+	if (!HAS_RC6(i915))
+			action[1] = 0;
+		else
+			/* bit 0 and 1 are for Render and Media domain separately */
+			action[1] = GUC_FORCEWAKE_RENDER | GUC_FORCEWAKE_MEDIA;
+	
+	
 
-	//Gen11::callback->hostToGuCAction(that,action,2,0xf,(uint *)0x0);
+	//Gen11::callback->hostToGuCAction(that,action + 1,1,0xf,action);
 	return intel_guc_send_mmio(guc, action, ARRAY_SIZE(action), NULL, 0);
 	//return intel_guc_send(guc, action, ARRAY_SIZE(action));
 	return 1;
@@ -16672,6 +16679,41 @@ static int guc_init_engine_stats(struct intel_guc *guc)
 	return ret;
 }
 
+#define __MASKED_FIELD(mask, value) ((mask) << 16 | (value))
+#define _MASKED_FIELD(mask, value) ({					   \
+	__MASKED_FIELD(mask, value); })
+#define _MASKED_BIT_ENABLE(a)	({ __typeof(a) _a = (a); _MASKED_FIELD(_a, _a); })
+
+#define RING_MODE_GEN7(base)	_MMIO((base) + 0x29c)
+static int intel_guc_submission_enable0(struct intel_guc *guc)
+{
+	struct drm_i915_private *i915 = NBlue::callback->i915b;
+	struct intel_display *display = i915->display;
+	struct intel_gt *gt = to_gt(i915);
+	
+		struct intel_engine_cs *engine;
+		enum intel_engine_id id;
+		int irqs;
+
+		/* tell all command streamers to forward interrupts (but not vblank)
+		 * to GuC
+		 */
+		irqs = _MASKED_BIT_ENABLE((1 << 14));
+		for_each_engine(engine, gt, id)
+			intel_de_write(display,	RING_MODE_GEN7(engine->mmio_base), irqs);
+
+		/* route USER_INTERRUPT to Host, all others are sent to GuC. */
+		irqs = GT_RENDER_USER_INTERRUPT << 0 |
+			   GT_RENDER_USER_INTERRUPT << 16;
+		/* These three registers have the same bit definitions */
+		intel_de_write(display, GUC_BCS_RCS_IER, ~irqs);
+		intel_de_write(display, GUC_VCS2_VCS1_IER, ~irqs);
+		intel_de_write(display, GUC_WD_VECS_IER, ~irqs);
+
+	return 0;
+
+}
+
 static int intel_guc_submission_enable(struct intel_guc *guc)
 {
 	int ret;
@@ -16717,16 +16759,12 @@ uint64_t Gen11::loadFirmware(void *that)
 		
 		gen11_rc6_enable(m_accelerator);
 		
-		gen11_irq_reset(i915);
-		gen11_irq_postinstall(i915);
+		//gen11_irq_reset(i915);
+		//gen11_irq_postinstall(i915);
 		
-		//SafeForceWake(m_accelerator, true, 7);
-		//guc_enable_communication(guc);
-		//SafeForceWake(m_accelerator, false, 7);
-		
-		intel_guc_sample_forcewake(guc);
-		intel_guc_submission_enable(guc);
-		intel_guc_resume0(guc);
+		intel_guc_sample_forcewake(m_accelerator, guc);
+		intel_guc_submission_enable0(guc);
+		//intel_guc_resume0(m_accelerator, guc);
 		
 	}
 	
