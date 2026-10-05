@@ -503,8 +503,8 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			 {"__ZN20IGSharedMappedBuffer4freeEv",IGSharedMappedBufferfree, this->oIGSharedMappedBufferfree},
 			 {"__ZN13IGHardwareGuC13loadGuCBinaryEv",loadGuCBinary0, this->oloadGuCBinary0},
 			 {"__ZN13IGHardwareGuC15hostToGuCActionEPKjjiPj",hostToGuCAction, this->ohostToGuCAction},
-			 {"__ZN13IGHardwareGuC16setupContextPoolEi",setupContextPool0, this->osetupContextPool0},
-			 {"__ZN12IGScheduler412loadFirmwareEv",loadFirmware, this->oloadFirmware},
+			 //{"__ZN13IGHardwareGuC16setupContextPoolEi",setupContextPool0, this->osetupContextPool0},
+			 //{"__ZN12IGScheduler412loadFirmwareEv",loadFirmware, this->oloadFirmware},
 			 // {"__ZN13IGHardwareGuC26setupAdditionalDataStructsEv",setupAdditionalDataStructs0, this->osetupAdditionalDataStructs0},
 			 //{"__ZN20IGHardwareRingBuffer12waitForSpaceEj",waitForSpace, this->owaitForSpace},
 			 //{"__ZN16IntelAccelerator31initHardwareStatusPageRegistersEv",initHardwareStatusPageRegisters, this->oinitHardwareStatusPageRegisters},
@@ -580,8 +580,8 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			 {"__ZN20IGSharedMappedBuffer4freeEv",IGSharedMappedBufferfree, this->oIGSharedMappedBufferfree},
 			 {"__ZN13IGHardwareGuC13loadGuCBinaryEv",loadGuCBinary, this->oloadGuCBinary},
 			 {"__ZN13IGHardwareGuC15hostToGuCActionEPKjjiPj",hostToGuCAction, this->ohostToGuCAction},
-			 {"__ZN13IGHardwareGuC16setupContextPoolEi",setupContextPool, this->osetupContextPool},
-			 {"__ZN12IGScheduler412loadFirmwareEv",loadFirmware, this->oloadFirmware},
+			//{"__ZN13IGHardwareGuC16setupContextPoolEi",setupContextPool, this->osetupContextPool},
+			// {"__ZN12IGScheduler412loadFirmwareEv",loadFirmware, this->oloadFirmware},
 			 // {"__ZN13IGHardwareGuC26setupAdditionalDataStructsEv",setupAdditionalDataStructs, this->osetupAdditionalDataStructs},
 			// {"__ZN22IGHardwareGuCWorkQueue11withOptionsEP22IOGraphicsAccelerator2jP37UK_GEN11_SCHED_PROCESS_DESCRIPTOR_REC",IGHardwareGuCWorkQueuewithOptions, this->oIGHardwareGuCWorkQueuewithOptions},
 			 //{"__ZN13IGHardwareGuC14allocContextIdEyb",allocContextId, this->oallocContextId},
@@ -617,7 +617,6 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			 
 			 //{"__ZN16IntelAccelerator15configureDeviceEP11IOPCIDevice",fconfigureDevice, this->ofconfigureDevice},
 			 //{"__ZN15IGMemoryManager16initDeviceMemoryEv",finitDeviceMemory, this->ofinitDeviceMemory},
-			 //{"__ZN5IGGuC15canLoadFirmwareEP22IOGraphicsAccelerator2",dotrue},
 			 //{"__ZN5IGGuC18checkWOPCMSettingsEmR14IOVirtualRange",checkWOPCMSettings, this->ocheckWOPCMSettings},
 			 
 			//{"__ZN13IGHardwareGuC31registerCommandTransportBuffersEv",registerCommandTransportBuffers, this->oregisterCommandTransportBuffers},
@@ -4071,7 +4070,7 @@ IOReturn Gen11::wrapFBClientDoAttribute(void *fbclient, uint32_t attribute, unsi
 			//v->VendorID= 0x106b;
 			//*v->VendorString=*(char*)"AppleIntelBaseController";
 			//v->VendorClass=kAGDCVendorClassIntegratedGPU;
-			v->VendorClass=kAGDCVendorClassOtherHW;// acel loader hack !!
+			//v->VendorClass=kAGDCVendorClassOtherHW;// acel loader hack !!
 			return 0;
 	}
 	
@@ -14851,18 +14850,20 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	guc->ads_map.vaddr = (void*)guc->ads_vma->node.vadr;
 	guc->ads_map.is_iomem = false;
 	
-	if (guc->fw.file_selected.ver.major < 69)
-		guc_init_params0(guc); //35.2
-	
 	//if (guc->fw.file_selected.ver.major < 69)
-	//for ( i = 0; i < 6; i++)
-	//guc->params[i]=getMember<u32[6]>(that, 0x8c)[i];
+	//	guc_init_params0(guc); //35.2
+	
+	if (guc->fw.file_selected.ver.major < 69)
+	for ( i = 0; i < 6; i++)
+	guc->params[i]=getMember<u32[6]>(that, 0x8c)[i];
 		
 	if (guc->fw.file_selected.ver.major >= 69)
-	guc_init_params(guc);
-	
-	for ( i = 0; i < 6; i++)
-	getMember<u32[6]>(that, 0x8c)[i]=guc->params[i];
+	{
+		guc_init_params(guc);
+		
+		for ( i = 0; i < 6; i++)
+			getMember<u32[6]>(that, 0x8c)[i]=guc->params[i];
+	}
 	
 	guc_ggtt_invalidate(gt,m_accelerator);
 	//if (guc->fw.file_selected.ver.major > 69) intel_guc_ads_reset(guc);
