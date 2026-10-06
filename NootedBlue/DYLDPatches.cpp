@@ -100,6 +100,7 @@ void DYLDPatches::wrapCsValidatePage(vnode *vp, memory_object_t pager, memory_ob
 			}
 			
 			if (ok && NBlue::callback->tglid) {
+				
 				if ((!strncmp(path, libMTLIGCCompilerPluginPath, arrsize(libMTLIGCCompilerPluginPath)) )) {
 					const DYLDPatch patches[] = {
 						{klibMTLIGCCompilerPluginOriginal, klibMTLIGCCompilerPluginPatched, "klibMTLIGCCompilerPluginOriginal"},
@@ -112,6 +113,57 @@ void DYLDPatches::wrapCsValidatePage(vnode *vp, memory_object_t pager, memory_ob
 					DYLDPatch::applyAll(patches, const_cast<void *>(data), PAGE_SIZE);
 					return;
 				}
+				
+				if (sle)
+				if ((!strncmp(path, TGLGraphicsVADriver, arrsize(TGLGraphicsVADriver)) )) {
+					const DYLDPatch patches[] = {
+						{kTGLGraphicsVADrivero, kTGLGraphicsVADriverp, "VADriver sle path"},
+					};
+					DYLDPatch::applyAll(patches, const_cast<void *>(data), PAGE_SIZE);
+					return;
+				}
+				
+				if (!sle)
+				if ((!strncmp(path, TGLGraphicsVADriver2, arrsize(TGLGraphicsVADriver2)) )) {
+					const DYLDPatch patches[] = {
+						{kTGLGraphicsVADrivero, kTGLGraphicsVADriverp, "VADriver path"},
+					};
+					DYLDPatch::applyAll(patches, const_cast<void *>(data), PAGE_SIZE);
+					return;
+				}
+				
+				if (!sle)
+				if ((!strncmp(path, TGLGraphicsMTLDriver2, arrsize(TGLGraphicsMTLDriver2)) )) {
+					const DYLDPatch patches[] = {
+						{kTGLGraphicsMTLDrivero, kTGLGraphicsMTLDriverp, "GPUBundles mtl path"},
+					};
+					DYLDPatch::applyAll(patches, const_cast<void *>(data), PAGE_SIZE);
+					return;
+				}
+				
+				if (sle)
+				if ((!strncmp(path, TGLGraphicsGLDriver, arrsize(TGLGraphicsGLDriver)) )) {
+					const DYLDPatch patches[] = {
+						{glf1, glr1, "sku"},
+						{glf2, glr2, "compiler fam"},
+						{glf2a, glr2a, "compiler fam"},
+					};
+					DYLDPatch::applyAll(patches, const_cast<void *>(data), PAGE_SIZE);
+					return;
+				}
+				
+				if (!sle)
+				if ((!strncmp(path, TGLGraphicsGLDriver2, arrsize(TGLGraphicsGLDriver2)) )) {
+					const DYLDPatch patches[] = {
+						{kTGLGraphicsGLDrivero, kTGLGraphicsGLDriverp, "GPUBundles GL path"},
+						{glf1, glr1, "sku"},
+						{glf2, glr2, "compiler fam"},
+						{glf2a, glr2a, "compiler fam"},
+					};
+					DYLDPatch::applyAll(patches, const_cast<void *>(data), PAGE_SIZE);
+					return;
+				}
+				
 			}
 		
 		

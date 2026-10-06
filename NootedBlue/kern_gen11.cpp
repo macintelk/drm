@@ -504,7 +504,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			 {"__ZN13IGHardwareGuC13loadGuCBinaryEv",loadGuCBinary0, this->oloadGuCBinary0},
 			 {"__ZN13IGHardwareGuC15hostToGuCActionEPKjjiPj",hostToGuCAction, this->ohostToGuCAction},
 			 //{"__ZN13IGHardwareGuC16setupContextPoolEi",setupContextPool0, this->osetupContextPool0},
-			 //{"__ZN12IGScheduler412loadFirmwareEv",loadFirmware, this->oloadFirmware},
+			 {"__ZN12IGScheduler412loadFirmwareEv",loadFirmware, this->oloadFirmware},
 			 // {"__ZN13IGHardwareGuC26setupAdditionalDataStructsEv",setupAdditionalDataStructs0, this->osetupAdditionalDataStructs0},
 			 //{"__ZN20IGHardwareRingBuffer12waitForSpaceEj",waitForSpace, this->owaitForSpace},
 			 //{"__ZN16IntelAccelerator31initHardwareStatusPageRegistersEv",initHardwareStatusPageRegisters, this->oinitHardwareStatusPageRegisters},
@@ -581,7 +581,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			 {"__ZN13IGHardwareGuC13loadGuCBinaryEv",loadGuCBinary, this->oloadGuCBinary},
 			 {"__ZN13IGHardwareGuC15hostToGuCActionEPKjjiPj",hostToGuCAction, this->ohostToGuCAction},
 			//{"__ZN13IGHardwareGuC16setupContextPoolEi",setupContextPool, this->osetupContextPool},
-			// {"__ZN12IGScheduler412loadFirmwareEv",loadFirmware, this->oloadFirmware},
+			 {"__ZN12IGScheduler412loadFirmwareEv",loadFirmware, this->oloadFirmware},
 			 // {"__ZN13IGHardwareGuC26setupAdditionalDataStructsEv",setupAdditionalDataStructs, this->osetupAdditionalDataStructs},
 			// {"__ZN22IGHardwareGuCWorkQueue11withOptionsEP22IOGraphicsAccelerator2jP37UK_GEN11_SCHED_PROCESS_DESCRIPTOR_REC",IGHardwareGuCWorkQueuewithOptions, this->oIGHardwareGuCWorkQueuewithOptions},
 			 //{"__ZN13IGHardwareGuC14allocContextIdEyb",allocContextId, this->oallocContextId},
@@ -3451,13 +3451,13 @@ void intel_guc_write_params(struct intel_guc *guc, void *m_accelerator)
 	
 	//intel_uncore_forcewake_get(uncore, FORCEWAKE_GT);
 	
-	Gen11::callback->SafeForceWake(m_accelerator, true, 4);
+	//Gen11::callback->SafeForceWake(m_accelerator, true, 4);
 	intel_de_write(display,  SOFT_SCRATCH(0), 0);
 
 	for (i = 0; i < GUC_CTL_MAX_DWORDS; i++)
 		intel_de_write(display,  SOFT_SCRATCH(1 + i), guc->params[i]);
 
-	Gen11::callback->SafeForceWake(m_accelerator, false, 4);
+	//Gen11::callback->SafeForceWake(m_accelerator, false, 4);
 	//intel_uncore_forcewake_put(uncore, FORCEWAKE_GT);
 }
 
@@ -3490,7 +3490,7 @@ static u32 guc_ctl_ctxinfo_flags0(struct intel_guc *guc)
 		u32 ctxnum, base;
 
 		base = intel_guc_ggtt_offset(guc, guc->stage_desc_pool);
-		ctxnum = GUC_MAX_STAGE_DESCRIPTORS / 16;
+		ctxnum = GUC_MAX_STAGE_DESCRIPTORS / 16; // 0x40
 
 		base >>= PAGE_SHIFT;
 		flags |= (base << GUC_CTL_BASE_ADDR_SHIFT) |
@@ -4064,13 +4064,13 @@ IOReturn Gen11::wrapFBClientDoAttribute(void *fbclient, uint32_t attribute, unsi
 			
 			//memset(param_4,0,0x2c);
 			AGDCVendorInfo *v=(AGDCVendorInfo*)unk3;
-			//v->Version.Raw=0;
-			//v->Version.Major=0;
-			//v->Version.Minor=0;
+			v->Version.Raw=0;
+			v->Version.Major=0;
+			v->Version.Minor=0;
 			//v->VendorID= 0x106b;
 			//*v->VendorString=*(char*)"AppleIntelBaseController";
 			//v->VendorClass=kAGDCVendorClassIntegratedGPU;
-			//v->VendorClass=kAGDCVendorClassOtherHW;// acel loader hack !!
+			v->VendorClass=kAGDCVendorClassOtherHW;// acel loader hack !! remove MetalPluginName from info.plist
 			return 0;
 	}
 	
@@ -14484,13 +14484,13 @@ static void guc_ggtt_invalidate(struct intel_gt *gt, void *m_accelerator)
 	struct drm_i915_private *i915=gt->i915;
 	struct intel_display *display = i915->display;
 	
-	Gen11::callback->SafeForceWake(m_accelerator, true, 4);
+	//Gen11::callback->SafeForceWake(m_accelerator, true, 4);
 	gen8_ggtt_invalidate(display);
 
 	intel_de_write(display, GEN12_GUC_TLB_INV_CR,
 					  GEN12_GUC_TLB_INV_CR_INVALIDATE);
 	
-	Gen11::callback->SafeForceWake(m_accelerator, false, 4);
+	//Gen11::callback->SafeForceWake(m_accelerator, false, 4);
 }
 
 static u32
@@ -14850,20 +14850,21 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	guc->ads_map.vaddr = (void*)guc->ads_vma->node.vadr;
 	guc->ads_map.is_iomem = false;
 	
-	//if (guc->fw.file_selected.ver.major < 69)
-	//	guc_init_params0(guc); //35.2
-	
 	if (guc->fw.file_selected.ver.major < 69)
+		guc_init_params0(guc); //35.2
+	
+	/*
+	 if (guc->fw.file_selected.ver.major < 69)
 	for ( i = 0; i < 6; i++)
 	guc->params[i]=getMember<u32[6]>(that, 0x8c)[i];
-		
+	*/
+	
 	if (guc->fw.file_selected.ver.major >= 69)
-	{
 		guc_init_params(guc);
 		
-		for ( i = 0; i < 6; i++)
-			getMember<u32[6]>(that, 0x8c)[i]=guc->params[i];
-	}
+	for ( i = 0; i < 6; i++)
+		getMember<u32[6]>(that, 0x8c)[i]=guc->params[i];
+	
 	
 	guc_ggtt_invalidate(gt,m_accelerator);
 	//if (guc->fw.file_selected.ver.major > 69) intel_guc_ads_reset(guc);
@@ -15712,7 +15713,7 @@ static void gen11_rc6_enable(void *that)
 	int i;
 
 	//intel_uncore_forcewake_get(uncore, FORCEWAKE_ALL);
-	Gen11::callback->SafeForceWake(that, true, 7);
+	//Gen11::callback->SafeForceWake(that, true, 7);
 	
 	if (!guc->submission_supported) {
 
@@ -15758,7 +15759,7 @@ static void gen11_rc6_enable(void *that)
 
 	intel_de_write(display, GEN9_PG_ENABLE, pg_enable);
 	
-	Gen11::callback->SafeForceWake(that, false, 7);
+	//Gen11::callback->SafeForceWake(that, false, 7);
 }
 
 
@@ -16757,7 +16758,7 @@ uint64_t Gen11::loadFirmware(void *that)
 	void *m_accelerator = getMember<void *>(that, 0x10);
 	
 	if (guc->fw.file_selected.ver.major < 69) {
-		
+		Gen11::callback->SafeForceWake(m_accelerator, true, 7);
 		gen11_rc6_enable(m_accelerator);
 		
 		//gen11_irq_reset(i915);
@@ -16766,7 +16767,7 @@ uint64_t Gen11::loadFirmware(void *that)
 		intel_guc_sample_forcewake(m_accelerator, guc);
 		intel_guc_submission_enable0(guc);
 		//intel_guc_resume0(m_accelerator, guc);
-		
+		Gen11::callback->SafeForceWake(m_accelerator, false, 7);
 	}
 	
 	return ret;

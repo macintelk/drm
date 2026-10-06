@@ -291,7 +291,5 @@
 	<string>0.0.0.0.0</string>
 	<key>IOVARendererID</key>
 	<integer>17301568</integer>
-	<key>MetalPluginName</key>
-	<string>AppleIntelTGLGraphicsMTLDriver</string>
 </dict>
 </plist>
