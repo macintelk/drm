@@ -165,7 +165,7 @@
 		<key>ForceDisableEDRAM</key>
 		<integer>0</integer>
 		<key>GraphicsSchedulerSelect</key>
-		<integer>4</integer>
+		<integer>5</integer>
 		<key>MetalCoalesce</key>
 		<integer>1</integer>
 		<key>MultiForceWakeSelect</key>
@@ -227,8 +227,6 @@
 	<string>IntelAccelerator</string>
 	<key>IODVDBundleName</key>
 	<string>AppleIntelTGLGraphicsVADriver</string>
-	<key>IOGLBundleName</key>
-	<string>AppleIntelTGLGraphicsGLDriver</string>
 	<key>IOGVABGRAEnc</key>
 	<string>Gen10</string>
 	<key>IOGVACodec</key>

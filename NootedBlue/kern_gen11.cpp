@@ -14824,7 +14824,7 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	
 	intel_wopcm_init(gt, sizeof(struct uc_css_header) + guc->fw.ucode_size);
 	
-	gen11_reset_guc_interrupts(gt);
+	gen11_disable_guc_interrupts(gt);
 	__reset_guc(gt);
 	
 	_guc_log_init_sizes(&guc->log);
@@ -14850,8 +14850,7 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	guc->ads_map.vaddr = (void*)guc->ads_vma->node.vadr;
 	guc->ads_map.is_iomem = false;
 	
-	if (guc->fw.file_selected.ver.major < 69)
-		guc_init_params0(guc); //35.2
+	if (guc->fw.file_selected.ver.major < 69) guc_init_params0(guc); //35.2
 	
 	/*
 	 if (guc->fw.file_selected.ver.major < 69)
@@ -14859,12 +14858,10 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	guc->params[i]=getMember<u32[6]>(that, 0x8c)[i];
 	*/
 	
-	if (guc->fw.file_selected.ver.major >= 69)
-		guc_init_params(guc);
+	if (guc->fw.file_selected.ver.major >= 69)	guc_init_params(guc);
 		
 	for ( i = 0; i < 6; i++)
 		getMember<u32[6]>(that, 0x8c)[i]=guc->params[i];
-	
 	
 	guc_ggtt_invalidate(gt,m_accelerator);
 	//if (guc->fw.file_selected.ver.major > 69) intel_guc_ads_reset(guc);
@@ -16763,6 +16760,8 @@ uint64_t Gen11::loadFirmware(void *that)
 		
 		//gen11_irq_reset(i915);
 		//gen11_irq_postinstall(i915);
+		
+		gen11_enable_guc_interrupts(gt);
 		
 		intel_guc_sample_forcewake(m_accelerator, guc);
 		intel_guc_submission_enable0(guc);
