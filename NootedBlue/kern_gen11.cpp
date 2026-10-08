@@ -95,8 +95,8 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			
 			{"__ZN14AppleIntelPort8writeAUXEjPvj",writeAUX, this->owriteAUX},
 			{"__ZN14AppleIntelPort7readAUXEjPvj",readAUX, this->oreadAUX},
-			{"__ZN31AppleIntelFramebufferController15enableVDDForAuxEP14AppleIntelPort",enableVDDForAux2, this->oenableVDDForAux2},
-			{"__ZN31AppleIntelFramebufferController16disableVDDForAuxEP14AppleIntelPort",disableVDDForAux2, this->odisableVDDForAux2},
+			//{"__ZN31AppleIntelFramebufferController15enableVDDForAuxEP14AppleIntelPort",enableVDDForAux2, this->oenableVDDForAux2},
+			//{"__ZN31AppleIntelFramebufferController16disableVDDForAuxEP14AppleIntelPort",disableVDDForAux2, this->odisableVDDForAux2},
 			{"__ZN31AppleIntelFramebufferController15hwSetPanelPowerEj",hwSetPanelPower, this->ohwSetPanelPower},
 			{"__ZN14AppleIntelPort12linkTrainingEP18AGDCDPPortConfig_t",linkTraining, this->olinkTraining},
 			//{"__ZN21AppleIntelFramebuffer19getPixelInformationEiiiP18IOPixelInformation",fgetPixelInformation, this->ofgetPixelInformation},
@@ -119,12 +119,12 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			{"__ZN31AppleIntelFramebufferController13probeBootPipeEPbPN17AppleIntelPortHAL3DDIE",probeBootPipe, this->oprobeBootPipe},
 			//{"__ZN19AppleIntelPowerWell4initEP31AppleIntelFramebufferController",AppleIntelPowerWellinit, this->oAppleIntelPowerWellinit},
 			{"__ZN19AppleIntelPowerWell19enableDisplayEngineEv",enableDisplayEngine, this->oenableDisplayEngine},
-			{"__ZN19AppleIntelPowerWell23overridePowerWellsStateEb",overridePowerWellsState, this->ooverridePowerWellsState},
+			/*{"__ZN19AppleIntelPowerWell23overridePowerWellsStateEb",overridePowerWellsState, this->ooverridePowerWellsState},
 			{"__ZN19AppleIntelPowerWell19disablePowerWellAuxEj",disablePowerWellAux, this->odisablePowerWellAux},
 			{"__ZN19AppleIntelPowerWell19disablePowerWellDDIEj",disablePowerWellDDI, this->odisablePowerWellDDI},
-			{"__ZN19AppleIntelPowerWell18disablePowerWellPGEj",disablePowerWellPG, this->odisablePowerWellPG},
+			{"__ZN19AppleIntelPowerWell18disablePowerWellPGEj",disablePowerWellPG, this->odisablePowerWellPG},*/
 			//{"__ZN20IntelFBClientControl11doAttributeEjPmmS0_S0_P25IOExternalMethodArguments",wrapFBClientDoAttribute,	this->orgFBClientDoAttribute},
-			
+			{"__ZN31AppleIntelFramebufferController10processCmdEjPmmS0_S0_",fbprocessCmd, this->ofbprocessCmd},
 			
 			
 			{"__ZN31AppleIntelFramebufferController18hwEnableInterruptsEv",hwEnableInterrupts, this->ohwEnableInterrupts},
@@ -162,6 +162,9 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		static const uint8_t f9c[]= {0x74, 0x1f, 0x85, 0xc0, 0x0f, 0x85, 0x81, 0x00, 0x00, 0x00};
 		static const uint8_t r9c[]= {0x90, 0x90, 0x85, 0xc0, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90};
 		
+		//setupPlanarSurfaceDBUF
+		static const uint8_t f10[]= {0x74, 0x31, 0x48, 0x89, 0xfb, 0x8b, 0x87, 0x94, 0x00, 0x00, 0x00, 0x85, 0xc0, 0x74, 0x24};
+		static const uint8_t r10[]= {0x90, 0x90, 0x48, 0x89, 0xfb, 0x8b, 0x87, 0x94, 0x00, 0x00, 0x00, 0x85, 0xc0, 0x90, 0x90};
 		
 		//register adresses
 		static const uint8_t f24b[]= {0xbe, 0x40, 0xf8, 0x06, 0x00};
@@ -190,6 +193,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			{&kextG11FB, f9, r9, arrsize(f9),    1},
 			{&kextG11FB, f9b, r9b, arrsize(f9b),    1},
 			{&kextG11FB, f9c, r9c, arrsize(f9c),    1},
+			{&kextG11FB, f10, r10, arrsize(f10),    1},
 			{&kextG11FB, f24b, r24b, arrsize(f24b),    12},
 			{&kextG11FB, f24c, r24c, arrsize(f24c),    1},
 			{&kextG11FB, f24d, r24d, arrsize(f24d),    10},
@@ -282,7 +286,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			{"__ZN14AppleIntelPort11setPortModeENS_8PortModeE",setPortMode, this->osetPortMode},
 			
 			
-			{"__ZN20IntelFBClientControl11doAttributeEjPmmS0_S0_P25IOExternalMethodArguments",wrapFBClientDoAttribute,	this->orgFBClientDoAttribute},
+			//{"__ZN20IntelFBClientControl11doAttributeEjPmmS0_S0_P25IOExternalMethodArguments",wrapFBClientDoAttribute,	this->orgFBClientDoAttribute},
 			{"__ZN31AppleIntelFramebufferController10processCmdEjPmmS0_S0_",fbprocessCmd, this->ofbprocessCmd},
 			
 			//{"__ZN24AppleIntelBaseController21getCallbackCapabilityEP24AGDCCallbackCapability_t",getCallbackCapability, this->ogetCallbackCapability},
@@ -317,8 +321,8 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 				{"__ZN31AppleIntelFramebufferController18setAsyncSliceCountE13IGSliceConfig",setAsyncSliceCount, this->osetAsyncSliceCount},
 				{"__ZN31AppleIntelFramebufferController9hwGetCRTCEP21AppleIntelFramebufferP21AppleIntelDisplayPath",hwGetCRTC, this->ohwGetCRTC},
 				{"__ZN31AppleIntelFramebufferController21hwSetPanelPowerConfigEj", hwSetPanelPowerConfig,this->ohwSetPanelPowerConfig},
-				{"__ZN31AppleIntelFramebufferController15enableVDDForAuxEP14AppleIntelPort",enableVDDForAux, this->oenableVDDForAux},
-				{"__ZN31AppleIntelFramebufferController16disableVDDForAuxEv",disableVDDForAux, this->odisableVDDForAux},
+				//{"__ZN31AppleIntelFramebufferController15enableVDDForAuxEP14AppleIntelPort",enableVDDForAux, this->oenableVDDForAux},
+				//{"__ZN31AppleIntelFramebufferController16disableVDDForAuxEv",disableVDDForAux, this->odisableVDDForAux},
 				{"__ZN21AppleIntelFramebuffer4initEP31AppleIntelFramebufferControllerj",AppleIntelFramebufferinit, this->oAppleIntelFramebufferinit},
 				{"__ZN31AppleIntelFramebufferController13FBMemMgr_InitEv", FBMemMgr_Init,this->oFBMemMgr_Init},
 				{"__ZN31AppleIntelFramebufferController23initPlatformWorkaroundsEv",initPlatformWorkarounds, this->oinitPlatformWorkarounds},
@@ -348,8 +352,8 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 				{"__ZN24AppleIntelBaseController18setAsyncSliceCountE13IGSliceConfig",setAsyncSliceCount, this->osetAsyncSliceCount},
 				{"__ZN24AppleIntelBaseController9hwGetCRTCEP21AppleIntelFramebufferP21AppleIntelDisplayPath",hwGetCRTC, this->ohwGetCRTC},
 				{"__ZN24AppleIntelBaseController21hwSetPanelPowerConfigEj", hwSetPanelPowerConfig,this->ohwSetPanelPowerConfig},
-				{"__ZN24AppleIntelBaseController15enableVDDForAuxEP14AppleIntelPort",enableVDDForAux, this->oenableVDDForAux},
-				{"__ZN24AppleIntelBaseController16disableVDDForAuxEv",disableVDDForAux, this->odisableVDDForAux},
+				//{"__ZN24AppleIntelBaseController15enableVDDForAuxEP14AppleIntelPort",enableVDDForAux, this->oenableVDDForAux},
+				//{"__ZN24AppleIntelBaseController16disableVDDForAuxEv",disableVDDForAux, this->odisableVDDForAux},
 				{"__ZN21AppleIntelFramebuffer4initEP24AppleIntelBaseControllerj",AppleIntelFramebufferinit, this->oAppleIntelFramebufferinit},
 				{"__ZN24AppleIntelBaseController13FBMemMgr_InitEv", FBMemMgr_Init,this->oFBMemMgr_Init},
 				{"__ZN24AppleIntelBaseController23initPlatformWorkaroundsEv",initPlatformWorkarounds, this->oinitPlatformWorkarounds},
@@ -508,6 +512,11 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			 // {"__ZN13IGHardwareGuC26setupAdditionalDataStructsEv",setupAdditionalDataStructs0, this->osetupAdditionalDataStructs0},
 			 //{"__ZN20IGHardwareRingBuffer12waitForSpaceEj",waitForSpace, this->owaitForSpace},
 			 //{"__ZN16IntelAccelerator31initHardwareStatusPageRegistersEv",initHardwareStatusPageRegisters, this->oinitHardwareStatusPageRegisters},
+			
+			
+			{"__ZL27ContextStatusBufferValidateRK15IGHwCsExecList5PK28SGfxContextStatusBufferEntry.cold.1",dovoid},
+			{"__ZL27ContextStatusBufferValidateRK15IGHwCsExecList5PK28SGfxContextStatusBufferEntry.cold.2",dovoid},
+			{"__ZN20IGHardwareRingBuffer11waitTimeoutEU13block_pointerFbvE.cold.1",dovoid},
 			 
 		 };
 		PANIC_COND(!patcher.routeMultipleLong(index, requests, address, size), "nblue","Failed to route symbols");
@@ -535,9 +544,6 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		static const uint8_t r4[] = {0xe8, 0xce, 0x00, 0x00};
 		
 		//startGraphicsEngine
-		static const uint8_t f5[] = {0xba, 0x02, 0x00, 0x00, 0x00, 0xe8, 0xce, 0x5d, 0x05, 0x00, 0x48, 0x85, 0xc0, 0x0f, 0x84, 0xf7, 0x01, 0x00, 0x00};
-		static const uint8_t r5[] = {0xba, 0x02, 0x00, 0x00, 0x00, 0xe8, 0xce, 0x5d, 0x05, 0x00, 0x48, 0x85, 0xc0, 0x48, 0xe9, 0xaf, 0x00, 0x00, 0x00};
-		
 		static const uint8_t f5a[] = {0xf6, 0x83, 0x40, 0x13, 0x00, 0x00, 0x02};
 		static const uint8_t r5a[] = {0xf6, 0x83, 0x40, 0x13, 0x00, 0x00, 0x08};
 		
@@ -547,11 +553,10 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		LookupPatchPlus const patches[] = {
 			{&kextG11HW, f2, r2, arrsize(f2),	1},
 			{&kextG11HW, f2a, r2a, arrsize(f2a),	1},
-			/*{&kextG11HW, f3, r3, arrsize(f3),	1},
+			{&kextG11HW, f3, r3, arrsize(f3),	1},
 			{&kextG11HW, f3a, r3a, arrsize(f3a),	1},
-			{&kextG11HW, f3b, r3b, arrsize(f3b),	1},*/
+			{&kextG11HW, f3b, r3b, arrsize(f3b),	1},
 			{&kextG11HW, f4, r4, arrsize(f4),	22},
-			{&kextG11HW, f5, r5, arrsize(f5),	1},
 			{&kextG11HW, f5a, r5a, arrsize(f5a),	1},
 			{&kextG11HW, f5b, r5b, arrsize(f5b),	1},
 			
@@ -2668,11 +2673,10 @@ skipp:
 	
 	getMember<uint32_t>(that, 0x100)=plane_ctl;//PLANE_CTL
 	//getMember<uint32_t>(that, 0x104)=plane_color_ctl;//PLANE_COLOR_CTL
-	//getMember<uint32_t>(that, 0x120)=base;//PLANE_SURF
+	//getMember<uint32_t>(that, 0x120)=base;//PLANE_SURF  icl bar0 tgl bar 2 ???????
 	//getMember<uint32_t>(that, 0x110)=offset;//PLANE_OFFSET
 	//getMember<uint32_t>(that, 0x11c)=size;//PLANE_SIZE
 	getMember<uint32_t>(that, 0x118)=stride;//PLANE_STRIDE
-	
 
 	//getMember<uint32_t>(that, 0x100)=0x84000400;//PLANE_CTL linux 0x84000400
 	//getMember<uint32_t>(that, 0x118)=0xd;//PLANE_STRIDE linux 0x0000000d
@@ -4075,9 +4079,9 @@ IOReturn Gen11::wrapFBClientDoAttribute(void *fbclient, uint32_t attribute, unsi
 	}
 	
 	
-	if (attribute == 0x923 && kexticl) {
+	/*if (attribute == 0x923 && kexticl) {
 		return kIOReturnUnsupported;
-	}
+	}*/
 	
 	return FunctionCast(wrapFBClientDoAttribute, callback->orgFBClientDoAttribute)(fbclient, attribute, unk1, unk2, unk3, unk4,  externalMethodArguments);
 }
@@ -6949,7 +6953,7 @@ void intel_dmc_enable_pipe(const struct intel_crtc_state *crtc_state, enum pipe 
 	else if (need_pipedmc_load_mmio(display, pipe))
 		dmc_load_mmio(display, dmc_id);
 
-	assert_dmc_loaded(display, dmc_id);
+	//assert_dmc_loaded(display, dmc_id); // icl kp
 
 	intel_de_rmw(display, PIPEDMC_CONTROL(pipe), 0, PIPEDMC_ENABLE);
 	
@@ -8213,8 +8217,10 @@ void Gen11::enablePipe(void *that,void *param_1, void *param_2,void *param_3)
 	struct intel_crtc_state *crtc_state =&display->crtc_state0;
 	
 	uint32_t fbNum = getMember<uint32_t>(param_1, 0x1dc);
-	enum pipe pipe=fbNum==0 ? PIPE_A: PIPE_B;
+	enum pipe pipe= PIPE_A;
 	enum intel_dmc_id dmc_id = (enum intel_dmc_id)PIPE_TO_DMC_ID(pipe);
+	
+	if (fbNum!=0) return;
 	
 	icl_set_pipe_chicken(pipe);
 	
@@ -14551,47 +14557,31 @@ static bool gen11_gt_reset_one_iir(struct intel_gt *gt,
 static bool gen11_reset_guc_interrupts(struct intel_gt *gt)
 {
 	u32 irq = gt->type == GT_MEDIA ? MTL_MGUC : GEN11_GUC;
-
-
 	//lockdep_assert_held(gt->irq_lock);
 	return gen11_gt_reset_one_iir(gt, 0, irq);
 }
 
 
 
+
+
 static void gen11_enable_guc_interrupts(struct intel_gt *gt)
 {
-	struct drm_i915_private *i915=gt->i915;
-	struct intel_display *display = i915->display;
-	
-	u32 events = REG_FIELD_PREP(ENGINE1_MASK, GUC_INTR_GUC2HOST);
 
-	//spin_lock_irq(&gt->irq_lock);
-	//WARN_ON_ONCE(gen11_gt_reset_one_iir(gt, 0, GEN11_GUC));
-	gen11_gt_reset_one_iir(gt, 0, GEN11_GUC);
-	
-	intel_de_write(display,
-			   GEN11_GUC_SG_INTR_ENABLE, events);
-	intel_de_write(display,
-			   GEN11_GUC_SG_INTR_MASK, ~events);
-	//spin_unlock_irq(&gt->irq_lock);
+	//spin_lock_irq(gt->irq_lock);
+	gen11_reset_guc_interrupts(gt);
+	//spin_unlock_irq(gt->irq_lock);
+
+	//guc->interrupts.enabled = true;
 }
 
 static void gen11_disable_guc_interrupts(struct intel_gt *gt)
 {
-	struct drm_i915_private *i915=gt->i915;
-	struct intel_display *display = i915->display;
-	//spin_lock_irq(&gt->irq_lock);
 
-	intel_de_write(display, GEN11_GUC_SG_INTR_MASK, ~0);
-	intel_de_write(display, GEN11_GUC_SG_INTR_ENABLE, 0);
-
-	//spin_unlock_irq(&gt->irq_lock);
+	//guc->interrupts.enabled = false;
 	//intel_synchronize_irq(gt->i915);
-
 	gen11_reset_guc_interrupts(gt);
 }
-
 
 
 
@@ -14679,6 +14669,21 @@ static void __guc_ads_init0(void *that )
 	blob->ads.clients_info = base + ptr_offset(blob, clients_info);
 
 	//i915_gem_object_flush_map(guc->ads_vma->obj);
+}
+
+
+
+static void tgl_setup_private_ppat(struct intel_display *display)
+{
+	/* TGL doesn't support LLC or AGE settings */
+	intel_de_write(display, GEN12_PAT_INDEX(0), GEN8_PPAT_WB);
+	intel_de_write(display, GEN12_PAT_INDEX(1), GEN8_PPAT_WC);
+	intel_de_write(display, GEN12_PAT_INDEX(2), GEN8_PPAT_WT);
+	intel_de_write(display, GEN12_PAT_INDEX(3), GEN8_PPAT_UC);
+	intel_de_write(display, GEN12_PAT_INDEX(4), GEN8_PPAT_WB);
+	intel_de_write(display, GEN12_PAT_INDEX(5), GEN8_PPAT_WB);
+	intel_de_write(display, GEN12_PAT_INDEX(6), GEN8_PPAT_WB);
+	intel_de_write(display, GEN12_PAT_INDEX(7), GEN8_PPAT_WB);
 }
 
 unsigned long Gen11::loadGuCBinary(void *that)
@@ -14824,8 +14829,10 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	
 	intel_wopcm_init(gt, sizeof(struct uc_css_header) + guc->fw.ucode_size);
 	
+	tgl_setup_private_ppat(display);
+	
 	gen11_disable_guc_interrupts(gt);
-	__reset_guc(gt);
+	//__reset_guc(gt);
 	
 	_guc_log_init_sizes(&guc->log);
 	void *t=getMember<void*>(that, 0x60);
@@ -14863,7 +14870,7 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	for ( i = 0; i < 6; i++)
 		getMember<u32[6]>(that, 0x8c)[i]=guc->params[i];
 	
-	guc_ggtt_invalidate(gt,m_accelerator);
+	//guc_ggtt_invalidate(gt,m_accelerator);
 	//if (guc->fw.file_selected.ver.major > 69) intel_guc_ads_reset(guc);
 	//if (guc->fw.file_selected.ver.major < 69) __guc_ads_init0();
 

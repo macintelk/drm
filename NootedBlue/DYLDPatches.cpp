@@ -97,6 +97,25 @@ void DYLDPatches::wrapCsValidatePage(vnode *vp, memory_object_t pager, memory_ob
 					DYLDPatch::applyAll(patches, const_cast<void *>(data), PAGE_SIZE);
 					return;
 				}
+				
+				if ((!strncmp(path, ICLGraphicsMTLDriver, arrsize(ICLGraphicsMTLDriver)) )) {
+					const DYLDPatch patches[] = {
+						{kICLGraphicsMTLDrivero, kICLGraphicsMTLDriverp, "gpuid mtl path"},
+					};
+					DYLDPatch::applyAll(patches, const_cast<void *>(data), PAGE_SIZE);
+					return;
+				}
+				
+				/*if ((!strncmp(path, ICLGraphicsGLDriver, arrsize(ICLGraphicsGLDriver)) )) {
+					const DYLDPatch patches[] = {
+						{glf1i, glr1i, "sku"},
+						{glf2i, glr2i, "compiler fam"},
+						{glf2ai, glr2ai, "compiler fam"},
+					};
+					DYLDPatch::applyAll(patches, const_cast<void *>(data), PAGE_SIZE);
+					return;
+				}*/
+				
 			}
 			
 			if (ok && NBlue::callback->tglid) {

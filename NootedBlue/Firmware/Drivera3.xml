@@ -227,6 +227,8 @@
 	<string>IntelAccelerator</string>
 	<key>IODVDBundleName</key>
 	<string>AppleIntelTGLGraphicsVADriver</string>
+	<key>IOGLBundleName</key>
+	<string>AppleIntelTGLGraphicsGLDriver</string>
 	<key>IOGVABGRAEnc</key>
 	<string>Gen10</string>
 	<key>IOGVACodec</key>
@@ -289,5 +291,7 @@
 	<string>0.0.0.0.0</string>
 	<key>IOVARendererID</key>
 	<integer>17301568</integer>
+	<key>MetalPluginName</key>
+	<string>AppleIntelTGLGraphicsMTLDriver</string>
 </dict>
 </plist>

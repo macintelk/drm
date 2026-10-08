@@ -13368,6 +13368,25 @@ static const u8 infoframe_type_to_idx[] = {
 
 #define HAS_RC6(i915)		 (INTEL_INFO(i915)->has_rc6)
 
+#define CHV_PPAT_SNOOP			REG_BIT(6)
+#define GEN8_PPAT_AGE(x)		((x)<<4)
+#define GEN8_PPAT_LLCeLLC		(3<<2)
+#define GEN8_PPAT_LLCELLC		(2<<2)
+#define GEN8_PPAT_LLC			(1<<2)
+#define GEN8_PPAT_WB			(3<<0)
+#define GEN8_PPAT_WT			(2<<0)
+#define GEN8_PPAT_WC			(1<<0)
+#define GEN8_PPAT_UC			(0<<0)
+#define GEN8_PPAT_ELLC_OVERRIDE		(0<<2)
+#define GEN8_PPAT(i, x)			((u64)(x) << ((i) * 8))
+
+#define GEN12_PAT_INDEX(index)			_MMIO(0x4800 + (index) * 4)
+#define _PAT_INDEX(index)			_PICK_EVEN_2RANGES(index, 8, \
+								   0x4800, 0x4804, \
+								   0x4848, 0x484c)
+
+
+
 
 
 
