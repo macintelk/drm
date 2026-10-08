@@ -6,13 +6,13 @@
 
 2) nblue setup
 
-use le_kexts.sh to install tgl frame+graph kexts
+use le_kexts.sh to install tgl frame+hook and graph kexts. e.g. drag LE/Library to terminal not LE !
 
 opencore boot args: debug=0x144 keepsyms=1 IGLogLevel=0xe
 
 add -allow3d to load graphics
    
-add you igpu to opencore DeviceProperties (e.g PciRoot(0x0)/Pci(0x2,0x0))
+add your igpu to opencore DeviceProperties (e.g PciRoot(0x0)/Pci(0x2,0x0))
 
 <img width="863" height="146" alt="Captura de ecrã 2026-08-14, às 20 14 17" src="https://github.com/user-attachments/assets/6c47509d-867a-4486-8dfd-d1b6b3646fdf" />
 
