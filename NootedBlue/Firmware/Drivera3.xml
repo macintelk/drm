@@ -169,7 +169,7 @@
 		<key>MetalCoalesce</key>
 		<integer>1</integer>
 		<key>MultiForceWakeSelect</key>
-		<integer>1</integer>
+		<integer>0</integer>
 		<key>NewUtilizationAlgorithmEnable</key>
 		<integer>1</integer>
 		<key>PPGTT</key>

@@ -12521,10 +12521,10 @@ void Gen11::SetupParams2 (void *param_2, CRTCParams *param_3)
 		setpc=0;
 
 		param_3->TRANS_CLK_SEL=intel_ddi_enable_transcoder_clock(crtc_state,true);
-		param_3->TRANS_MSA_MISC =intel_ddi_set_dp_msa(display, false);
+		/*param_3->TRANS_MSA_MISC =intel_ddi_set_dp_msa(display, false);
 		param_3->TRANS_DDI_FUNC_CTL= intel_ddi_transcoder_func_reg_val_get();
 		param_3->PIPE_MISC=bdw_set_pipe_misc();
-		param_3->TRANSCONF= 0xc0000024;
+		param_3->TRANSCONF= 0xc0000024;*/
 		
 		/*int fScanoutHeight=getMember<int>(param_2, kexticl ? 0x2fc : 0xfc);
 		int fLinkScanoutWidth=getMember<int>(param_2, kexticl ? 0x2f8 : 0xf8);
@@ -13100,7 +13100,7 @@ void  Gen11::AppleIntelPowerWellinit(void *that0, void *param_1)
 	
 	//if (bootPipe != 0xffff && that->PG1 == 0 && getMember<u32>(param_1, 0xd5c) /*that->contr->NumFrameBuffers*/ != 0) {
 	if (bootPipe != 0xffff && that->PG1 == 0){
-	enableDisplayEngine(that0);
+	enableDisplayEngine(that);
 	}
 
 	int max=kexticl ? 6:9;
@@ -13117,7 +13117,7 @@ void  Gen11::AppleIntelPowerWellinit(void *that0, void *param_1)
 				if (i >= 3) {
 					if (port_type != 2) {
 						//drm_err(display->drm, "EFI should not enable AUX%d power well - overriding\n", i);
-						disablePowerWellAux(that0, i);
+						disablePowerWellAux(that, i);
 						(&that->AUXA)[i] = 0; // Clear local state
 					}
 				}
@@ -13125,12 +13125,12 @@ void  Gen11::AppleIntelPowerWellinit(void *that0, void *param_1)
 		} else {
 			if ((&that->DDIA)[i] != 0) {
 				//drm_err(display->drm, "EFI should not enable DDI%d power well - overriding\n", i);
-				disablePowerWellDDI(that0, i);
+				disablePowerWellDDI(that, i);
 				(&that->DDIA)[i] = 0; // Clear local state
 			}
 			if ((&that->AUXA)[i] != 0) {
 				//drm_err(display->drm, "EFI should not enable AUX%d power well - overriding\n", i);
-				disablePowerWellAux(that0, i);
+				disablePowerWellAux(that, i);
 				(&that->AUXA)[i] = 0; // Clear local state
 			}
 		}
@@ -13138,21 +13138,21 @@ void  Gen11::AppleIntelPowerWellinit(void *that0, void *param_1)
 
 
 	if (bootPipe == 0) {
-		if (pg5_enabled) { that->PG1 = 2; disablePowerWellPG(that0, 5); pg5_enabled = 0; }
-		if (that->PG4) { that->PG1 = 2; disablePowerWellPG(that0, 4); that->PG4 = 0; }
-		if (that->PG3) { that->PG1 = 2; disablePowerWellPG(that0, 3); that->PG3 = 0; }
-		if (that->PG2) { that->PG1 = 2; disablePowerWellPG(that0, 2); that->PG2 = 0; }
+		if (pg5_enabled) { that->PG1 = 2; disablePowerWellPG(that, 5); pg5_enabled = 0; }
+		if (that->PG4) { that->PG1 = 2; disablePowerWellPG(that, 4); that->PG4 = 0; }
+		if (that->PG3) { that->PG1 = 2; disablePowerWellPG(that, 3); that->PG3 = 0; }
+		if (that->PG2) { that->PG1 = 2; disablePowerWellPG(that, 2); that->PG2 = 0; }
 	}
 	else if (bootPipe == 1) {
-		if (pg5_enabled) { that->PG1 = 2; that->PG2 = 2; that->PG3 = 2; that->PG4 = 2; disablePowerWellPG(that0, 5); pg5_enabled = 0; }
-		if (that->PG4) { that->PG1 = 2; that->PG2 = 2; that->PG3 = 2; disablePowerWellPG(that0, 4); that->PG4 = 0; }
+		if (pg5_enabled) { that->PG1 = 2; that->PG2 = 2; that->PG3 = 2; that->PG4 = 2; disablePowerWellPG(that, 5); pg5_enabled = 0; }
+		if (that->PG4) { that->PG1 = 2; that->PG2 = 2; that->PG3 = 2; disablePowerWellPG(that, 4); that->PG4 = 0; }
 	}
 	else if (bootPipe == 0xffff) {
-		if (pg5_enabled) { disablePowerWellPG(that0, 5); pg5_enabled = 0; }
-		if (that->PG4) { disablePowerWellPG(that0, 4); that->PG4 = 0; }
-		if (that->PG3) { disablePowerWellPG(that0, 3); that->PG3 = 0; }
-		if (that->PG2) { disablePowerWellPG(that0, 2); that->PG2 = 0; }
-		if (that->PG1) { disablePowerWellPG(that0, 1); that->PG1 = 0; }
+		if (pg5_enabled) { disablePowerWellPG(that, 5); pg5_enabled = 0; }
+		if (that->PG4) { disablePowerWellPG(that, 4); that->PG4 = 0; }
+		if (that->PG3) { disablePowerWellPG(that, 3); that->PG3 = 0; }
+		if (that->PG2) { disablePowerWellPG(that, 2); that->PG2 = 0; }
+		if (that->PG1) { disablePowerWellPG(that, 1); that->PG1 = 0; }
 	}
 
 	if (kexticl){
@@ -13171,7 +13171,7 @@ void  Gen11::AppleIntelPowerWellinit(void *that0, void *param_1)
 		}
 	}
 	if (that->powerwellalwaysON != '\0') {
-		overridePowerWellsState(that0, true);
+		overridePowerWellsState(that, true);
 	}
 }
 
