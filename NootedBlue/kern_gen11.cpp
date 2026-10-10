@@ -4033,129 +4033,132 @@ void  Gen11::releaseDoorbellId(void *that,unsigned short param_1)
 
 void Gen11::releaseDoorbell(void* self, void* ctxDesc)
 {
-	FunctionCast(releaseDoorbell, callback->oreleaseDoorbell)( self,ctxDesc);
+	//FunctionCast(releaseDoorbell, callback->oreleaseDoorbell)( self,ctxDesc);
+	releaseDoorbell2(self,(guc_ct_buffer_desc0*)ctxDesc);
+}
+
+void Gen11::releaseDoorbell2(void* self, guc_ct_buffer_desc0* ctxDesc)
+{
+	intel_guc_ct0* ct = getMember<intel_guc_ct0*>(self, 0x50);
+
+	uint32_t db_id    = ctxDesc->status;
+	uint16_t per      = getMember<uint16_t>(self, 0x9e0);
+	uint64_t slot     = (uint16_t)(db_id & 0xffff) % per;
+	uint32_t bank_sel = (((db_id & 0xff) / per) & 7) << 0x18;
+
+	ct->ctbs[(uint64_t)(uint32_t)ctxDesc->host_private * 2].desc->addr = 0;
+
+	#define MTL_MCR_SELECTOR			_MMIO(0xfd4)
+	
+	void* acel = getMember<void*>(self, 0x38);
+	volatile uint8_t* m = getMember<volatile uint8_t*>(acel, 0x1240);
+
+	uint32_t saved = *(volatile uint32_t*)(m + MTL_MCR_SELECTOR);
+	*(volatile uint32_t*)(m + MTL_MCR_SELECTOR) = bank_sel;
+	uint32_t d0 = *(volatile uint32_t*)(m + 0x1000 + slot * 8);
+	*(volatile uint32_t*)(m + MTL_MCR_SELECTOR) = saved;
+	*(volatile uint32_t*)(m + 0x1000 + slot * 8) = d0 & 0xFFFFFFFE;
+
+	saved = *(volatile uint32_t*)(m + MTL_MCR_SELECTOR);
+	*(volatile uint32_t*)(m + MTL_MCR_SELECTOR) = bank_sel;
+	*(volatile uint32_t*)(m + 0x1004 + slot * 8) = 0;
+	*(volatile uint32_t*)(m + MTL_MCR_SELECTOR) = saved;
+
+	saved = *(volatile uint32_t*)(m + MTL_MCR_SELECTOR);
+	*(volatile uint32_t*)(m + MTL_MCR_SELECTOR) = bank_sel;
+	*(volatile uint32_t*)(m + 0x1000 + slot * 8) = 0;
+	*(volatile uint32_t*)(m + MTL_MCR_SELECTOR) = saved;
+
+
+	uint32_t msg[2] = { 0x20, (uint32_t)ctxDesc->host_private };
+	hostToGuCAction(self, msg, 2, 0xf, nullptr);
+
+	releaseDoorbellId(self, (uint16_t)db_id);
+	*(void**)((uint8_t*)self + 0x1e0 + (uint64_t)(db_id & 0xffff) * 8) = nullptr;
+
+	ctxDesc->status = 0x100;
 }
 
 unsigned short Gen11::acquireDoorbell(void* self, void* param_1, bool param_2)
 {
 	//return FunctionCast(acquireDoorbell, callback->oacquireDoorbell)( self,param_1,param_2);
 	
-	return acquireDoorbell2(self,(guc_ct_buffer_desc0*)param_1,param_2); // old guc firmware
+	return acquireDoorbell2(self,(guc_ct_buffer_desc0*)param_1,param_2); // old guc firmware only !!
 }
 
-unsigned short Gen11::acquireDoorbell2(void *that, guc_ct_buffer_desc0 *param_1, bool param_2)
+unsigned short Gen11::acquireDoorbell2(void* that, guc_ct_buffer_desc0* param_1, bool param_2)
 {
-	struct intel_display *display = NBlue::callback->i915b->display;
-	
-	intel_guc_ct0 *piVar1;
-	void *pIVar2;
-	long *plVar3;
-	u32 *puVar4;
-	char cVar5;
-	uint uVar6;
-	guc_ct_buffer_desc0 *pgVar7;
-	ushort uVar8;
-	unsigned long uVar9;
-	unsigned long uVar10;
-	uint local_5c;
-	unsigned long local_58;
-	intel_guc_ct0 *local_50;
-	ushort db_id;
-	uint local_40;
-	u32 local_3c;
-	long local_38;
-	
+	intel_guc_ct0* ct = getMember<intel_guc_ct0*>(that, 0x50);
+	uint64_t hp = (uint32_t)param_1->host_private;
 
-	uVar10 = (unsigned long)(uint)param_1->host_private;
-	piVar1 = getMember<intel_guc_ct0*>(that, 0x50);
-	pgVar7 = piVar1->ctbs[uVar10 * 2].desc;
-	if (pgVar7->addr == 0) {
-		  
-				   db_id = allocDoorbellId(that);
-						  
-				  if (db_id == 0x100) {
-					  db_id = stealDoorbellId(that);
-					  
-					  void* db_entry_val = getMember<void*>(that, 0x1e0 + static_cast<uint64_t>(db_id) * 8);
-					  
-					  if (!db_entry_val) {
-						  uint16_t db_per_client = getMember<uint16_t>(that, 0x9e0);
-						  uint16_t local_db_idx = db_id % db_per_client;
-						  uint32_t client_idx = db_id / db_per_client;
-						  uint32_t word_off = (local_db_idx >> 5) * 4;
-						  uint32_t client_off = client_idx * 0x20;
-						  
-						  uint32_t& bitmap_val = getMember<uint32_t>(that, 0xdc + word_off + client_off);
-						  bitmap_val &= ~(1 << (local_db_idx & 0x1f));
-						  
-						  return 0x100;
-					  }
-					  
-					  releaseDoorbell(that, db_entry_val);
+	guc_ct_buffer_desc0* ctb_desc = ct->ctbs[hp * 2].desc;
+	if (ctb_desc->addr != 0)
+		return (unsigned short)param_1->status;
 
-					  uint16_t db_per_client = getMember<uint16_t>(that, 0x9e0);
-					  uint16_t local_db_idx = db_id % db_per_client;
-					  uint32_t client_idx = db_id / db_per_client;
-					  
-					  uint32_t word_off = (local_db_idx >> 5) * 4;
-					  uint32_t client_off = client_idx * 0x20;
-					  
-					  uint32_t& bitmap_val = getMember<uint32_t>(that, 0xdc + word_off + client_off);
-					  bitmap_val |= (1 << (local_db_idx & 0x1f));
-					  
-					  if (db_id == 0x100) return 0x100;
-				  }
-		  
-		
-		
-	  uVar9 = (unsigned long)db_id;
-	  uVar6 = (uint)db_id;
-	  local_50 = piVar1;
-	  setDoorbellPinning(that,db_id,param_2);
-	  param_1->status = uVar6;
-	  *(u64 *)pgVar7 = 1;
-	
-	/*
-	intel_de_write(display, 0x19dd, 1);
-	while ((intel_de_read(display, 0x19dd) & 1) != 0) {
-				// Spinwait
+	uint16_t db_id = allocDoorbellId(that);
+
+	if (db_id == 0x100) {
+		db_id = stealDoorbellId(that);
+
+		guc_ct_buffer_desc0* victim =
+			getMember<guc_ct_buffer_desc0*>(that, 0x1e0 + (uint64_t)db_id * 8);
+		if (victim)
+			releaseDoorbell(that, victim);
+
+		uint16_t per      = getMember<uint16_t>(that, 0x9e0);
+		uint16_t local_db = db_id % per;
+		uint32_t client   = (uint8_t)(db_id / per);
+		uint32_t& bitmap  = getMember<uint32_t>(that, 0xdc + (local_db >> 5) * 4 + client * 0x20);
+		bitmap |= 1u << (local_db & 0x1f);
+
+		if (db_id == 0x100)
+			return 0x100;
 	}
-	*/
-	
-	  local_40 = 0x10;
-	  local_3c = (u32)param_1->host_private;
-	  local_58 = uVar9;
-	   hostToGuCAction(that,&local_40,2,0xf,&local_5c);
 
-	  uVar8 = db_id;
-	  if ((local_5c >> 0x16 & 1) == 0) {
-		pgVar7->addr = 0;
-	  }
-	  else {
-		*(guc_ct_buffer_desc0 **)(&getMember<void*>(that, 0x1e0) + local_58 * 8) = param_1;
-		  getMember<void*>(that, 0x1e0 + static_cast<uint64_t>(local_58) * 8) = param_1;
-		uVar6 = local_5c >> 10 & 0xfc0;
-		pgVar7 = (guc_ct_buffer_desc0 *)
-				 ((long)(piVar1->ctbs[uVar10 * 2].desc)->reserved + ((unsigned long)uVar6 - 0x30));
-		piVar1->ctbs[uVar10 * 2].desc = pgVar7;
-		param_1->tail = param_1->tail + uVar6;
-		param_1->is_in_error = param_1->is_in_error + uVar6;
-		puVar4 = local_50->ctbs[uVar10 * 2].cmds;
-		*(guc_ct_buffer_desc0 **)(puVar4 + 1) = pgVar7;
-		*puVar4 = (u32)param_1->host_private;
-		puVar4[10] = param_1[0x141].owner;
-		  
-	  }
-	
-		return db_id;
+	uint64_t db = db_id;
+
+	setDoorbellPinning(that, db_id, param_2);
+	param_1->status = db_id;
+	*(uint64_t*)ctb_desc = 1;
+
+	void* acel = getMember<void*>(that, 0x38);
+	volatile uint8_t* m = getMember<volatile uint8_t*>(acel, 0x1240);
+
+	*(volatile uint32_t*)(m + GEN12_GUC_TLB_INV_CR) = 1;                        // 0x19dd * 8
+	while ((*(volatile uint32_t*)(m + GEN12_GUC_TLB_INV_CR) & 1) != 0) { }
+
+	//if (acel->capabilities & 0x20)
+	//	*(volatile uint32_t*)(m + 0x2030) =
+	//		(uint32_t)*(volatile uint64_t*)(m + 0x2030);
+
+
+	uint32_t msg[2] = { 0x10, (uint32_t)param_1->host_private };
+	uint32_t resp = 0;
+
+	hostToGuCAction(that, msg, 2, 0xf, &resp);
+
+	if (((resp >> 0x16) & 1) == 0) {
+		ctb_desc->addr = 0;
 	}
 	else {
-	  uVar8 = (ushort)param_1->status;
+		*(guc_ct_buffer_desc0**)((uint8_t*)that + 0x1e0 + db * 8) = param_1;
+
+		uint32_t off = (resp >> 10) & 0xFC0;
+		guc_ct_buffer_desc0* new_desc =
+			(guc_ct_buffer_desc0*)((long)ct->ctbs[hp * 2].desc->reserved + ((unsigned long)off - 0x30));
+		ct->ctbs[hp * 2].desc = new_desc;
+
+		param_1->tail        = param_1->tail + off;
+		param_1->is_in_error = param_1->is_in_error + off;
+
+		uint32_t* cmds = ct->ctbs[hp * 2].cmds;
+		*(guc_ct_buffer_desc0**)(cmds + 1) = new_desc;
+		*cmds    = (uint32_t)param_1->host_private;
+		cmds[10] = param_1[0x141].owner;
 	}
 
-	return uVar8;
+	return db_id;
 }
-
 
 IOReturn Gen11::wrapFBClientDoAttribute(void *fbclient, uint32_t attribute, unsigned long *unk1, unsigned long unk2, unsigned long *unk3, unsigned long *unk4,  void *externalMethodArguments) {
 	
@@ -15072,7 +15075,7 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	for ( i = 0; i < 6; i++)
 		getMember<u32[6]>(that, 0x8c)[i]=guc->params[i];
 	
-	//guc_ggtt_invalidate(gt,m_accelerator);
+	guc_ggtt_invalidate(gt,m_accelerator);
 	//if (guc->fw.file_selected.ver.major > 69) intel_guc_ads_reset(guc);
 	//if (guc->fw.file_selected.ver.major < 69) __guc_ads_init0();
 	

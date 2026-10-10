@@ -853,6 +853,8 @@ public:
 	static void releaseDoorbell(void *self,void *ctxDesc);
 	mach_vm_address_t oreleaseDoorbell {};
 	
+	static void releaseDoorbell2(void *self,guc_ct_buffer_desc0 *ctxDesc);
+	
 	static unsigned int allocDoorbellId(void *param_1);
 	mach_vm_address_t oallocDoorbellId {};
 
