@@ -10852,13 +10852,56 @@ struct intel_wopcm {
 };
 
 
+struct i915_ggtt {
+	//struct i915_address_space vm;
+
+	//struct io_mapping iomap;	/* Mapping to our CPU mappable region */
+	//struct resource gmadr;          /* GMADR resource */
+	//resource_size_t mappable_end;	/* End offset that we can CPU map */
+
+	/** "Graphics Stolen Memory" holds the global PTEs */
+	void *gsm;
+	//void (*invalidate)(struct i915_ggtt *ggtt);
+
+	/** PPGTT used for aliasing the PPGTT with the GTT */
+	//struct i915_ppgtt *alias;
+
+	bool do_idle_maps;
+
+	int mtrr;
+
+	/** Bit 6 swizzling required for X tiling */
+	u32 bit_6_swizzle_x;
+	/** Bit 6 swizzling required for Y tiling */
+	u32 bit_6_swizzle_y;
+
+	u32 pin_bias;
+
+	unsigned int num_fences;
+	//struct i915_fence_reg *fence_regs;
+	struct list_head fence_list;
+
+	/**
+	 * List of all objects in gtt_space, currently mmaped by userspace.
+	 * All objects within this list must also be on bound_list.
+	 */
+	struct list_head userfault_list;
+
+	//struct mutex error_mutex;
+	struct drm_mm_node error_capture;
+	struct drm_mm_node uc_fw;
+
+	/** List of GTs mapping this GGTT */
+	struct list_head gt_list;
+};
+
 struct intel_gt {
 	struct drm_i915_private *i915;
 	const char *name;
 	enum intel_gt_type type;
 
 	//struct intel_uncore *uncore;
-	//struct i915_ggtt *ggtt;
+	struct i915_ggtt *ggtt;
 
 	struct intel_uc uc;
 	//struct intel_gsc gsc;

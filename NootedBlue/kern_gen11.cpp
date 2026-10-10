@@ -43,6 +43,7 @@ bool dpcdconf=false;
 int Report=-1;
 bool seng=false;
 void *gucp;
+bool isguc=false;
 
 Gen11 *Gen11::callback = nullptr;
 
@@ -587,6 +588,15 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			 {"__ZN13IGHardwareGuC15hostToGuCActionEPKjjiPj",hostToGuCAction, this->ohostToGuCAction},
 			//{"__ZN13IGHardwareGuC16setupContextPoolEi",setupContextPool, this->osetupContextPool},
 			 {"__ZN12IGScheduler412loadFirmwareEv",loadFirmware, this->oloadFirmware},
+			
+			{"__ZN13IGHardwareGuC15allocDoorbellIdE25UK_GEN11_CONTEXT_PRIORITY",allocDoorbellId, this->oallocDoorbellId},
+			{"__ZN13IGHardwareGuC15stealDoorbellIdEv",stealDoorbellId, this->ostealDoorbellId},
+			{"__ZN13IGHardwareGuC18setDoorbellPinningEtb",setDoorbellPinning, this->osetDoorbellPinning},
+			{"__ZN13IGHardwareGuC17releaseDoorbellIdEt",releaseDoorbellId, this->oreleaseDoorbellId},
+			{"__ZN13IGHardwareGuC15acquireDoorbellEP35UK_GEN11_GUC_CONTEXT_DESCRIPTOR_RECb",acquireDoorbell, this->oacquireDoorbell},
+			{"__ZN13IGHardwareGuC15releaseDoorbellEP35UK_GEN11_GUC_CONTEXT_DESCRIPTOR_REC",releaseDoorbell, this->oreleaseDoorbell},
+			
+			
 			 // {"__ZN13IGHardwareGuC26setupAdditionalDataStructsEv",setupAdditionalDataStructs, this->osetupAdditionalDataStructs},
 			// {"__ZN22IGHardwareGuCWorkQueue11withOptionsEP22IOGraphicsAccelerator2jP37UK_GEN11_SCHED_PROCESS_DESCRIPTOR_REC",IGHardwareGuCWorkQueuewithOptions, this->oIGHardwareGuCWorkQueuewithOptions},
 			 //{"__ZN13IGHardwareGuC14allocContextIdEyb",allocContextId, this->oallocContextId},
@@ -603,15 +613,11 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			 
 			 //{"__ZN20IGHardwareRingBuffer12waitForSpaceEj",waitForSpace, this->owaitForSpace},
 			 //{"__ZN16IntelAccelerator31initHardwareStatusPageRegistersEv",initHardwareStatusPageRegisters, this->oinitHardwareStatusPageRegisters},
-			 /*
-			  https://elixir.bootlin.com/linux/v5.5.19/source/drivers/gpu/drm/i915/gt/uc/intel_guc_submission.c
-			 {"__ZN13IGHardwareGuC15allocDoorbellIdE25UK_GEN11_CONTEXT_PRIORITY",allocDoorbellId, this->oallocDoorbellId},
-			 {"__ZN13IGHardwareGuC15stealDoorbellIdEv",stealDoorbellId, this->ostealDoorbellId},
-			 {"__ZN13IGHardwareGuC18setDoorbellPinningEtb",setDoorbellPinning, this->osetDoorbellPinning},
-			 {"__ZN13IGHardwareGuC17releaseDoorbellIdEt",releaseDoorbellId, this->oreleaseDoorbellId},
-			 {"__ZN13IGHardwareGuC15acquireDoorbellEP35UK_GEN11_GUC_CONTEXT_DESCRIPTOR_RECb",acquireDoorbell, this->oacquireDoorbell},
-			 {"__ZN13IGHardwareGuC15releaseDoorbellEP35UK_GEN11_GUC_CONTEXT_DESCRIPTOR_REC",releaseDoorbell, this->oreleaseDoorbell},
-			 */
+			 
+			 // https://elixir.bootlin.com/linux/v5.5.19/source/drivers/gpu/drm/i915/gt/uc/intel_guc_submission.c
+			
+			
+			 
 			 /*
 			 {"__ZN13IGHardwareGuC13initDoorbellsEv",dovoid},
 			 {"__ZN5IGGuC16ringAllDoorbellsEv",dovoid},
@@ -659,7 +665,6 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		//blit3d mem align patch
 		static const uint8_t f5[] = {0x40, 0xd2, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 		static const uint8_t r5[] = {0x00, 0xe0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-		
 
 		
 			LookupPatchPlus const patches[] = {
@@ -670,7 +675,7 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 				{&kext, f4, r4, arrsize(f4),	1},
 				{&kext, f5, r5, arrsize(f5),	1},
 				
-				
+
 			};
 			PANIC_COND(!LookupPatchPlus::applyAll(patcher, patches , address, size), "nblue", "kextG11HWT Failed to apply patches!");
 
@@ -4007,7 +4012,7 @@ short Gen11::reacquireDoorbell(void *that,uint param_1)
 	return FunctionCast(reacquireDoorbell, callback->oreacquireDoorbell)( that,param_1);
 }
 
-unsigned int Gen11::allocDoorbellId(u32 param_1)
+unsigned int Gen11::allocDoorbellId(void * param_1)
 {
 	return FunctionCast(allocDoorbellId, callback->oallocDoorbellId)( param_1);
 }
@@ -4022,13 +4027,135 @@ void Gen11::setDoorbellPinning(void *that,unsigned short param_1,bool param_2)
 
 void  Gen11::releaseDoorbellId(void *that,unsigned short param_1)
 {
+	
 	FunctionCast(releaseDoorbellId, callback->oreleaseDoorbellId)( that,param_1);
+}
+
+void Gen11::releaseDoorbell(void* self, void* ctxDesc)
+{
+	FunctionCast(releaseDoorbell, callback->oreleaseDoorbell)( self,ctxDesc);
 }
 
 unsigned short Gen11::acquireDoorbell(void* self, void* param_1, bool param_2)
 {
-	return FunctionCast(acquireDoorbell, callback->oacquireDoorbell)( self,param_1,param_2);
+	//return FunctionCast(acquireDoorbell, callback->oacquireDoorbell)( self,param_1,param_2);
+	
+	return acquireDoorbell2(self,(guc_ct_buffer_desc0*)param_1,param_2); // old guc firmware
 }
+
+unsigned short Gen11::acquireDoorbell2(void *that, guc_ct_buffer_desc0 *param_1, bool param_2)
+{
+	struct intel_display *display = NBlue::callback->i915b->display;
+	
+	intel_guc_ct0 *piVar1;
+	void *pIVar2;
+	long *plVar3;
+	u32 *puVar4;
+	char cVar5;
+	uint uVar6;
+	guc_ct_buffer_desc0 *pgVar7;
+	ushort uVar8;
+	unsigned long uVar9;
+	unsigned long uVar10;
+	uint local_5c;
+	unsigned long local_58;
+	intel_guc_ct0 *local_50;
+	ushort db_id;
+	uint local_40;
+	u32 local_3c;
+	long local_38;
+	
+
+	uVar10 = (unsigned long)(uint)param_1->host_private;
+	piVar1 = getMember<intel_guc_ct0*>(that, 0x50);
+	pgVar7 = piVar1->ctbs[uVar10 * 2].desc;
+	if (pgVar7->addr == 0) {
+		  
+				   db_id = allocDoorbellId(that);
+						  
+				  if (db_id == 0x100) {
+					  db_id = stealDoorbellId(that);
+					  
+					  void* db_entry_val = getMember<void*>(that, 0x1e0 + static_cast<uint64_t>(db_id) * 8);
+					  
+					  if (!db_entry_val) {
+						  uint16_t db_per_client = getMember<uint16_t>(that, 0x9e0);
+						  uint16_t local_db_idx = db_id % db_per_client;
+						  uint32_t client_idx = db_id / db_per_client;
+						  uint32_t word_off = (local_db_idx >> 5) * 4;
+						  uint32_t client_off = client_idx * 0x20;
+						  
+						  uint32_t& bitmap_val = getMember<uint32_t>(that, 0xdc + word_off + client_off);
+						  bitmap_val &= ~(1 << (local_db_idx & 0x1f));
+						  
+						  return 0x100;
+					  }
+					  
+					  releaseDoorbell(that, db_entry_val);
+
+					  uint16_t db_per_client = getMember<uint16_t>(that, 0x9e0);
+					  uint16_t local_db_idx = db_id % db_per_client;
+					  uint32_t client_idx = db_id / db_per_client;
+					  
+					  uint32_t word_off = (local_db_idx >> 5) * 4;
+					  uint32_t client_off = client_idx * 0x20;
+					  
+					  uint32_t& bitmap_val = getMember<uint32_t>(that, 0xdc + word_off + client_off);
+					  bitmap_val |= (1 << (local_db_idx & 0x1f));
+					  
+					  if (db_id == 0x100) return 0x100;
+				  }
+		  
+		
+		
+	  uVar9 = (unsigned long)db_id;
+	  uVar6 = (uint)db_id;
+	  local_50 = piVar1;
+	  setDoorbellPinning(that,db_id,param_2);
+	  param_1->status = uVar6;
+	  *(u64 *)pgVar7 = 1;
+	
+	/*
+	intel_de_write(display, 0x19dd, 1);
+	while ((intel_de_read(display, 0x19dd) & 1) != 0) {
+				// Spinwait
+	}
+	*/
+	
+	  local_40 = 0x10;
+	  local_3c = (u32)param_1->host_private;
+	  local_58 = uVar9;
+	   hostToGuCAction(that,&local_40,2,0xf,&local_5c);
+
+	  uVar8 = db_id;
+	  if ((local_5c >> 0x16 & 1) == 0) {
+		pgVar7->addr = 0;
+	  }
+	  else {
+		*(guc_ct_buffer_desc0 **)(&getMember<void*>(that, 0x1e0) + local_58 * 8) = param_1;
+		  getMember<void*>(that, 0x1e0 + static_cast<uint64_t>(local_58) * 8) = param_1;
+		uVar6 = local_5c >> 10 & 0xfc0;
+		pgVar7 = (guc_ct_buffer_desc0 *)
+				 ((long)(piVar1->ctbs[uVar10 * 2].desc)->reserved + ((unsigned long)uVar6 - 0x30));
+		piVar1->ctbs[uVar10 * 2].desc = pgVar7;
+		param_1->tail = param_1->tail + uVar6;
+		param_1->is_in_error = param_1->is_in_error + uVar6;
+		puVar4 = local_50->ctbs[uVar10 * 2].cmds;
+		*(guc_ct_buffer_desc0 **)(puVar4 + 1) = pgVar7;
+		*puVar4 = (u32)param_1->host_private;
+		puVar4[10] = param_1[0x141].owner;
+		  
+	  }
+	
+		return db_id;
+	}
+	else {
+	  uVar8 = (ushort)param_1->status;
+	}
+
+	return uVar8;
+}
+
 
 IOReturn Gen11::wrapFBClientDoAttribute(void *fbclient, uint32_t attribute, unsigned long *unk1, unsigned long unk2, unsigned long *unk3, unsigned long *unk4,  void *externalMethodArguments) {
 	
@@ -4086,10 +4213,7 @@ IOReturn Gen11::wrapFBClientDoAttribute(void *fbclient, uint32_t attribute, unsi
 	return FunctionCast(wrapFBClientDoAttribute, callback->orgFBClientDoAttribute)(fbclient, attribute, unk1, unk2, unk3, unk4,  externalMethodArguments);
 }
 
-void Gen11::releaseDoorbell(void* self, void* ctxDesc)
-{
-	FunctionCast(releaseDoorbell, callback->oreleaseDoorbell)( self,ctxDesc);
-}
+
 
 
 
@@ -4925,6 +5049,89 @@ static void intel_engine_sanitize_mmio(struct intel_engine_cs *engine)
 	intel_engine_set_hwsp_writemask(engine, ~0u);
 }
 
+#define LONG_MAX	((long)(~0UL >> 1))
+#define	MAX_SCHEDULE_TIMEOUT		LONG_MAX
+
+static inline unsigned int jiffies_to_usecs(const unsigned long j)
+{
+
+
+	return (USEC_PER_SEC / 1000) * j;
+}
+
+static inline u64 jiffies_to_nsecs(const unsigned long j)
+{
+	return (u64)jiffies_to_usecs(j) * NSEC_PER_USEC;
+}
+
+static inline unsigned int jiffies_to_msecs(const unsigned long j)
+{
+	return (1000L / 1000) * j;
+}
+
+u64 intel_clamp_heartbeat_interval_ms(struct intel_engine_cs *engine, u64 value)
+{
+	value = min( value, jiffies_to_msecs(MAX_SCHEDULE_TIMEOUT));
+
+	return value;
+}
+
+u64 intel_clamp_max_busywait_duration_ns(struct intel_engine_cs *engine, u64 value)
+{
+	value = min(value, jiffies_to_nsecs(2));
+
+	return value;
+}
+
+#define GUC_POLICY_MAX_EXEC_QUANTUM_US		(100 * 1000 * 1000UL)
+#define GUC_POLICY_MAX_PREEMPT_TIMEOUT_US	(100 * 1000 * 1000UL)
+static inline u32 guc_policy_max_preempt_timeout_ms(void)
+{
+	return GUC_POLICY_MAX_PREEMPT_TIMEOUT_US / 1000;
+}
+
+u64 intel_clamp_preempt_timeout_ms(struct intel_engine_cs *engine, u64 value)
+{
+	/*
+	 * NB: The GuC API only supports 32bit values. However, the limit is further
+	 * reduced due to internal calculations which would otherwise overflow.
+	 */
+	if (intel_guc_submission_is_wanted(gt_to_guc(engine->gt)))
+		value = min( value, guc_policy_max_preempt_timeout_ms());
+
+	value = min( value, jiffies_to_msecs(MAX_SCHEDULE_TIMEOUT));
+
+	return value;
+}
+
+u64 intel_clamp_stop_timeout_ms(struct intel_engine_cs *engine, u64 value)
+{
+	value = min( value, jiffies_to_msecs(MAX_SCHEDULE_TIMEOUT));
+
+	return value;
+}
+
+#define GUC_POLICY_MAX_EXEC_QUANTUM_US		(100 * 1000 * 1000UL)
+#define GUC_POLICY_MAX_PREEMPT_TIMEOUT_US	(100 * 1000 * 1000UL)
+static inline u32 guc_policy_max_exec_quantum_ms(void)
+{
+	return GUC_POLICY_MAX_EXEC_QUANTUM_US / 1000;
+}
+
+u64 intel_clamp_timeslice_duration_ms(struct intel_engine_cs *engine, u64 value)
+{
+	/*
+	 * NB: The GuC API only supports 32bit values. However, the limit is further
+	 * reduced due to internal calculations which would otherwise overflow.
+	 */
+	if (intel_guc_submission_is_wanted(gt_to_guc(engine->gt)))
+		value = min( value, guc_policy_max_exec_quantum_ms());
+
+	value = min( value, jiffies_to_msecs(MAX_SCHEDULE_TIMEOUT));
+
+	return value;
+}
+
 static int intel_engine_setup(struct intel_gt *gt, enum intel_engine_id id2,
 				  u8 logical_instance)
 {
@@ -5001,14 +5208,11 @@ static int intel_engine_setup(struct intel_gt *gt, enum intel_engine_id id2,
 	if (GRAPHICS_VER(i915) == 12 && (engine->flags & I915_ENGINE_HAS_RCS_REG_STATE))
 		engine->props.preempt_timeout_ms = CONFIG_DRM_I915_PREEMPT_TIMEOUT_COMPUTE;
 
-/*
+
 #define CLAMP_PROP(field) \
 	do { \
 		u64 clamp = intel_clamp_##field(engine, engine->props.field); \
 		if (clamp != engine->props.field) { \
-			drm_notice(&engine->i915->drm, \
-				   "Warning, clamping %s to %lld to prevent overflow\n", \
-				   #field, clamp); \
 			engine->props.field = clamp; \
 		} \
 	} while (0)
@@ -5020,7 +5224,7 @@ static int intel_engine_setup(struct intel_gt *gt, enum intel_engine_id id2,
 	CLAMP_PROP(timeslice_duration_ms);
 
 #undef CLAMP_PROP
-*/
+
 	engine->defaults = engine->props;
 
 	engine->context_size = intel_engine_context_size(gt, engine->classb);
@@ -5389,6 +5593,7 @@ void intel_gt_apply_workarounds(struct intel_gt *gt)
 	wa_list_apply(&gt->wa_list);
 }
 
+
 void Gen11::engines(void *that)
 {
 	struct drm_i915_private *i915 = NBlue::callback->i915b;
@@ -5399,8 +5604,11 @@ void Gen11::engines(void *that)
 	struct intel_guc *guc = gt_to_guc(gt);
 	struct intel_guc_ct *ct=&guc->ct;
 	
-	gt->submission_method = INTEL_SUBMISSION_GUC;
-
+	if (isguc)
+		gt->submission_method = INTEL_SUBMISSION_GUC;
+	else
+		gt->submission_method = INTEL_SUBMISSION_ELSP;
+	
 	gen12_sseu_info_init(gt);
 	gen11_sseu_device_status(gt, &gt->info.sseu);
 	
@@ -5425,7 +5633,7 @@ void Gen11::engines(void *that)
 		intel_engine_init_tlb_invalidation(engine);
 		engine->sseu =	intel_sseu_from_device_info(&engine->gt->info.sseu);
 		
-		engine->sched_engine = i915_sched_engine_create(0);
+		engine->sched_engine = i915_sched_engine_create(2);//ENGINE_VIRTUAL
 		engine->sched_engine->private_data = engine;
 		
 		intel_engine_init_workarounds(engine);
@@ -5439,25 +5647,28 @@ void Gen11::engines(void *that)
 		
 	}
 	
-	INIT_LIST_HEAD(&ct->requests.pending);
-	INIT_LIST_HEAD(&ct->requests.incoming);
-	INIT_LIST_HEAD(&guc->submission_state.guc_id_list);
-	INIT_LIST_HEAD(&guc->submission_state.destroyed_contexts);
-	guc->submission_state.sched_disable_delay_ms = SCHED_DISABLE_DELAY_MS;
-	guc->submission_state.num_guc_ids = GUC_MAX_CONTEXT_ID;
-	guc->submission_state.sched_disable_gucid_threshold =
+	if (isguc)
+	{
+		//intel_guc_init_early
+		INIT_LIST_HEAD(&ct->requests.pending);
+		INIT_LIST_HEAD(&ct->requests.incoming);
+		INIT_LIST_HEAD(&guc->submission_state.guc_id_list);
+		INIT_LIST_HEAD(&guc->submission_state.destroyed_contexts);
+		guc->submission_state.sched_disable_delay_ms = SCHED_DISABLE_DELAY_MS;
+		guc->submission_state.num_guc_ids = GUC_MAX_CONTEXT_ID;
+		guc->submission_state.sched_disable_gucid_threshold =
 		NUM_SCHED_DISABLE_GUCIDS_DEFAULT_THRESHOLD(guc);
-	if (gt->type == GT_MEDIA) {
-		guc->notify_reg = MEDIA_GUC_HOST_INTERRUPT;
-		guc->send_regs.base = i915_mmio_reg_offset(MEDIA_SOFT_SCRATCH(0));
-	} else {
-		guc->notify_reg = GEN11_GUC_HOST_INTERRUPT;
-		guc->send_regs.base = i915_mmio_reg_offset(GEN11_SOFT_SCRATCH(0));
+		if (gt->type == GT_MEDIA) {
+			guc->notify_reg = MEDIA_GUC_HOST_INTERRUPT;
+			guc->send_regs.base = i915_mmio_reg_offset(MEDIA_SOFT_SCRATCH(0));
+		} else {
+			guc->notify_reg = GEN11_GUC_HOST_INTERRUPT;
+			guc->send_regs.base = i915_mmio_reg_offset(GEN11_SOFT_SCRATCH(0));
+		}
+		guc->send_regs.count = GEN11_SOFT_SCRATCH_COUNT;
+		guc->submission_supported = true;
+		guc->submission_selected = true;
 	}
-	guc->send_regs.count = GEN11_SOFT_SCRATCH_COUNT;
-	guc->submission_supported = true;
-	guc->submission_selected = true;
-	
 	
 }
 
@@ -7789,16 +8000,7 @@ static u32 intel_get_frame_time_us(const struct intel_crtc_state *crtc_state)
 
 #define MAX_JIFFY_OFFSET ((LONG_MAX >> 1)-1)
 
-static inline unsigned int jiffies_to_usecs(const unsigned long j)
-{
-	/*
-	 * Hz usually doesn't go much further MSEC_PER_SEC.
-	 * jiffies_to_usecs() and usecs_to_jiffies() depend on that.
-	 */
-//	BUILD_BUG_ON(HZ > USEC_PER_SEC);
 
-	return (USEC_PER_SEC / 1000) * j;
-}
 static inline unsigned long _usecs_to_jiffies(const unsigned int u)
 {
 	return (u + (USEC_PER_SEC / 1000) - 1) / (USEC_PER_SEC / 1000);
@@ -14689,7 +14891,7 @@ static void tgl_setup_private_ppat(struct intel_display *display)
 unsigned long Gen11::loadGuCBinary(void *that)
 {
 	if (gucp!=nullptr) return 1;
-	
+	isguc=true;
 	struct drm_i915_private *i915=NBlue::callback->i915b;
 	struct intel_gt *gt=to_gt(i915);
 	struct intel_display *display = i915->display;
@@ -14736,9 +14938,9 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	} else if (display->platform.alderlake_s) {
 		fw = getFWByName("adlp_guc_62.0.3.bin");
 	} else if (display->platform.rocketlake) {
-
+		
 	} else if (display->platform.tigerlake) {
-
+		
 	}
 	
 	if (!fw.data || fw.size == 0) return 0;
@@ -14861,19 +15063,19 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	
 	/*
 	 if (guc->fw.file_selected.ver.major < 69)
-	for ( i = 0; i < 6; i++)
-	guc->params[i]=getMember<u32[6]>(that, 0x8c)[i];
-	*/
+	 for ( i = 0; i < 6; i++)
+	 guc->params[i]=getMember<u32[6]>(that, 0x8c)[i];
+	 */
 	
 	if (guc->fw.file_selected.ver.major >= 69)	guc_init_params(guc);
-		
+	
 	for ( i = 0; i < 6; i++)
 		getMember<u32[6]>(that, 0x8c)[i]=guc->params[i];
 	
 	//guc_ggtt_invalidate(gt,m_accelerator);
 	//if (guc->fw.file_selected.ver.major > 69) intel_guc_ads_reset(guc);
 	//if (guc->fw.file_selected.ver.major < 69) __guc_ads_init0();
-
+	
 	intel_guc_write_params(guc,m_accelerator);
 	
 	if (guc->fw.file_selected.ver.major < 69)
@@ -14888,7 +15090,7 @@ unsigned long Gen11::loadGuCBinary(void *that)
 		rsa_val = rsa_words[i];
 		intel_de_write(display, UOS_RSA_SCRATCH(i), rsa_val);
 	}
-
+	
 	
 	//uc_fw_xfer()
 	dma_flags = UOS_MOVE;
@@ -14907,14 +15109,14 @@ unsigned long Gen11::loadGuCBinary(void *that)
 			goto fail;
 	}
 	intel_de_write(display, DMA_CTRL,
-			   REG_MASKED_FIELD_DISABLE(dma_flags));
+				   REG_MASKED_FIELD_DISABLE(dma_flags));
 	
 	
 	retryCount = 3;
 	for (count = 0; count < retryCount; count++) {
 		success = false;
 		done    = false;
-
+		
 		innerTimeout = 1000;
 		while (innerTimeout > 0) {
 			
@@ -14923,14 +15125,14 @@ unsigned long Gen11::loadGuCBinary(void *that)
 			ukernel = REG_FIELD_GET(GS_UKERNEL_MASK, status);
 			
 			if (success) {
-					done = true;
-					break;
+				done = true;
+				break;
 			}
 			
 			IODelay(1000);
 			innerTimeout--;
 		}
-
+		
 		if (done)
 			break;
 	}
@@ -14942,8 +15144,7 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	
 	auth = status & GS_AUTH_STATUS_MASK;
 	if (!success)
-	panic("auth %x bootrom %x ukernel %x guc_wopcm_base %x guc_wopcm_size %x",auth,bootrom,ukernel,gt->wopcm.guc.base,gt->wopcm.guc.size);
-
+		panic("auth %x bootrom %x ukernel %x guc_wopcm_base %x guc_wopcm_size %x",auth,bootrom,ukernel,gt->wopcm.guc.base,gt->wopcm.guc.size);
 	
 	
 	return success ? 1 : 0;

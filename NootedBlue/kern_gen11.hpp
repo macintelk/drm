@@ -845,13 +845,15 @@ public:
 	
 	static void engines(void *that);
 	
-	static unsigned short acquireDoorbell(void *self,void *param_1,bool param_2);
+	static unsigned short acquireDoorbell(void* self, void* param_1, bool param_2);
 	mach_vm_address_t oacquireDoorbell {};
+	
+	static unsigned short acquireDoorbell2(void *self,guc_ct_buffer_desc0 *param_1,bool param_2);
 	
 	static void releaseDoorbell(void *self,void *ctxDesc);
 	mach_vm_address_t oreleaseDoorbell {};
-
-	static unsigned int allocDoorbellId(u32 param_1);
+	
+	static unsigned int allocDoorbellId(void *param_1);
 	mach_vm_address_t oallocDoorbellId {};
 
 	static unsigned int stealDoorbellId(void *that);
