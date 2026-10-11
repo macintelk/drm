@@ -589,13 +589,13 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 			//{"__ZN13IGHardwareGuC16setupContextPoolEi",setupContextPool, this->osetupContextPool},
 			 {"__ZN12IGScheduler412loadFirmwareEv",loadFirmware, this->oloadFirmware},
 			
-			{"__ZN13IGHardwareGuC15allocDoorbellIdE25UK_GEN11_CONTEXT_PRIORITY",allocDoorbellId, this->oallocDoorbellId},
+			/*{"__ZN13IGHardwareGuC15allocDoorbellIdE25UK_GEN11_CONTEXT_PRIORITY",allocDoorbellId, this->oallocDoorbellId},
 			{"__ZN13IGHardwareGuC15stealDoorbellIdEv",stealDoorbellId, this->ostealDoorbellId},
 			{"__ZN13IGHardwareGuC18setDoorbellPinningEtb",setDoorbellPinning, this->osetDoorbellPinning},
 			{"__ZN13IGHardwareGuC17releaseDoorbellIdEt",releaseDoorbellId, this->oreleaseDoorbellId},
 			{"__ZN13IGHardwareGuC15acquireDoorbellEP35UK_GEN11_GUC_CONTEXT_DESCRIPTOR_RECb",acquireDoorbell, this->oacquireDoorbell},
 			{"__ZN13IGHardwareGuC15releaseDoorbellEP35UK_GEN11_GUC_CONTEXT_DESCRIPTOR_REC",releaseDoorbell, this->oreleaseDoorbell},
-			
+			*/
 			
 			 // {"__ZN13IGHardwareGuC26setupAdditionalDataStructsEv",setupAdditionalDataStructs, this->osetupAdditionalDataStructs},
 			// {"__ZN22IGHardwareGuCWorkQueue11withOptionsEP22IOGraphicsAccelerator2jP37UK_GEN11_SCHED_PROCESS_DESCRIPTOR_REC",IGHardwareGuCWorkQueuewithOptions, this->oIGHardwareGuCWorkQueuewithOptions},
@@ -666,6 +666,8 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 		static const uint8_t f5[] = {0x40, 0xd2, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 		static const uint8_t r5[] = {0x00, 0xe0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
+
+		
 		
 			LookupPatchPlus const patches[] = {
 				{&kext, f2, r2, arrsize(f2),	1},
@@ -675,7 +677,6 @@ bool Gen11::processKext(KernelPatcher &patcher, size_t index, mach_vm_address_t 
 				{&kext, f4, r4, arrsize(f4),	1},
 				{&kext, f5, r5, arrsize(f5),	1},
 				
-
 			};
 			PANIC_COND(!LookupPatchPlus::applyAll(patcher, patches , address, size), "nblue", "kextG11HWT Failed to apply patches!");
 
@@ -4011,11 +4012,11 @@ short Gen11::reacquireDoorbell(void *that,uint param_1)
 {
 	return FunctionCast(reacquireDoorbell, callback->oreacquireDoorbell)( that,param_1);
 }
-
+/*
 unsigned int Gen11::allocDoorbellId(void * param_1)
 {
 	return FunctionCast(allocDoorbellId, callback->oallocDoorbellId)( param_1);
-}
+}*/
 unsigned int Gen11::stealDoorbellId(void *that)
 {
 	return FunctionCast(stealDoorbellId, callback->ostealDoorbellId)( that);
@@ -4036,6 +4037,54 @@ void Gen11::releaseDoorbell(void* self, void* ctxDesc)
 	//FunctionCast(releaseDoorbell, callback->oreleaseDoorbell)( self,ctxDesc);
 	releaseDoorbell2(self,(guc_ct_buffer_desc0*)ctxDesc);
 }
+
+unsigned int Gen11::allocDoorbellId(void* param_1)
+{
+
+	uint8_t numBanks = getMember<uint8_t>(param_1, 0x9e2);
+	if (numBanks == 0)
+		return 0x100;
+
+	uint16_t per   = getMember<uint16_t>(param_1, 0x9e0);
+	uint16_t words = per >> 5;
+
+	uint32_t bank = getMember<uint8_t>(param_1, 0x9e3);
+	uint32_t prev = 0;
+
+	for (uint32_t i = 0; i < numBanks; i++) {
+
+		uint32_t next = 0;
+		if (bank != 8) {
+			bank = bank + 1;
+			if (bank < numBanks)
+				next = bank;
+			else if (bank > numBanks)
+				next = prev;
+		}
+		bank = next;
+
+		uint32_t base = per * bank;
+		for (uint32_t w = 0; w < words; w++, base += 0x20) {
+			uint32_t& bits = getMember<uint32_t>(param_1, 0xdc + bank * 0x20 + w * 4);
+			if (bits == 0xffffffff)
+				continue;
+
+			for (uint32_t b = 0; b < 0x20; b++) {
+				if ((bits & (1u << b)) == 0) {
+					bits |= 1u << b;
+					getMember<uint8_t>(param_1, 0x9e3) = (uint8_t)bank;
+					return (unsigned short)(base + b);
+				}
+			}
+		}
+
+		getMember<uint8_t>(param_1, 0x9e3) = (uint8_t)bank;
+		prev = bank;
+	}
+
+	return 0x100;
+}
+
 
 void Gen11::releaseDoorbell2(void* self, guc_ct_buffer_desc0* ctxDesc)
 {
@@ -4124,7 +4173,7 @@ unsigned short Gen11::acquireDoorbell2(void* that, guc_ct_buffer_desc0* param_1,
 	void* acel = getMember<void*>(that, 0x38);
 	volatile uint8_t* m = getMember<volatile uint8_t*>(acel, 0x1240);
 
-	*(volatile uint32_t*)(m + GEN12_GUC_TLB_INV_CR) = 1;                        // 0x19dd * 8
+	*(volatile uint32_t*)(m + GEN12_GUC_TLB_INV_CR) = 1;
 	while ((*(volatile uint32_t*)(m + GEN12_GUC_TLB_INV_CR) & 1) != 0) { }
 
 	//if (acel->capabilities & 0x20)
@@ -4158,6 +4207,7 @@ unsigned short Gen11::acquireDoorbell2(void* that, guc_ct_buffer_desc0* param_1,
 	}
 
 	return db_id;
+	
 }
 
 IOReturn Gen11::wrapFBClientDoAttribute(void *fbclient, uint32_t attribute, unsigned long *unk1, unsigned long unk2, unsigned long *unk3, unsigned long *unk4,  void *externalMethodArguments) {
@@ -15062,16 +15112,17 @@ unsigned long Gen11::loadGuCBinary(void *that)
 	guc->ads_map.vaddr = (void*)guc->ads_vma->node.vadr;
 	guc->ads_map.is_iomem = false;
 	
-	if (guc->fw.file_selected.ver.major < 69) guc_init_params0(guc); //35.2
+	//if (guc->fw.file_selected.ver.major < 69) guc_init_params0(guc); //35.2
 	
-	/*
+	
 	 if (guc->fw.file_selected.ver.major < 69)
 	 for ( i = 0; i < 6; i++)
 	 guc->params[i]=getMember<u32[6]>(that, 0x8c)[i];
-	 */
+	 
 	
 	if (guc->fw.file_selected.ver.major >= 69)	guc_init_params(guc);
 	
+	if (guc->fw.file_selected.ver.major >= 69)
 	for ( i = 0; i < 6; i++)
 		getMember<u32[6]>(that, 0x8c)[i]=guc->params[i];
 	

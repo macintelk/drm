@@ -165,7 +165,7 @@
 		<key>ForceDisableEDRAM</key>
 		<integer>0</integer>
 		<key>GraphicsSchedulerSelect</key>
-		<integer>5</integer>
+		<integer>4</integer>
 		<key>MetalCoalesce</key>
 		<integer>1</integer>
 		<key>MultiForceWakeSelect</key>
