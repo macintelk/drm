@@ -25,3 +25,8 @@ device-id1 499A0000
 rename edid0 to edid to inject display edid
 
 nblue will load based on installed kexts and injected device-id
+
+
+if u want metal check whateverxe project
+
+<img width="671" height="439" alt="xxx" src="https://github.com/user-attachments/assets/e087823c-8041-46c8-8c61-9057138292bc" />
