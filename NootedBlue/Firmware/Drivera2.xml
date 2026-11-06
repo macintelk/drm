@@ -233,6 +233,8 @@
 	<string>Gen10</string>
 	<key>IOGVACodec</key>
 	<string>Gen10</string>
+	<key>IOGVAHEVCDecode</key>
+	<string>2</string>
 	<key>IOGVAHEVCDecodeCapabilities</key>
 	<dict>
 		<key>VTPerProfileDetails</key>
